@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+  <defs>
+    <linearGradient id="tropSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="60%" stop-color="#7DD3FC"/>
+      <stop offset="100%" stop-color="#E0F2FE"/>
+    </linearGradient>
+    <linearGradient id="turqSea" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="50%" stop-color="#0891B2"/>
+      <stop offset="100%" stop-color="#0E7490"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="110" fill="url(#tropSky)"/>
+  <rect x="0" y="110" width="300" height="60" fill="url(#turqSea)"/>
+  <!-- White Sand Beach -->
+  <path d="M 0 160 Q 150 145 300 170 L 300 200 L 0 200 Z" fill="#FEF3C7"/>
+
+  <!-- Curved Palm Tree leaning over the water -->
+  <path d="M 40 200 Q 80 120 160 80" stroke="#78350F" stroke-width="9" stroke-linecap="round" fill="none"/>
+  <!-- Fronds -->
+  <path d="M 160 80 Q 190 60 230 70" stroke="#15803D" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 160 80 Q 200 80 240 100" stroke="#16A34A" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 160 80 Q 180 105 210 125" stroke="#15803D" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 160 80 Q 150 50 160 30" stroke="#22C55E" stroke-width="5" stroke-linecap="round" fill="none"/>
+  <path d="M 160 80 Q 130 65 110 75" stroke="#16A34A" stroke-width="5" stroke-linecap="round" fill="none"/>
+</svg>

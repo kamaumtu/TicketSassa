@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
+  <defs>
+    <linearGradient id="talantaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#F59E0B" />
+    </linearGradient>
+  </defs>
+  <!-- Architectural Stadium Ring Icon -->
+  <g transform="translate(10, 10)">
+    <rect width="60" height="60" rx="16" fill="#0C1422" stroke="#1E293B" stroke-width="2" />
+    <ellipse cx="30" cy="30" rx="22" ry="14" fill="none" stroke="url(#talantaGrad)" stroke-width="3.5" />
+    <ellipse cx="30" cy="30" rx="14" ry="8" fill="#10B981" opacity="0.4" />
+    <circle cx="30" cy="30" r="3.5" fill="#F59E0B" />
+    <!-- Light beam arcs -->
+    <path d="M 18 16 A 16 16 0 0 1 42 16" fill="none" stroke="#34D399" stroke-width="2" stroke-linecap="round" />
+  </g>
+  <!-- Typography -->
+  <text x="82" y="38" fill="#FFFFFF" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="22" letter-spacing="1.5">TALANTA</text>
+  <text x="82" y="58" fill="#10B981" font-family="'JetBrains Mono', monospace" font-weight="700" font-size="11" letter-spacing="3">SPORTS CITY • NAIROBI</text>
+</svg>

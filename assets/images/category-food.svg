@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <defs>
+    <linearGradient id="foodAtmosphere" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B"/>
+      <stop offset="40%" stop-color="#D97706"/>
+      <stop offset="80%" stop-color="#78350F"/>
+      <stop offset="100%" stop-color="#451A03"/>
+    </linearGradient>
+    <radialGradient id="bokehGlow" cx="50%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#FEF08A" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="240" fill="url(#foodAtmosphere)"/>
+  
+  <!-- Warm Bokeh Restaurant Lights -->
+  <circle cx="60" cy="50" r="35" fill="url(#bokehGlow)"/>
+  <circle cx="160" cy="30" r="45" fill="url(#bokehGlow)"/>
+  <circle cx="260" cy="65" r="40" fill="url(#bokehGlow)"/>
+  <circle cx="110" cy="90" r="25" fill="#FEF3C7" opacity="0.4"/>
+  <circle cx="210" cy="85" r="28" fill="#FDE68A" opacity="0.5"/>
+
+  <!-- Dining Table in foreground -->
+  <rect x="0" y="165" width="320" height="75" fill="#271708"/>
+  <line x1="0" y1="165" x2="320" y2="165" stroke="#FBBF24" stroke-width="2" opacity="0.6"/>
+
+  <!-- Person 1 (Left friend in orange jacket laughing) -->
+  <circle cx="80" cy="115" r="26" fill="#D97706"/>
+  <ellipse cx="80" cy="112" rx="22" ry="24" fill="#78350F"/>
+  <path d="M 50 170 Q 55 135 80 135 Q 105 135 110 170 Z" fill="#EA580C"/>
+
+  <!-- Person 2 (Middle friend smiling with afro) -->
+  <circle cx="160" cy="100" r="32" fill="#451A03"/>
+  <ellipse cx="160" cy="105" rx="20" ry="22" fill="#92400E"/>
+  <path d="M 125 170 Q 135 130 160 130 Q 185 130 195 170 Z" fill="#FBBF24"/>
+
+  <!-- Person 3 (Right friend holding drink) -->
+  <circle cx="240" cy="115" r="26" fill="#B45309"/>
+  <ellipse cx="240" cy="112" rx="22" ry="24" fill="#78350F"/>
+  <path d="M 210 170 Q 215 135 240 135 Q 265 135 270 170 Z" fill="#0D9488"/>
+
+  <!-- Cocktails on Table -->
+  <!-- Drink 1: Tropical Punch -->
+  <polygon points="120,165 130,135 145,135 135,165" fill="#EF4444" opacity="0.9"/>
+  <line x1="125" y1="165" x2="140" y2="165" stroke="#E2E8F0" stroke-width="3"/>
+  <circle cx="145" cy="132" r="7" fill="#FBBF24"/>
+  <line x1="140" y1="120" x2="132" y2="155" stroke="#FFFFFF" stroke-width="2.5"/>
+
+  <!-- Drink 2: Mojito Glass -->
+  <rect x="180" y="132" width="18" height="33" rx="3" fill="#10B981" opacity="0.85"/>
+  <line x1="184" y1="122" x2="194" y2="155" stroke="#F8FAFC" stroke-width="2"/>
+  <circle cx="180" cy="135" r="6" fill="#84CC16"/>
+
+  <!-- Ambient Toasting Glow -->
+  <circle cx="160" cy="140" r="35" fill="#FEF08A" opacity="0.25"/>
+</svg>

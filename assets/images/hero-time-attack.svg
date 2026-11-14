@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" width="1200" height="600">
+  <defs>
+    <radialGradient id="heroBg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1E163B" />
+      <stop offset="60%" stop-color="#0A0F1D" />
+      <stop offset="100%" stop-color="#04070D" />
+    </radialGradient>
+    <linearGradient id="stadiumGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F0FF" />
+      <stop offset="50%" stop-color="#FF2A54" />
+      <stop offset="100%" stop-color="#FFB800" />
+    </linearGradient>
+    <linearGradient id="carBody" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF0055" />
+      <stop offset="50%" stop-color="#FF5500" />
+      <stop offset="100%" stop-color="#FFAA00" />
+    </linearGradient>
+    <linearGradient id="trackAsphalt" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E2538" />
+      <stop offset="100%" stop-color="#0F131E" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="600" fill="url(#heroBg)" />
+
+  <!-- Stadium Lighting -->
+  <g opacity="0.4">
+    <polygon points="200,0 150,450 350,450" fill="url(#stadiumGlow)" opacity="0.3" />
+    <polygon points="600,0 500,450 700,450" fill="url(#stadiumGlow)" opacity="0.4" />
+    <polygon points="1000,0 850,450 1050,450" fill="url(#stadiumGlow)" opacity="0.3" />
+  </g>
+
+  <!-- Futuristic Raila Odinga Stadium Hull -->
+  <ellipse cx="600" cy="220" rx="540" ry="160" fill="none" stroke="#1E293B" stroke-width="4" stroke-dasharray="16 8" />
+  <ellipse cx="600" cy="220" rx="500" ry="130" fill="none" stroke="url(#stadiumGlow)" stroke-width="6" opacity="0.8" />
+  <path d="M 120 220 C 300 60, 900 60, 1080 220" fill="none" stroke="#00F0FF" stroke-width="4" />
+  <path d="M 200 220 C 350 100, 850 100, 1000 220" fill="none" stroke="#FF2A54" stroke-width="3" opacity="0.7" />
+
+  <!-- Crowd Silhouettes -->
+  <ellipse cx="600" cy="260" rx="440" ry="70" fill="#151C2C" />
+  <circle cx="350" cy="240" r="80" fill="#00F0FF" opacity="0.15" />
+  <circle cx="850" cy="240" r="80" fill="#FF2A54" opacity="0.15" />
+
+  <!-- Asphalt Racetrack Surface -->
+  <path d="M 0 380 Q 600 320 1200 380 L 1200 600 L 0 600 Z" fill="url(#trackAsphalt)" />
+  <path d="M 0 410 Q 600 350 1200 410" fill="none" stroke="#FF2A54" stroke-width="12" stroke-dasharray="30 20" />
+  <path d="M 0 422 Q 600 362 1200 422" fill="none" stroke="#FFFFFF" stroke-width="12" stroke-dasharray="30 20" />
+
+  <!-- Drift Smoke Cloud -->
+  <ellipse cx="480" cy="470" rx="160" ry="40" fill="#FFFFFF" opacity="0.2" />
+  <ellipse cx="550" cy="460" rx="120" ry="35" fill="#00F0FF" opacity="0.15" />
+
+  <!-- Time Attack Drift Sports Car -->
+  <g transform="translate(520, 390)">
+    <ellipse cx="40" cy="75" rx="22" ry="16" fill="#0A0A0A" stroke="#FFB800" stroke-width="3" />
+    <ellipse cx="190" cy="75" rx="24" ry="18" fill="#0A0A0A" stroke="#FFB800" stroke-width="3" />
+    <path d="M 10 70 L 30 45 L 80 40 L 130 25 L 180 25 L 210 50 L 230 65 L 225 72 L 10 72 Z" fill="url(#carBody)" />
+    <path d="M 85 38 L 125 28 L 175 28 L 195 48 L 85 48 Z" fill="#0B0E14" stroke="#00F0FF" stroke-width="1.5" />
+    <rect x="5" y="15" width="12" height="35" fill="#1E293B" />
+    <polygon points="0,15 25,12 25,18 0,21" fill="#00F0FF" />
+    <polygon points="230,62 350,55 350,85 230,70" fill="#00F0FF" opacity="0.4" />
+  </g>
+
+  <!-- Title Overlay -->
+  <text x="600" y="140" text-anchor="middle" fill="#FFFFFF" font-family="'Space Grotesk', Impact, sans-serif" font-size="48" font-weight="900" letter-spacing="4">TALANTA SPORTS CITY</text>
+  <text x="600" y="180" text-anchor="middle" fill="#00F0FF" font-family="'JetBrains Mono', monospace" font-size="18" font-weight="700" letter-spacing="6">TIME ATTACK • THE LAST LAP • ROUND 4</text>
+</svg>

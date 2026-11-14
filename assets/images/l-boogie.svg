@@ -1,0 +1,164 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 850" width="700" height="850">
+  <defs>
+    <!-- Night club background gradient -->
+    <linearGradient id="nightClub" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0F0C20"/>
+      <stop offset="25%" stop-color="#1E1238"/>
+      <stop offset="50%" stop-color="#2D114D"/>
+      <stop offset="75%" stop-color="#14092B"/>
+      <stop offset="100%" stop-color="#05030A"/>
+    </linearGradient>
+
+    <!-- Metallic Gold/Chrome 3D Gradient for L-BOOGIE -->
+    <linearGradient id="gold3d" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#FEF08A"/>
+      <stop offset="50%" stop-color="#EAB308"/>
+      <stop offset="75%" stop-color="#CA8A04"/>
+      <stop offset="90%" stop-color="#713F12"/>
+      <stop offset="100%" stop-color="#FEF08A"/>
+    </linearGradient>
+
+    <!-- Chrome Mirror Ball Gradient -->
+    <radialGradient id="mirrorBall" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#E2E8F0"/>
+      <stop offset="55%" stop-color="#64748B"/>
+      <stop offset="85%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#090D16"/>
+    </radialGradient>
+
+    <!-- Radial Sparkle Flare -->
+    <radialGradient id="sparkle" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#67E8F9"/>
+      <stop offset="50%" stop-color="#A855F7" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- City Skyline Silhouette -->
+    <linearGradient id="skylineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#0F172A" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Poster Base -->
+  <rect width="700" height="850" fill="url(#nightClub)"/>
+
+  <!-- Radial Beams from Disco Ball -->
+  <g opacity="0.35">
+    <polygon points="350,180 -50,0 50,0" fill="#A855F7"/>
+    <polygon points="350,180 650,0 750,0" fill="#06B6D4"/>
+    <polygon points="350,180 750,300 750,400" fill="#EC4899"/>
+    <polygon points="350,180 -50,300 -50,400" fill="#38BDF8"/>
+    <polygon points="350,180 150,850 250,850" fill="#A855F7"/>
+    <polygon points="350,180 450,850 550,850" fill="#06B6D4"/>
+  </g>
+
+  <!-- Giant Mirror Disco Ball in Center Top -->
+  <g transform="translate(350, 180)">
+    <!-- Glow aura -->
+    <circle cx="0" cy="0" r="180" fill="url(#sparkle)" opacity="0.85"/>
+    <circle cx="0" cy="0" r="140" fill="url(#mirrorBall)"/>
+
+    <!-- Mirror Facets Grid -->
+    <g stroke="#94A3B8" stroke-width="1.2" opacity="0.75">
+      <!-- Latitude rings -->
+      <ellipse cx="0" cy="0" rx="140" ry="140" fill="none"/>
+      <ellipse cx="0" cy="0" rx="138" ry="110" fill="none"/>
+      <ellipse cx="0" cy="0" rx="132" ry="80" fill="none"/>
+      <ellipse cx="0" cy="0" rx="120" ry="50" fill="none"/>
+      <ellipse cx="0" cy="0" rx="100" ry="25" fill="none"/>
+      <!-- Longitude lines -->
+      <line x1="0" y1="-140" x2="0" y2="140"/>
+      <ellipse cx="0" cy="0" rx="40" ry="140" fill="none"/>
+      <ellipse cx="0" cy="0" rx="80" ry="140" fill="none"/>
+      <ellipse cx="0" cy="0" rx="115" ry="140" fill="none"/>
+    </g>
+
+    <!-- Reflective Shimmer Flares -->
+    <circle cx="-50" cy="-45" r="15" fill="#FFFFFF"/>
+    <polygon points="-50,-80 -45,-50 -20,-45 -45,-40 -50,-10 -55,-40 -80,-45 -55,-50" fill="#FFFFFF"/>
+    <circle cx="65" cy="30" r="10" fill="#FFFFFF"/>
+    <polygon points="65,5 68,26 90,30 68,34 65,55 62,34 40,30 62,26" fill="#FFFFFF"/>
+    <circle cx="20" cy="-70" r="8" fill="#67E8F9"/>
+  </g>
+
+  <!-- Distant City Skyline Silhouettes (Nairobi CBD) -->
+  <g fill="#090615" opacity="0.95">
+    <rect x="50" y="520" width="45" height="330"/>
+    <rect x="110" y="480" width="55" height="370"/>
+    <polygon points="110,480 137,430 165,480"/>
+    <rect x="180" y="540" width="40" height="310"/>
+    <rect x="235" y="460" width="70" height="390"/>
+    <rect x="320" y="500" width="60" height="350"/>
+    <rect x="395" y="470" width="65" height="380"/>
+    <rect x="475" y="530" width="45" height="320"/>
+    <rect x="535" y="490" width="55" height="360"/>
+    <polygon points="535,490 562,440 590,490"/>
+    <rect x="605" y="540" width="50" height="310"/>
+  </g>
+
+  <!-- Glowing Neon Heading: "NAIROBI'S BIGGEST OLD SKOOL PARTY" -->
+  <text x="350" y="365" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="19" font-weight="900" letter-spacing="4" fill="#FDE047">
+    NAIROBI'S BIGGEST OLD SKOOL PARTY
+  </text>
+
+  <!-- Giant 3D Chrome Typography: "L-BOOGIE" -->
+  <text x="353" y="473" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="115" letter-spacing="4" fill="#000000" opacity="0.8">
+    L-BOOGIE
+  </text>
+  <text x="350" y="470" text-anchor="middle" font-family="'Impact', 'Arial Black', sans-serif" font-size="115" letter-spacing="4" fill="url(#gold3d)" stroke="#78350F" stroke-width="3">
+    L-BOOGIE
+  </text>
+
+  <!-- Cyan Sub-banner: "THE 2026 ANNUAL DIASPORA REUNION" -->
+  <text x="350" y="515" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="20" font-weight="900" letter-spacing="3" fill="#38BDF8">
+    THE 2026 ANNUAL DIASPORA REUNION
+  </text>
+
+  <!-- Event Details Grid: Date & Venue on Left, DJ Mix Masters on Right -->
+  <g transform="translate(60, 560)">
+    
+    <!-- Left Column: Date & Venue -->
+    <g transform="translate(0, 30)">
+      <!-- Calendar Icon / Pin -->
+      <circle cx="15" cy="15" r="14" fill="#EAB308"/>
+      <path d="M 10 9 L 20 9 L 20 21 L 10 21 Z M 13 6 L 13 9 M 17 6 L 17 9" stroke="#000000" stroke-width="2" fill="none"/>
+      <text x="40" y="12" font-family="sans-serif" font-size="11" font-weight="bold" fill="#FDE047">DATE &amp; TIME</text>
+      <text x="40" y="27" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#FFFFFF">SATURDAY 19TH DECEMBER 2026</text>
+    </g>
+
+    <g transform="translate(0, 95)">
+      <!-- Location Pin -->
+      <circle cx="15" cy="15" r="14" fill="#EAB308"/>
+      <path d="M 15 7 C 11 7 8 10 8 14 C 8 19 15 25 15 25 C 15 25 22 19 22 14 C 22 10 19 7 15 7 Z" fill="#000000"/>
+      <circle cx="15" cy="13" r="3" fill="#EAB308"/>
+      <text x="40" y="12" font-family="sans-serif" font-size="11" font-weight="bold" fill="#FDE047">VENUE</text>
+      <text x="40" y="27" font-family="'Arial Black', sans-serif" font-size="15" font-weight="900" fill="#FFFFFF">RUBY NIGHTCLUB</text>
+      <text x="40" y="44" font-family="sans-serif" font-size="13" font-weight="bold" fill="#94A3B8">AT GLEE NAIROBI</text>
+    </g>
+
+    <!-- Right Column: DJ Box (Bordered as in Screenshot 2) -->
+    <g transform="translate(360, 0)">
+      <rect x="0" y="0" width="220" height="150" rx="8" fill="#0B091A" stroke="#CA8A04" stroke-width="2"/>
+      <text x="15" y="28" font-family="sans-serif" font-size="10" font-weight="900" fill="#FDE047" letter-spacing="1">THE MIX MASTERS:</text>
+      <text x="15" y="55" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">ADRIAN (NBO)</text>
+      <text x="15" y="70" font-family="sans-serif" font-size="10" font-weight="bold" fill="#38BDF8">ALL-VINYL SET</text>
+      
+      <text x="15" y="98" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">NYANDAT (BOS)</text>
+      
+      <text x="15" y="128" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">OTIENO V (ATL)</text>
+    </g>
+
+  </g>
+
+  <!-- Bottom Cyan Ticketsasa Callout Pill (Exact from Screenshot 2) -->
+  <g transform="translate(350, 780)">
+    <rect x="-140" y="-18" width="280" height="36" rx="18" fill="#06B6D4"/>
+    <text x="0" y="6" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#000000" letter-spacing="1">
+      TICKETS AT ticketsasa.com
+    </text>
+  </g>
+</svg>

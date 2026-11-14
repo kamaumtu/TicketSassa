@@ -1,0 +1,404 @@
+/* Custom Modern Styling for Talanta x Ticketsasa x HustleSasa Portal */
+
+:root {
+    --brand-gold: #FFB800;
+    --brand-red: #E11D48;
+    --brand-cyan: #06B6D4;
+    --brand-emerald: #10B981;
+    --brand-purple: #8B5CF6;
+}
+
+/* Subtle grid pattern */
+.bg-grid-pattern {
+    background-size: 40px 40px;
+    background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+}
+
+/* Stadium SVG Interactive Zones */
+.stadium-zone {
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stadium-zone:hover {
+    filter: drop-shadow(0 0 14px rgba(6, 182, 212, 0.85));
+    opacity: 0.95;
+}
+
+.stadium-zone.active-zone {
+    stroke-width: 4px;
+    stroke: #FFFFFF !important;
+    filter: drop-shadow(0 0 20px rgba(255, 184, 0, 0.95));
+}
+
+/* Interactive Seat Selector */
+.seat-btn {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.seat-btn:hover:not(:disabled) {
+    transform: scale(1.18);
+    border-color: #06B6D4;
+    box-shadow: 0 0 10px rgba(6, 182, 212, 0.6);
+}
+
+.seat-btn.selected-seat {
+    background-color: #06B6D4 !important;
+    color: #0F172A !important;
+    border-color: #FFFFFF !important;
+    font-weight: 900 !important;
+    box-shadow: 0 0 14px rgba(6, 182, 212, 0.95);
+    transform: scale(1.12);
+}
+
+.seat-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+
+/* Tip Chips */
+.tip-chip {
+    transition: all 0.2s ease;
+}
+
+.tip-chip:hover {
+    border-color: #8B5CF6;
+    color: #FFFFFF;
+}
+
+.tip-chip.active-tip {
+    background-color: #8B5CF6 !important;
+    color: #FFFFFF !important;
+    border-color: #A78BFA !important;
+    font-weight: 700;
+}
+
+/* Cards */
+.tier-card {
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+.tier-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #080C14;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1E293B;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
+
+/* Print styling for Digital QR Ticket Pass */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #pass-modal, #pass-modal * {
+        visibility: visible;
+    }
+    #pass-modal {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: white !important;
+        color: black !important;
+    }
+}
+
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+:focus-visible {
+    outline: 2px solid #be123c;
+    outline-offset: 3px;
+}
+
+.skip-link {
+    position: fixed;
+    top: .5rem;
+    left: .5rem;
+    z-index: 60;
+    padding: .65rem 1rem;
+    border-radius: .5rem;
+    background: #fff;
+    color: #172033;
+    transform: translateY(-200%);
+}
+
+.skip-link:focus {
+    transform: none;
+}
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.85);
+    box-shadow: 0 4px 20px -4px rgba(15, 23, 42, 0.05);
+    transition: all 0.3s ease;
+}
+
+.site-header-inner {
+    max-width: 80rem;
+    margin: auto;
+    padding: .5rem clamp(.75rem, 2vw, 2rem);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: .25rem .75rem;
+}
+
+.site-brand {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    transition: transform 0.2s ease;
+}
+
+.site-brand:hover {
+    transform: scale(1.02);
+}
+
+.site-brand img {
+    width: min(100%, 9.5rem);
+    height: auto;
+}
+
+.site-actions,
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.site-actions button,
+.site-nav a,
+.section-nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem;
+    min-height: 40px;
+    padding: .35rem .75rem;
+    color: #334155;
+    font-size: .875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    border-radius: 9999px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.site-actions button {
+    background: #f1f5f9;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.site-actions button:hover {
+    background: #e2e8f0;
+    color: #0f172a;
+    transform: translateY(-1px);
+}
+
+.site-nav a:hover,
+.section-nav a:hover {
+    background: rgba(225, 29, 72, 0.08);
+    color: #be123c;
+}
+
+.site-nav a[aria-current="page"] {
+    background: #be123c !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(190, 18, 60, 0.25);
+}
+
+#mobile-menu-btn[aria-expanded="true"] {
+    background: #fff1f2;
+    color: #9f1239;
+}
+
+#ticket-badge-count:not(.hidden) {
+    min-width: 1.2rem;
+    padding: 0 .2rem;
+    border-radius: .5rem;
+    background: #be123c;
+    color: #fff;
+    text-align: center;
+}
+
+.site-nav {
+    display: none;
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 45vh;
+    overflow: auto;
+}
+
+.site-nav.is-open {
+    display: grid;
+}
+
+.site-nav a {
+    justify-content: flex-start;
+    padding-inline: .75rem;
+}
+
+.section-nav {
+    display: flex;
+    justify-content: center;
+    gap: .5rem;
+    border-top: 1px solid #f1f5f9;
+}
+
+.section-nav[hidden] {
+    display: none;
+}
+
+.tab-view.hidden {
+    display: none;
+}
+
+.tab-view:not(.hidden) {
+    animation: fadeInTab 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fadeInTab {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.tab-view,
+#upcoming-events,
+#trending-events,
+#talanta-stadium-events-hub {
+    scroll-margin-top: 9rem;
+}
+
+/* Glassmorphism surface */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.glass-panel-dark {
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(30, 41, 59, 0.8);
+}
+
+#live-chat-modal,
+#chat-support-modal {
+    max-width: calc(100vw - 3rem);
+}
+
+@media (max-width: 520px) {
+    .site-header-inner {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .site-actions {
+        justify-content: space-between;
+    }
+
+    .site-actions button {
+        font-size: .8rem;
+    }
+
+    .site-brand img {
+        max-width: 7rem;
+    }
+
+    .tab-view,
+    #upcoming-events,
+    #trending-events {
+        scroll-margin-top: 10rem;
+    }
+}
+
+@media (min-width: 960px) {
+    .site-header-inner {
+        grid-template-columns: auto minmax(0, 1fr) auto;
+    }
+
+    .site-nav,
+    .site-nav.is-open {
+        display: flex;
+        grid-column: 2;
+        grid-row: 1;
+        justify-content: center;
+        overflow: visible;
+    }
+
+    .site-actions {
+        grid-column: 3;
+        grid-row: 1;
+    }
+
+    #mobile-menu-btn {
+        display: none;
+    }
+}
+
+.talanta-position {
+    display: grid;
+    grid-template: repeat(3, minmax(2rem, auto)) / repeat(3, minmax(0, 1fr));
+    align-items: center;
+    justify-items: center;
+    gap: .25rem;
+    padding: .6rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 1.5rem;
+    background: #f1f5f9;
+}
+.talanta-position [data-position="A"] { grid-area: 1 / 2; }
+.talanta-position [data-position="B"] { grid-area: 2 / 3; }
+.talanta-position [data-position="C"] { grid-area: 3 / 2; }
+.talanta-position [data-position="D"] { grid-area: 2 / 1; }
+.talanta-position-gate { padding: .25rem .45rem; font-size: .75rem; border-radius: .4rem; color: #334155; }
+.talanta-position-gate[data-selected] { background: #9f1239; color: white; font-weight: 700; }
+.talanta-position-pitch {
+    grid-area: 2 / 2;
+    width: 100%;
+    padding: .5rem .2rem;
+    background: #dcfce7;
+    border: 1px solid #86efac;
+    border-radius: .35rem;
+    text-align: center;
+    font-size: .75rem;
+    color: #14532d;
+}
+
+.airline-choice[aria-pressed="true"] { outline: 2px solid #be123c; outline-offset: -2px; background: #fff1f2; }
+
+#flight-plan-form { scroll-margin-top: 10rem; }

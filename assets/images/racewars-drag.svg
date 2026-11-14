@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 750" width="600" height="750">
+  <defs>
+    <linearGradient id="raceSky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#312E81"/>
+      <stop offset="35%" stop-color="#4F46E5"/>
+      <stop offset="70%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#C7D2FE"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="750" fill="url(#raceSky)"/>
+
+  <!-- Headline: RACEWARS NEW VENUE -->
+  <text x="300" y="195" text-anchor="middle" font-family="'Impact', sans-serif" font-size="54" letter-spacing="4" fill="#FFFFFF">
+    RACEWARS
+  </text>
+  <text x="300" y="235" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="20" font-weight="900" letter-spacing="4" fill="#FACC15">
+    NEW VENUE
+  </text>
+
+  <!-- Tarmac Drag Strip (ICD ROAD) Perspective -->
+  <polygon points="100,750 500,750 320,320 280,320" fill="#18181B"/>
+  <line x1="300" y1="320" x2="300" y2="750" stroke="#FFFFFF" stroke-width="6" stroke-dasharray="25,25"/>
+
+  <!-- Red & White Racing Flags along the track -->
+  <g fill="#EF4444" opacity="0.9">
+    <polygon points="270,360 260,340 270,345"/>
+    <polygon points="250,420 235,395 250,400"/>
+    <polygon points="220,500 195,470 220,475"/>
+    <polygon points="180,600 145,560 180,570"/>
+    
+    <polygon points="330,360 340,340 330,345"/>
+    <polygon points="350,420 365,395 350,400"/>
+    <polygon points="380,500 405,470 380,475"/>
+    <polygon points="420,600 455,560 420,570"/>
+  </g>
+
+  <!-- Big Yellow Title: ULTIMATE DRAG RACE -->
+  <g transform="translate(300, 310)">
+    <rect x="-190" y="-22" width="380" height="44" rx="8" fill="#FACC15"/>
+    <text x="0" y="8" text-anchor="middle" font-family="'Impact', sans-serif" font-size="24" font-weight="900" fill="#000000" letter-spacing="2">
+      ULTIMATE DRAG RACE
+    </text>
+  </g>
+
+  <!-- ICD ROAD Location Pin & Date -->
+  <text x="300" y="380" text-anchor="middle" font-family="'Impact', sans-serif" font-size="34" letter-spacing="2" fill="#FFFFFF">
+    ICD ROAD
+  </text>
+  <text x="300" y="415" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#FDE047">
+    12TH - 13TH SEPT 2026
+  </text>
+
+  <!-- Pricing Details -->
+  <g transform="translate(100, 640)">
+    <rect x="0" y="0" width="400" height="80" rx="8" fill="#000000" opacity="0.85" stroke="#FACC15" stroke-width="2"/>
+    <text x="200" y="30" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">
+      TICKETS AVAILABLE ON WWW.TICKETSASA.COM
+    </text>
+    <text x="200" y="58" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="14" font-weight="900" fill="#FACC15">
+      Advance: Ksh 1,500 | Gate: Ksh 2,500 | All Access: Ksh 3,000
+    </text>
+  </g>
+</svg>

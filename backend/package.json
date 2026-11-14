@@ -1,0 +1,31 @@
+{
+  "name": "talanta-ticketsasa-backend",
+  "version": "1.0.0",
+  "description": "Node.js & MongoDB Atlas Backend for Talanta Sports City & Ticketsasa Portal",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "seed": "node src/seed.js",
+    "check:atlas": "node src/verifyAtlas.js"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "mongodb-atlas",
+    "mongoose",
+    "ticketsasa",
+    "talanta-sports-city",
+    "mpesa-daraja"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "mongoose": "^8.9.5",
+    "qrcode": "^1.5.4"
+  }
+}

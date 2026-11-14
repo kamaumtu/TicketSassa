@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="800" height="500" fill="#0B0E17" />
+  <rect x="30" y="30" width="740" height="280" rx="16" fill="#131B2E" stroke="#38BDF8" stroke-width="3" opacity="0.9" />
+  <ellipse cx="400" cy="180" rx="320" ry="80" fill="#064E3B" />
+  <ellipse cx="400" cy="180" rx="260" ry="50" fill="#10B981" opacity="0.6" />
+  <rect x="0" y="310" width="800" height="190" fill="#1E182A" />
+  <line x1="0" y1="320" x2="800" y2="320" stroke="#F59E0B" stroke-width="4" />
+  <circle cx="400" cy="420" r="50" fill="#2D2342" stroke="#A855F7" stroke-width="2" />
+  <polygon points="390,390 400,370 410,390 402,390 402,405 398,405 398,390" fill="#F59E0B" />
+  <rect x="20" y="430" width="340" height="40" rx="8" fill="#0D1525" stroke="#EF4444" stroke-width="1.5" />
+  <text x="190" y="456" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="14" font-weight="bold">VVIP PRESIDENTIAL ROYAL BOX SUITE</text>
+</svg>

@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 850" width="700" height="850">
+  <defs>
+    <linearGradient id="rxSkyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="35%" stop-color="#2563EB"/>
+      <stop offset="70%" stop-color="#3B82F6"/>
+      <stop offset="100%" stop-color="#60A5FA"/>
+    </linearGradient>
+    <linearGradient id="dirtGround" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D97706"/>
+      <stop offset="50%" stop-color="#B45309"/>
+      <stop offset="100%" stop-color="#78350F"/>
+    </linearGradient>
+    <linearGradient id="chromeText" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#E2E8F0"/>
+      <stop offset="70%" stop-color="#94A3B8"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Sky Background -->
+  <rect width="700" height="850" fill="url(#rxSkyGrad)"/>
+
+  <!-- Top Betika Sponsor Ribbon (Top Left as in Screenshot 1) -->
+  <g transform="translate(60, 45) rotate(-10)">
+    <rect x="-10" y="-18" width="130" height="42" rx="8" fill="#15803D" stroke="#FEF08A" stroke-width="2"/>
+    <text x="55" y="10" font-family="'Arial Black', sans-serif" font-size="22" font-weight="900" fill="#FEF08A" text-anchor="middle">Betika!</text>
+  </g>
+
+  <!-- Big Metallic RX FEST Title -->
+  <g transform="translate(380, 85) skewX(-12)">
+    <text x="0" y="0" text-anchor="middle" font-family="'Impact', sans-serif" font-size="88" letter-spacing="4" fill="#000000" opacity="0.8">
+      RX FEST
+    </text>
+    <text x="-4" y="-4" text-anchor="middle" font-family="'Impact', sans-serif" font-size="88" letter-spacing="4" fill="url(#chromeText)" stroke="#1E40AF" stroke-width="3">
+      RX FEST
+    </text>
+  </g>
+
+  <!-- Dirt Track Racing Action in Kasarani Safari Rally Grounds -->
+  <rect x="0" y="240" width="700" height="610" fill="url(#dirtGround)"/>
+  
+  <!-- Kasarani Head to Head Drift Action (Yellow Evo & Blue Buggy) -->
+  <!-- Yellow Car (Left) -->
+  <g transform="translate(140, 200)">
+    <polygon points="50,90 190,85 230,128 30,135" fill="#EAB308"/>
+    <polygon points="85,55 170,52 195,85 68,88" fill="#18181B"/>
+    <circle cx="70" cy="135" r="25" fill="#18181B"/>
+    <circle cx="70" cy="135" r="12" fill="#94A3B8"/>
+    <circle cx="205" cy="130" r="25" fill="#18181B"/>
+    <circle cx="205" cy="130" r="12" fill="#94A3B8"/>
+    <ellipse cx="40" cy="140" rx="45" ry="16" fill="#FDE68A" opacity="0.6"/>
+  </g>
+
+  <!-- Black / Blue Rally Truck (Right) -->
+  <g transform="translate(420, 195)">
+    <polygon points="50,85 190,80 230,124 30,130" fill="#1E293B"/>
+    <polygon points="85,50 170,48 195,80 68,84" fill="#0284C7"/>
+    <circle cx="70" cy="130" r="25" fill="#18181B"/>
+    <circle cx="70" cy="130" r="12" fill="#E2E8F0"/>
+    <circle cx="205" cy="125" r="25" fill="#18181B"/>
+    <circle cx="205" cy="125" r="12" fill="#E2E8F0"/>
+    <ellipse cx="35" cy="135" rx="45" ry="16" fill="#FDE68A" opacity="0.6"/>
+  </g>
+
+  <!-- 3 Side Action Photos (Left column on dirt) -->
+  <g transform="translate(40, 210)">
+    <rect x="0" y="0" width="110" height="75" rx="6" fill="#1E293B" stroke="#FFFFFF" stroke-width="2"/>
+    <text x="55" y="42" font-family="sans-serif" font-size="9" font-weight="900" fill="#FACC15" text-anchor="middle">5 RACING CATS</text>
+  </g>
+  <g transform="translate(40, 300)">
+    <rect x="0" y="0" width="110" height="75" rx="6" fill="#1E293B" stroke="#FFFFFF" stroke-width="2"/>
+    <text x="55" y="42" font-family="sans-serif" font-size="9" font-weight="900" fill="#FACC15" text-anchor="middle">TYRE CHALLENGE</text>
+  </g>
+  <g transform="translate(40, 390)">
+    <rect x="0" y="0" width="110" height="75" rx="6" fill="#1E293B" stroke="#FFFFFF" stroke-width="2"/>
+    <text x="55" y="42" font-family="sans-serif" font-size="9" font-weight="900" fill="#FACC15" text-anchor="middle">AFTERPARTY</text>
+  </g>
+
+  <!-- Blue Action Card with Details (Center & Right) -->
+  <g transform="translate(170, 360)">
+    <rect x="0" y="0" width="490" height="340" rx="12" fill="#1E3A8A" stroke="#FFFFFF" stroke-width="3"/>
+    
+    <text x="245" y="65" text-anchor="middle" font-family="'Impact', sans-serif" font-size="52" fill="#FFFFFF" letter-spacing="2">
+      14-15 NOVEMBER
+    </text>
+    
+    <text x="245" y="105" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="20" font-weight="900" fill="#93C5FD">
+      KASARANI SPORTS CENTRE
+    </text>
+    
+    <text x="245" y="145" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="#FACC15">
+      HEAD TO HEAD RACES
+    </text>
+
+    <text x="245" y="180" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#FFFFFF">
+      BEST DJS &bull; FOOD &bull; DRINK &bull; CHILDREN'S PLAY AREA
+    </text>
+
+    <!-- Red Weekend Pass -->
+    <rect x="70" y="200" width="350" height="48" rx="8" fill="#DC2626"/>
+    <text x="245" y="232" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="20" font-weight="900" fill="#FFFFFF">
+      WEEKEND PASS: KES 500
+    </text>
+
+    <text x="245" y="268" text-anchor="middle" font-family="sans-serif" font-size="10" font-weight="bold" fill="#CBD5E1">
+      FREE ENTRY FOR CHILDREN UNDER 12 UNDER SUPERVISION OF ADULT
+    </text>
+
+    <!-- Ticketsasa Website Banner -->
+    <rect x="25" y="285" width="440" height="38" rx="6" fill="#0F172A"/>
+    <text x="245" y="310" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="14" font-weight="900" fill="#38BDF8">
+      TICKETS AVAILABLE ON: www.TICKETSASA.COM
+    </text>
+  </g>
+
+  <!-- Sponsor Logos Footer in Poster -->
+  <g transform="translate(60, 785)">
+    <rect x="0" y="0" width="580" height="40" rx="8" fill="#FFFFFF"/>
+    <text x="80" y="25" font-family="'Arial Black', sans-serif" font-size="14" font-weight="900" fill="#15803D">Betika!</text>
+    <text x="220" y="25" font-family="sans-serif" font-size="12" font-weight="bold" fill="#1E293B">KASARANI</text>
+    <text x="360" y="25" font-family="sans-serif" font-size="12" font-weight="bold" fill="#0284C7">SAFARICOM</text>
+    <text x="500" y="25" font-family="'Arial Black', sans-serif" font-size="12" font-weight="900" fill="#BE123C">TICKETSASA</text>
+  </g>
+</svg>

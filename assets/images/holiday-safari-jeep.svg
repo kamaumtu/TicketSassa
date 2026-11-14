@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+  <defs>
+    <linearGradient id="savannah" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF08A"/>
+      <stop offset="45%" stop-color="#FDE047"/>
+      <stop offset="70%" stop-color="#CA8A04"/>
+      <stop offset="100%" stop-color="#854D0E"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" fill="url(#savannah)"/>
+  
+  <!-- Distant Acacia Trees -->
+  <path d="M 50 110 L 50 90 Q 30 75 15 80 Q 35 65 65 70 Q 95 65 110 80 Q 80 85 50 90" fill="#365314"/>
+  <line x1="50" y1="90" x2="50" y2="125" stroke="#365314" stroke-width="4"/>
+
+  <!-- Giraffe in distance -->
+  <ellipse cx="230" cy="105" rx="14" ry="10" fill="#78350F"/>
+  <line x1="238" y1="105" x2="248" y2="65" stroke="#78350F" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="249" cy="62" r="5" fill="#78350F"/>
+  <line x1="222" y1="112" x2="220" y2="140" stroke="#78350F" stroke-width="3"/>
+  <line x1="236" y1="112" x2="238" y2="140" stroke="#78350F" stroke-width="3"/>
+
+  <!-- Safari 4x4 Tour Cruiser Vehicle -->
+  <rect x="90" y="115" width="80" height="35" rx="5" fill="#15803D"/>
+  <rect x="100" y="98" width="60" height="20" rx="3" fill="#FFFFFF" opacity="0.9"/>
+  <!-- Open Pop-up Safari Roof -->
+  <rect x="95" y="92" width="70" height="5" fill="#15803D"/>
+  <line x1="105" y1="97" x2="105" y2="92" stroke="#18181B" stroke-width="2"/>
+  <line x1="155" y1="97" x2="155" y2="92" stroke="#18181B" stroke-width="2"/>
+  <!-- Big Wheels -->
+  <circle cx="110" cy="150" r="12" fill="#18181B"/>
+  <circle cx="110" cy="150" r="5" fill="#94A3B8"/>
+  <circle cx="155" cy="150" r="12" fill="#18181B"/>
+  <circle cx="155" cy="150" r="5" fill="#94A3B8"/>
+</svg>

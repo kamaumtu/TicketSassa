@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" width="160" height="50">
+  <rect width="160" height="50" rx="8" fill="#FFFFFF" />
+  <path d="M 15 25 Q 30 10 45 25 Q 30 40 15 25 Z" fill="#DC2626" />
+  <text x="55" y="32" fill="#1E293B" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="14">Kenya Airways</text>
+</svg>

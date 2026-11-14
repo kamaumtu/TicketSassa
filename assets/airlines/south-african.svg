@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 50" width="180" height="50">
+  <!-- South African Airways Logo -->
+  <g transform="translate(10, 10)">
+    <polygon points="0,5 20,15 0,25" fill="#007A3D"/>
+    <polygon points="0,5 15,15 0,15" fill="#FFB612"/>
+    <polygon points="0,15 15,15 0,25" fill="#DE3831"/>
+    <text x="30" y="16" font-family="'Arial', sans-serif" font-size="9" font-weight="900" fill="#002469">SOUTH AFRICAN</text>
+    <text x="30" y="27" font-family="'Arial', sans-serif" font-size="8" font-weight="bold" fill="#71717A">AIRWAYS</text>
+  </g>
+</svg>

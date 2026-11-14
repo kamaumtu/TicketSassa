@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 50" width="140" height="50">
+  <rect width="140" height="50" rx="8" fill="#FFFFFF" />
+  <text x="20" y="32" fill="#DB2777" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="18">jambojet</text>
+  <circle cx="120" cy="22" r="5" fill="#E11D48" />
+</svg>

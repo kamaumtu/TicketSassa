@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <path d="M 120 18 C 145 12 165 24 185 20 L 175 28 C 155 30 140 22 120 26 Z" fill="#EB2226"/>
+  <path d="M 110 24 C 130 20 150 28 170 26 L 162 32 C 145 33 130 27 110 30 Z" fill="#075AAA"/>
+  <text x="15" y="36" font-family="'Times New Roman', serif" font-size="15" font-weight="900" fill="#075AAA">BRITISH AIRWAYS</text>
+</svg>

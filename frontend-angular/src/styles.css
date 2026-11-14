@@ -1,0 +1,128 @@
+/* Global Angular Styles for Talanta x Ticketsasa Portal */
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background-color: #080C14;
+  color: #F8FAFC;
+}
+
+.stadium-zone {
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stadium-zone:hover {
+  filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.8));
+  opacity: 0.95;
+}
+
+.stadium-zone.active-zone {
+  stroke-width: 4px;
+  stroke: #FFFFFF !important;
+  filter: drop-shadow(0 0 18px rgba(255, 184, 0, 0.95));
+}
+
+
+:focus-visible {
+  outline: 2px solid #fda4af;
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 60;
+  top: .5rem;
+  left: .5rem;
+  padding: .65rem 1rem;
+  border-radius: .5rem;
+  background: #fff;
+  color: #172033;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid #334155;
+  background: #080c14;
+}
+
+.app-header-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .25rem .75rem;
+  max-width: 80rem;
+  margin: auto;
+  padding: .5rem clamp(.75rem, 2vw, 2rem);
+}
+
+.app-brand,
+.app-nav a,
+.app-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  min-height: 44px;
+  padding: .3rem .6rem;
+  border-radius: .5rem;
+  color: #f8fafc;
+  font-size: .875rem;
+  font-weight: 600;
+}
+
+.app-brand {
+  padding-inline: 0;
+  font-size: 1rem;
+}
+
+.app-nav,
+.app-actions {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+.app-nav {
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+}
+
+.app-nav a:hover,
+.app-nav a:focus-visible,
+.app-actions button {
+  background: #1e293b;
+}
+
+.app-actions button:disabled {
+  opacity: .65;
+}
+
+#main-content,
+#upcoming-events,
+#stadium-seating,
+#ticket-passes,
+#my-tickets {
+  scroll-margin-top: 8.5rem;
+}
+
+@media (min-width: 700px) {
+  .app-header-inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .app-nav {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: center;
+  }
+
+  .app-actions {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}

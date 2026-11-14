@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="800" height="500">
+  <rect width="800" height="500" fill="#080C14" />
+  <polygon points="120,260 680,260 740,380 60,380" fill="#1E293B" stroke="#06B6D4" stroke-width="3" />
+  <rect x="180" y="80" width="440" height="180" rx="10" fill="#6D28D9" stroke="#A855F7" stroke-width="4" />
+  <text x="400" y="180" text-anchor="middle" fill="#FACC15" font-family="Impact, sans-serif" font-size="42" letter-spacing="3">THE HYPE LIVE</text>
+  <polygon points="200,260 220,120 240,260" fill="#FF2A54" opacity="0.7" />
+  <polygon points="560,260 580,120 600,260" fill="#FF2A54" opacity="0.7" />
+  <g fill="#0F172A">
+    <ellipse cx="400" cy="460" rx="390" ry="60" />
+    <rect x="250" y="410" width="12" height="40" rx="6" />
+    <rect x="350" y="390" width="12" height="50" rx="6" />
+    <rect x="450" y="395" width="12" height="45" rx="6" />
+    <rect x="550" y="415" width="12" height="35" rx="6" />
+  </g>
+  <rect x="20" y="430" width="320" height="40" rx="8" fill="#0D1525" stroke="#06B6D4" stroke-width="1.5" />
+  <text x="180" y="456" text-anchor="middle" fill="#FFFFFF" font-family="sans-serif" font-size="14" font-weight="bold">SOUTH STAND &amp; DANCEHALL FAN PIT</text>
+</svg>

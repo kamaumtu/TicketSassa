@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="rallySky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="35%" stop-color="#2563EB"/>
+      <stop offset="70%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#93C5FD"/>
+    </linearGradient>
+    <linearGradient id="metallicChrome" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#E2E8F0"/>
+      <stop offset="70%" stop-color="#64748B"/>
+      <stop offset="100%" stop-color="#0F172A"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#rallySky)"/>
+
+  <!-- High-speed RX FEST metallic bold title -->
+  <g transform="translate(250, 75) skewX(-14)">
+    <text x="0" y="0" text-anchor="middle" font-family="'Impact', sans-serif" font-size="64" letter-spacing="4" fill="#000000" opacity="0.8">
+      RX FEST
+    </text>
+    <text x="-4" y="-4" text-anchor="middle" font-family="'Impact', sans-serif" font-size="64" letter-spacing="4" fill="url(#metallicChrome)" stroke="#1D4ED8" stroke-width="2">
+      RX FEST
+    </text>
+  </g>
+  <text x="250" y="112" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#FACC15" letter-spacing="3">
+    ROUND 3 &bull; KASARANI
+  </text>
+
+  <!-- Two Safari Rally Cars Drifting Side-by-Side -->
+  <g transform="translate(70, 140)">
+    <!-- Car 1: Yellow Rally Evo (Left) -->
+    <g transform="translate(0, 0)">
+      <polygon points="40,90 140,85 170,120 20,125" fill="#EAB308"/>
+      <polygon points="65,55 125,52 145,85 50,88" fill="#18181B"/>
+      <!-- Roll Cage -->
+      <line x1="75" y1="58" x2="135" y2="82" stroke="#FFFFFF" stroke-width="2"/>
+      <!-- Big Mud Tires -->
+      <circle cx="50" cy="125" r="22" fill="#18181B"/>
+      <circle cx="50" cy="125" r="10" fill="#94A3B8"/>
+      <circle cx="150" cy="120" r="22" fill="#18181B"/>
+      <circle cx="150" cy="120" r="10" fill="#94A3B8"/>
+      <!-- Dust Spray -->
+      <ellipse cx="25" cy="130" rx="30" ry="12" fill="#FEF08A" opacity="0.6"/>
+    </g>
+
+    <!-- Car 2: Blue Subie Drift Rally (Right) -->
+    <g transform="translate(180, 20)">
+      <polygon points="40,80 140,75 170,110 20,115" fill="#1D4ED8"/>
+      <polygon points="65,48 125,45 145,75 50,78" fill="#18181B"/>
+      <circle cx="50" cy="115" r="22" fill="#18181B"/>
+      <circle cx="50" cy="115" r="10" fill="#F59E0B"/>
+      <circle cx="150" cy="110" r="22" fill="#18181B"/>
+      <circle cx="150" cy="110" r="10" fill="#F59E0B"/>
+      <!-- Large Rear Spoiler Wing -->
+      <rect x="25" y="60" width="10" height="25" fill="#000000"/>
+      <rect x="15" y="55" width="30" height="6" fill="#F59E0B"/>
+    </g>
+  </g>
+
+  <!-- High-octane Schedule Banner -->
+  <g transform="translate(25, 330)">
+    <rect x="0" y="0" width="450" height="135" rx="10" fill="#0B132B" stroke="#F59E0B" stroke-width="2"/>
+    <text x="225" y="32" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="20" font-weight="900" fill="#FFFFFF">
+      14-15 NOVEMBER 2026
+    </text>
+    <text x="225" y="58" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="14" font-weight="900" fill="#38BDF8">
+      KASARANI SPORTS CENTRE GROUND
+    </text>
+    <text x="225" y="82" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#FEF08A">
+      HEAD TO HEAD RACES &bull; DRIFT BATTLES
+    </text>
+    <rect x="125" y="94" width="200" height="30" rx="15" fill="#DC2626"/>
+    <text x="225" y="114" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="12" font-weight="900" fill="#FFFFFF">
+      WEEKEND PASS: KES 500
+    </text>
+  </g>
+</svg>

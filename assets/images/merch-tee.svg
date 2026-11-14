@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <rect width="500" height="500" fill="#0B0E17" rx="16" />
+  <g transform="translate(50, 40)">
+    <polygon points="110,80 30,160 70,190 120,130" fill="#991B1B" />
+    <polygon points="290,80 370,160 330,190 280,130" fill="#991B1B" />
+    <path d="M 110 80 L 290 80 L 310 370 L 90 370 Z" fill="#B91C1C" stroke="#DC2626" stroke-width="3" />
+    <ellipse cx="200" cy="80" rx="45" ry="20" fill="#0B0E17" stroke="#F87171" stroke-width="2" />
+    <text x="200" y="200" text-anchor="middle" fill="#FFFFFF" font-family="Impact, sans-serif" font-size="24" letter-spacing="2">TIME ATTACK</text>
+    <text x="200" y="225" text-anchor="middle" fill="#FEF08A" font-family="monospace" font-size="11" font-weight="bold">THE LAST LAP • DMSC</text>
+  </g>
+</svg>

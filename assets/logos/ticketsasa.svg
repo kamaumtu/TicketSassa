@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 80" width="280" height="80">
+  <defs>
+    <linearGradient id="sasaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#BE123C" />
+    </linearGradient>
+  </defs>
+  <!-- Ticket Badge Icon -->
+  <g transform="translate(10, 10)">
+    <rect width="60" height="60" rx="14" fill="url(#sasaGrad)" />
+    <!-- Cutout notches -->
+    <circle cx="0" cy="30" r="7" fill="#080C14" />
+    <circle cx="60" cy="30" r="7" fill="#080C14" />
+    <!-- Dashed stub line -->
+    <line x1="42" y1="12" x2="42" y2="48" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="4 3" opacity="0.6" />
+    <!-- Sasa Star / Chevron -->
+    <path d="M 18 30 L 26 22 L 34 30 L 26 38 Z" fill="#FFFFFF" />
+    <circle cx="26" cy="30" r="3" fill="#E11D48" />
+  </g>
+  <!-- Text -->
+  <text x="82" y="38" fill="#FFFFFF" font-family="'Space Grotesk', sans-serif" font-weight="900" font-size="22" letter-spacing="1">ticketsasa</text>
+  <text x="82" y="56" fill="#F43F5E" font-family="'JetBrains Mono', monospace" font-weight="700" font-size="11" letter-spacing="2.5">LIVE EXPERIENCES</text>
+</svg>

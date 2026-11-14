@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 240" width="320" height="240">
+  <defs>
+    <radialGradient id="sunburst" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="25%" stop-color="#FEF08A"/>
+      <stop offset="55%" stop-color="#F59E0B"/>
+      <stop offset="85%" stop-color="#EA580C"/>
+      <stop offset="100%" stop-color="#9A3412"/>
+    </radialGradient>
+    <linearGradient id="skyDawn" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#C2410C"/>
+      <stop offset="40%" stop-color="#EA580C"/>
+      <stop offset="70%" stop-color="#F59E0B"/>
+      <stop offset="100%" stop-color="#7C2D12"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="240" fill="url(#skyDawn)"/>
+
+  <!-- Brilliant Radiant Sun -->
+  <circle cx="160" cy="115" r="45" fill="url(#sunburst)"/>
+  <circle cx="160" cy="115" r="95" fill="#FEF08A" opacity="0.25"/>
+
+  <!-- Sun Rays Flare -->
+  <g stroke="#FEF9C3" stroke-width="2.5" opacity="0.6">
+    <line x1="160" y1="20" x2="160" y2="60"/>
+    <line x1="160" y1="170" x2="160" y2="210"/>
+    <line x1="65" y1="115" x2="105" y2="115"/>
+    <line x1="215" y1="115" x2="255" y2="115"/>
+    <line x1="90" y1="45" x2="120" y2="75"/>
+    <line x1="200" y1="155" x2="230" y2="185"/>
+    <line x1="230" y1="45" x2="200" y2="75"/>
+    <line x1="120" y1="155" x2="90" y2="185"/>
+  </g>
+
+  <!-- Two Hands gently cupping the light from below (Silhouettes) -->
+  <g fill="#431407">
+    <!-- Left Hand & Forearm -->
+    <path d="M 0 240 L 40 210 L 95 190 Q 130 175 145 150 Q 148 140 142 135 Q 135 132 125 142 L 80 175 L 0 205 Z"/>
+    <path d="M 95 190 Q 135 160 152 138 Q 155 130 148 126 Q 140 124 130 135 L 90 175 Z"/>
+    <!-- Right Hand & Forearm -->
+    <path d="M 320 240 L 280 210 L 225 190 Q 190 175 175 150 Q 172 140 178 135 Q 185 132 195 142 L 240 175 L 320 205 Z"/>
+    <path d="M 225 190 Q 185 160 168 138 Q 165 130 172 126 Q 180 124 190 135 L 230 175 Z"/>
+  </g>
+</svg>

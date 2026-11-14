@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="horseGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFDF7"/>
+      <stop offset="100%" stop-color="#F5EEDB"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#horseGold)"/>
+
+  <!-- Three Galloping Racehorses Frames (Exact from Screenshot 1 & 2) -->
+  <g transform="translate(30, 25)">
+    <!-- Photo 1: Green Jockey -->
+    <g transform="translate(0, 0)">
+      <rect x="0" y="0" width="135" height="150" rx="6" fill="#15803D" stroke="#000000" stroke-width="2"/>
+      <circle cx="67" cy="50" r="28" fill="#86EFAC"/>
+      <ellipse cx="67" cy="100" rx="45" ry="25" fill="#451A03"/>
+      <rect x="45" y="40" width="45" height="40" rx="6" fill="#22C55E"/>
+    </g>
+    <!-- Photo 2: Amber Jockey (Center) -->
+    <g transform="translate(152, 0)">
+      <rect x="0" y="0" width="135" height="150" rx="6" fill="#B45309" stroke="#000000" stroke-width="2"/>
+      <circle cx="67" cy="50" r="28" fill="#FDE68A"/>
+      <ellipse cx="67" cy="100" rx="45" ry="25" fill="#291204"/>
+      <rect x="45" y="40" width="45" height="40" rx="6" fill="#F59E0B"/>
+    </g>
+    <!-- Photo 3: Red Jockey (Right) -->
+    <g transform="translate(305, 0)">
+      <rect x="0" y="0" width="135" height="150" rx="6" fill="#991B1B" stroke="#000000" stroke-width="2"/>
+      <circle cx="67" cy="50" r="28" fill="#FECDD3"/>
+      <ellipse cx="67" cy="100" rx="45" ry="25" fill="#451A03"/>
+      <rect x="45" y="40" width="45" height="40" rx="6" fill="#DC2626"/>
+    </g>
+  </g>
+
+  <!-- Big Bold Serif Headline: "THE NOVEMBER FESTIVAL" -->
+  <text x="250" y="240" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-size="34" font-weight="900" letter-spacing="2" fill="#1C1917">
+    THE NOVEMBER FESTIVAL
+  </text>
+  
+  <!-- Subtitle: "THE AFTERPARTY" -->
+  <text x="250" y="280" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" letter-spacing="3" fill="#D97706">
+    THE AFTERPARTY
+  </text>
+  <text x="250" y="305" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#78716C">
+    23 NOVEMBER 2026 &bull; NGONG RACECOURSE
+  </text>
+
+  <!-- Sponsor Logos Bar at Bottom -->
+  <g transform="translate(40, 360)">
+    <rect x="0" y="0" width="420" height="55" rx="8" fill="#FFFFFF" stroke="#E7E5E4"/>
+    <text x="60" y="32" font-family="sans-serif" font-size="11" font-weight="bold" fill="#991B1B">KENYA POLO</text>
+    <circle cx="150" cy="27" r="14" fill="#047857"/>
+    <text x="150" y="31" font-family="sans-serif" font-size="9" font-weight="bold" fill="#FFFFFF" text-anchor="middle">JOCKEY</text>
+    <text x="250" y="32" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#D97706">TUSKER</text>
+    <text x="360" y="32" font-family="sans-serif" font-size="11" font-weight="bold" fill="#1E293B">CAPITAL FM</text>
+  </g>
+
+  <!-- Red Starting Price Badge -->
+  <g transform="translate(250, 455)">
+    <rect x="-90" y="-18" width="180" height="36" rx="18" fill="#BE123C"/>
+    <text x="0" y="6" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">
+      KES 500
+    </text>
+  </g>
+</svg>

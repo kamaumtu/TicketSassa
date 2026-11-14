@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <rect width="400" height="400" fill="#111827" />
+  <rect x="20" y="20" width="360" height="360" fill="#1E293B" stroke="#F59E0B" stroke-width="3" />
+  <text x="200" y="80" text-anchor="middle" fill="#F59E0B" font-family="'Impact', sans-serif" font-size="38" letter-spacing="2">BACK &amp; FORTH</text>
+  <text x="200" y="115" text-anchor="middle" fill="#FFFFFF" font-family="monospace" font-size="14" font-weight="bold">OLD SCHOOL PARTY</text>
+  <circle cx="200" cy="200" r="60" fill="#000000" stroke="#F59E0B" stroke-width="4" />
+  <circle cx="200" cy="200" r="20" fill="#F59E0B" />
+  <text x="200" y="320" text-anchor="middle" fill="#E2E8F0" font-family="sans-serif" font-size="13">Carnivore Simba Saloon • KES 1,500</text>
+</svg>

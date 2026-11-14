@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="sawelaParchment" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDFBF7"/>
+      <stop offset="50%" stop-color="#F7EEDD"/>
+      <stop offset="100%" stop-color="#EADBBE"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#sawelaParchment)"/>
+
+  <!-- Script Header: "You are invited to attend the" -->
+  <text x="250" y="55" text-anchor="middle" font-family="'Brush Script MT', 'Dancing Script', cursive, serif" font-size="28" fill="#B45309">
+    You are invited to attend the
+  </text>
+
+  <!-- Big Bold Serif Festival Headline -->
+  <text x="250" y="105" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-size="40" font-weight="900" letter-spacing="3" fill="#1C1917">
+    SAWELA
+  </text>
+  <text x="250" y="145" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-size="24" font-weight="bold" letter-spacing="4" fill="#92400E">
+    INTERNATIONAL ART
+  </text>
+  <text x="250" y="195" text-anchor="middle" font-family="'Times New Roman', Georgia, serif" font-size="46" font-weight="900" letter-spacing="4" fill="#B45309">
+    FESTIVAL
+  </text>
+
+  <!-- Date & Venue -->
+  <text x="250" y="235" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="16" font-weight="900" fill="#18181B">
+    NOV 20-22, 2026
+  </text>
+  <text x="250" y="260" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#78350F">
+    SAWELA LODGES &bull; NAIVASHA
+  </text>
+
+  <!-- Bottom Artistic Grid (Photos of art, culture, music) -->
+  <g transform="translate(40, 290)">
+    <rect x="0" y="0" width="420" height="130" rx="8" fill="#18181B"/>
+    <!-- Segment 1: Art & Culture -->
+    <text x="70" y="45" font-family="sans-serif" font-size="11" font-weight="900" fill="#FDE68A" text-anchor="middle">ART &bull; CULTURE</text>
+    <text x="70" y="65" font-family="sans-serif" font-size="10" font-weight="bold" fill="#FFFFFF" text-anchor="middle">MUSIC &bull; NATURE</text>
+    <circle cx="70" cy="95" r="16" fill="#D97706"/>
+    <!-- Divider -->
+    <line x1="140" y1="15" x2="140" y2="115" stroke="#334155" stroke-width="1.5"/>
+    <!-- Segment 2: Live Painter -->
+    <circle cx="210" cy="50" r="18" fill="#F59E0B"/>
+    <ellipse cx="210" cy="85" rx="28" ry="16" fill="#0D9488"/>
+    <line x1="280" y1="15" x2="280" y2="115" stroke="#334155" stroke-width="1.5"/>
+    <!-- Segment 3: Acoustic Performers -->
+    <circle cx="350" cy="50" r="18" fill="#EF4444"/>
+    <ellipse cx="350" cy="85" rx="28" ry="16" fill="#3B82F6"/>
+  </g>
+
+  <!-- Starting Price Badge -->
+  <g transform="translate(250, 455)">
+    <rect x="-90" y="-18" width="180" height="36" rx="18" fill="#BE123C"/>
+    <text x="0" y="6" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">
+      Starting KES 500
+    </text>
+  </g>
+</svg>

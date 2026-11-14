@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="latinBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FACC15"/>
+      <stop offset="45%" stop-color="#F97316"/>
+      <stop offset="80%" stop-color="#BE185D"/>
+      <stop offset="100%" stop-color="#831843"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#latinBg)"/>
+
+  <!-- Retro Turquoise Ribbon Header -->
+  <g transform="translate(250, 45)">
+    <rect x="-190" y="-20" width="380" height="40" rx="8" fill="#0D9488"/>
+    <text x="0" y="7" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="17" font-weight="900" fill="#FFFFFF" letter-spacing="2">
+      BALLPOINT
+    </text>
+  </g>
+
+  <!-- Big Stylized Typography: "AFRO-LATIN DANCE PARTY" -->
+  <text x="250" y="115" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" fill="#FFFFFF">
+    AFRO-LATIN
+  </text>
+  <text x="250" y="150" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="22" font-weight="900" fill="#FEF08A">
+    DANCE PARTY
+  </text>
+
+  <!-- Dancing Afro-Latin Couple Silhouette in Center -->
+  <g transform="translate(250, 260)">
+    <!-- Aura circle -->
+    <circle cx="0" cy="0" r="95" fill="#FEF3C7" opacity="0.95"/>
+    
+    <!-- Male Lead Dancer (in Teal shirt & Navy slacks) -->
+    <circle cx="-30" cy="-45" r="14" fill="#78350F"/>
+    <path d="M -45 -30 L -15 -30 L -10 15 L -45 15 Z" fill="#0D9488"/>
+    <line x1="-35" y1="15" x2="-50" y2="65" stroke="#1E1B4B" stroke-width="12" stroke-linecap="round"/>
+    <line x1="-20" y1="15" x2="-10" y2="65" stroke="#1E1B4B" stroke-width="12" stroke-linecap="round"/>
+
+    <!-- Female Follow Dancer (in vibrant Red flared skirt, arm raised) -->
+    <circle cx="25" cy="-48" r="13" fill="#92400E"/>
+    <path d="M 12 -35 L 38 -35 L 30 -5 L 15 -5 Z" fill="#DC2626"/>
+    <!-- Flared Dancing Skirt -->
+    <polygon points="15,-5 30,-5 60,35 -5,35" fill="#BE123C"/>
+    <line x1="12" y1="35" x2="10" y2="70" stroke="#92400E" stroke-width="8" stroke-linecap="round"/>
+    <line x1="28" y1="35" x2="45" y2="65" stroke="#92400E" stroke-width="8" stroke-linecap="round"/>
+    <!-- Connected arms in salsa spin -->
+    <path d="M -15 -20 Q 5 -35 20 -25" stroke="#78350F" stroke-width="6" fill="none"/>
+  </g>
+
+  <!-- Left: QR Code box & Workshop Tags -->
+  <g transform="translate(45, 380)">
+    <rect x="0" y="0" width="85" height="85" rx="6" fill="#FFFFFF" stroke="#000000" stroke-width="2"/>
+    <!-- QR matrix pattern -->
+    <rect x="10" y="10" width="25" height="25" fill="#000000"/>
+    <rect x="15" y="15" width="15" height="15" fill="#FFFFFF"/>
+    <rect x="50" y="10" width="25" height="25" fill="#000000"/>
+    <rect x="55" y="15" width="15" height="15" fill="#FFFFFF"/>
+    <rect x="10" y="50" width="25" height="25" fill="#000000"/>
+    <rect x="15" y="55" width="15" height="15" fill="#FFFFFF"/>
+    <rect x="45" y="45" width="30" height="30" fill="#000000"/>
+  </g>
+
+  <!-- Right: Social Workshop Tags -->
+  <g transform="translate(150, 395)">
+    <text x="0" y="14" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">SALSA &bull; BACHATA &bull; KIZOMBA</text>
+    <text x="0" y="32" font-family="sans-serif" font-size="11" font-weight="bold" fill="#FEF08A">WORKSHOP: 7PM - 8PM</text>
+    <text x="0" y="48" font-family="sans-serif" font-size="11" font-weight="bold" fill="#FEF08A">SOCIAL DANCE: 8PM - LATE</text>
+    <text x="0" y="65" font-family="sans-serif" font-size="10" font-weight="bold" fill="#FFFFFF">VILLAGE MARKET NAIROBI</text>
+  </g>
+</svg>

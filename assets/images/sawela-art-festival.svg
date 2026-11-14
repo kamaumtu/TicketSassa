@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="sawelaGold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FEF9C3"/>
+      <stop offset="50%" stop-color="#FDE68A"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#sawelaGold)"/>
+
+  <!-- Top Script Typography -->
+  <text x="250" y="65" text-anchor="middle" font-family="'Georgia', cursive, serif" font-size="20" font-style="italic" fill="#78350F">
+    You are invited to attend the
+  </text>
+
+  <!-- Big Bold Typography: SAWELA INTERNATIONAL ART FESTIVAL -->
+  <text x="250" y="115" text-anchor="middle" font-family="'Impact', sans-serif" font-size="34" letter-spacing="2" fill="#78350F">
+    SAWELA
+  </text>
+  <text x="250" y="150" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" letter-spacing="3" fill="#B45309">
+    INTERNATIONAL
+  </text>
+  <text x="250" y="195" text-anchor="middle" font-family="'Times New Roman', serif" font-size="44" font-weight="900" letter-spacing="2" fill="#451A03">
+    ART FESTIVAL
+  </text>
+
+  <text x="250" y="230" text-anchor="middle" font-family="sans-serif" font-size="13" font-weight="bold" fill="#92400E">
+    FRI 20 - SUN 22 NOVEMBER 2026
+  </text>
+  <text x="250" y="250" text-anchor="middle" font-family="sans-serif" font-size="12" font-weight="bold" fill="#78350F">
+    SAWELA LODGES &bull; NAIVASHA
+  </text>
+
+  <!-- Art & Music Photos Strip at Bottom -->
+  <g transform="translate(30, 280)">
+    <rect x="0" y="0" width="440" height="130" rx="8" fill="#18181B"/>
+    <text x="60" y="75" font-family="'Georgia', serif" font-size="13" font-weight="bold" fill="#FEF08A">ART &bull; CULTURE</text>
+    <text x="60" y="95" font-family="'Georgia', serif" font-size="13" font-weight="bold" fill="#FEF08A">MUSIC &bull; NATURE</text>
+    
+    <!-- Artist Silhouette -->
+    <circle cx="280" cy="65" r="24" fill="#D97706"/>
+    <path d="M 260 85 L 300 85 L 310 130 L 250 130 Z" fill="#451A03"/>
+
+    <!-- Saxophone / Musician Silhouette -->
+    <circle cx="380" cy="60" r="20" fill="#EA580C"/>
+    <path d="M 370 75 Q 400 90 390 120" stroke="#FBBF24" stroke-width="6" fill="none"/>
+  </g>
+
+  <!-- Starting Price Badge -->
+  <g transform="translate(250, 455)">
+    <rect x="-100" y="-18" width="200" height="36" rx="18" fill="#BE123C"/>
+    <text x="0" y="6" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#FFFFFF">
+      STARTING KES 500
+    </text>
+  </g>
+</svg>

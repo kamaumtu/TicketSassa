@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" width="200" height="60">
+  <defs>
+    <linearGradient id="mpesaGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00A859" />
+      <stop offset="100%" stop-color="#008040" />
+    </linearGradient>
+  </defs>
+  <rect width="200" height="60" rx="12" fill="#0D1525" stroke="#1E293B" stroke-width="1.5" />
+  <!-- Safaricom M-Pesa Icon -->
+  <g transform="translate(14, 12)">
+    <circle cx="18" cy="18" r="16" fill="url(#mpesaGreen)" />
+    <!-- SIM / Phone shape -->
+    <rect x="11" y="9" width="14" height="18" rx="2" fill="#FFFFFF" />
+    <circle cx="18" cy="23" r="1.5" fill="#00A859" />
+    <!-- Signal Wave -->
+    <path d="M 14 13 A 5 5 0 0 1 22 13" fill="none" stroke="#E11D48" stroke-width="1.5" stroke-linecap="round" />
+  </g>
+  <text x="60" y="32" fill="#FFFFFF" font-family="'Plus Jakarta Sans', sans-serif" font-weight="900" font-size="18" letter-spacing="0.5">M-PESA</text>
+  <text x="60" y="44" fill="#00A859" font-family="'JetBrains Mono', monospace" font-weight="700" font-size="9" letter-spacing="1">EXPRESS STK</text>
+</svg>

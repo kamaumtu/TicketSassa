@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 50" width="140" height="50">
+  <rect width="140" height="50" rx="8" fill="#FFFFFF" />
+  <circle cx="24" cy="25" r="12" fill="#0284C7" />
+  <text x="44" y="31" fill="#0F172A" font-family="sans-serif" font-weight="800" font-size="14">RwandAir</text>
+</svg>

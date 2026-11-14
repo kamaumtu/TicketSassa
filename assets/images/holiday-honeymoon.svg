@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200" width="300" height="200">
+  <defs>
+    <linearGradient id="honeySky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FDA4AF"/>
+      <stop offset="50%" stop-color="#FECDD3"/>
+      <stop offset="100%" stop-color="#FFF1F2"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="200" fill="url(#honeySky)"/>
+  <rect x="0" y="130" width="300" height="70" fill="#FDE68A"/>
+
+  <!-- Couple relaxing on sun loungers -->
+  <polygon points="50,150 130,135 140,145 60,160" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <polygon points="160,150 240,135 250,145 170,160" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <!-- Romantic couple silhouette -->
+  <circle cx="80" cy="130" r="10" fill="#78350F"/>
+  <rect x="90" y="132" width="35" height="12" rx="4" fill="#0284C7"/>
+  <circle cx="190" cy="130" r="10" fill="#92400E"/>
+  <rect x="200" y="132" width="35" height="12" rx="4" fill="#E11D48"/>
+  <!-- Two glasses with heart -->
+  <path d="M 148 118 Q 150 112 153 118 Q 156 112 158 118 Q 158 124 153 128 Q 148 124 148 118 Z" fill="#BE123C"/>
+</svg>

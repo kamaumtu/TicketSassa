@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500">
+  <defs>
+    <linearGradient id="cyberGrid" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#022C22"/>
+      <stop offset="50%" stop-color="#064E3B"/>
+      <stop offset="100%" stop-color="#021E17"/>
+    </linearGradient>
+  </defs>
+  <rect width="500" height="500" fill="url(#cyberGrid)"/>
+
+  <!-- Neon Green Perspective Track Grid -->
+  <g stroke="#10B981" stroke-width="1.2" opacity="0.4" fill="none">
+    <line x1="0" y1="350" x2="500" y2="350"/>
+    <line x1="0" y1="400" x2="500" y2="400"/>
+    <line x1="0" y1="450" x2="500" y2="450"/>
+    <line x1="250" y1="280" x2="0" y2="500"/>
+    <line x1="250" y1="280" x2="100" y2="500"/>
+    <line x1="250" y1="280" x2="250" y2="500"/>
+    <line x1="250" y1="280" x2="400" y2="500"/>
+    <line x1="250" y1="280" x2="500" y2="500"/>
+  </g>
+
+  <!-- Big Neon Heading: "NAIROBI DRIFT BOX" -->
+  <text x="250" y="70" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="28" font-weight="900" letter-spacing="3" fill="#A7F3D0">
+    NAIROBI
+  </text>
+  <text x="250" y="115" text-anchor="middle" font-family="'Impact', sans-serif" font-size="52" letter-spacing="4" fill="#34D399" stroke="#065F46" stroke-width="2">
+    DRIFT BOX
+  </text>
+
+  <!-- Drift Sports Car in Sideways Power-Slide with Tire Smoke -->
+  <g transform="translate(130, 160)">
+    <!-- White tire smoke plumes -->
+    <ellipse cx="60" cy="115" rx="55" ry="25" fill="#FFFFFF" opacity="0.65"/>
+    <ellipse cx="180" cy="120" rx="70" ry="30" fill="#FFFFFF" opacity="0.55"/>
+    
+    <!-- Drift Chassis -->
+    <polygon points="30,75 190,65 240,105 10,110" fill="#10B981"/>
+    <!-- Cabin & Windshield -->
+    <polygon points="65,35 155,30 185,65 45,70" fill="#18181B"/>
+    <!-- Neon Underglow -->
+    <ellipse cx="120" cy="115" rx="110" ry="10" fill="#34D399" opacity="0.8"/>
+    <!-- Wheels in counter-steer angle -->
+    <ellipse cx="50" cy="108" rx="20" ry="24" fill="#000000"/>
+    <ellipse cx="50" cy="108" rx="8" ry="12" fill="#E2E8F0"/>
+    <ellipse cx="190" cy="105" rx="20" ry="24" fill="#000000"/>
+    <ellipse cx="190" cy="105" rx="8" ry="12" fill="#E2E8F0"/>
+  </g>
+
+  <!-- Dates and Info Card at Bottom -->
+  <g transform="translate(50, 360)">
+    <rect x="0" y="0" width="400" height="105" rx="8" fill="#042F2E" stroke="#10B981" stroke-width="2"/>
+    <text x="200" y="32" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="18" font-weight="900" fill="#FFFFFF">
+      13TH - 14TH DECEMBER 2026
+    </text>
+    <text x="200" y="58" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="13" font-weight="900" fill="#34D399">
+      DRIFT WEEKEND PLAN &bull; NYAYO STADIUM
+    </text>
+    <rect x="110" y="68" width="180" height="28" rx="14" fill="#10B981"/>
+    <text x="200" y="87" text-anchor="middle" font-family="'Arial Black', sans-serif" font-size="12" font-weight="900" fill="#022C22">
+      STARTING KES 650
+    </text>
+  </g>
+</svg>
