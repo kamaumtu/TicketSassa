@@ -2,8 +2,49 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, timeout } from 'rxjs';
-import { HttpErrorResponse } from '@angular/common/http';
 import { ApiService, BookingPass, BookingResult, OrderPayload, StadiumZone, TicketTier, EventData } from './services/api.service';
+
+export interface FlightItem {
+  id: string;
+  airline: string;
+  flightNumber: string;
+  aircraft: string;
+  origin: string;
+  originCity: string;
+  dest: string;
+  destCity: string;
+  depTime: string;
+  arrTime: string;
+  durationText: string;
+  stops: string;
+  baggage: string;
+  amenities: string;
+  priceKes: number;
+  priceUsd: number;
+  seatsLeft: number;
+}
+
+export interface HolidayItem {
+  id: string;
+  title: string;
+  resortName: string;
+  destination: string;
+  duration: string;
+  rateKes: number;
+  rateUsd: number;
+  discount: string;
+  mealPlan: string;
+  inclusions: string[];
+}
+
+export interface MerchItem {
+  id: string;
+  name: string;
+  desc: string;
+  priceKes: number;
+  priceUsd: number;
+  badge: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -15,6 +56,9 @@ import { ApiService, BookingPass, BookingResult, OrderPayload, StadiumZone, Tick
 })
 export class AppComponent implements OnInit {
   private api = inject(ApiService);
+
+  // Active Tab
+  activeTab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet' = 'events';
 
   // Application State
   currency: 'KES' | 'USD' = 'KES';
@@ -28,13 +72,209 @@ export class AppComponent implements OnInit {
     vip: 0,
     vvip: 0
   };
+  merchQuantities: { [key: string]: number } = {
+    hoodie: 0,
+    tee: 0,
+    cap: 0,
+    lanyard: 0
+  };
+
+  // Flights State
+  tripType: 'round' | 'one' = 'round';
+  flightOrigin = 'NBO';
+  flightDest = 'MBA';
+  flightDate = '2026-11-20';
+  selectedAirline = 'all';
+  flightBookingSuccess = '';
+
+  flightsList: FlightItem[] = [
+    {
+      id: 'KQ604',
+      airline: 'Kenya Airways',
+      flightNumber: 'KQ 604',
+      aircraft: 'Embraer E190',
+      origin: 'NBO',
+      originCity: 'Nairobi (JKIA)',
+      dest: 'MBA',
+      destCity: 'Mombasa (Moi Intl)',
+      depTime: '08:00',
+      arrTime: '09:00',
+      durationText: '1h 00m',
+      stops: 'Non-Stop',
+      baggage: '23kg Check-in + 7kg Cabin',
+      amenities: 'Complimentary Refreshment & Tea',
+      priceKes: 7850,
+      priceUsd: 60,
+      seatsLeft: 8
+    },
+    {
+      id: 'JM8602',
+      airline: 'Jambojet',
+      flightNumber: 'JM 8602',
+      aircraft: 'Dash 8-Q400',
+      origin: 'NBO',
+      originCity: 'Nairobi (JKIA)',
+      dest: 'MBA',
+      destCity: 'Mombasa (Moi Intl)',
+      depTime: '06:30',
+      arrTime: '07:30',
+      durationText: '1h 00m',
+      stops: 'Non-Stop',
+      baggage: '10kg Hand Luggage',
+      amenities: 'Early Bird Special Fare',
+      priceKes: 5900,
+      priceUsd: 45,
+      seatsLeft: 14
+    },
+    {
+      id: 'OW214',
+      airline: 'Skyward Express',
+      flightNumber: 'OW 214',
+      aircraft: 'Fokker 50',
+      origin: 'WIL',
+      originCity: 'Nairobi (Wilson)',
+      dest: 'MBA',
+      destCity: 'Mombasa (Moi Intl)',
+      depTime: '09:30',
+      arrTime: '10:45',
+      durationText: '1h 15m',
+      stops: 'Non-Stop',
+      baggage: '15kg Check-in + 5kg Cabin',
+      amenities: 'Scenic Coastal Approach',
+      priceKes: 6800,
+      priceUsd: 52,
+      seatsLeft: 6
+    },
+    {
+      id: '5H402',
+      airline: 'Fly540',
+      flightNumber: '5H 402',
+      aircraft: 'Bombardier CRJ-200',
+      origin: 'NBO',
+      originCity: 'Nairobi (JKIA)',
+      dest: 'KIS',
+      destCity: 'Kisumu Intl',
+      depTime: '14:15',
+      arrTime: '15:10',
+      durationText: '55m',
+      stops: 'Non-Stop',
+      baggage: '20kg Check-in',
+      amenities: 'Lake Victoria Express',
+      priceKes: 6200,
+      priceUsd: 48,
+      seatsLeft: 11
+    }
+  ];
+
+  // Holidays State
+  holidaysList: HolidayItem[] = [
+    {
+      id: 'neptune-village',
+      title: '5 Days 4 Nights At Neptune Village Beach Resort & Spa',
+      resortName: 'Neptune Village Beach Resort',
+      destination: 'Diani Beach, South Coast, Kenya',
+      duration: '5D / 4N',
+      rateKes: 67760,
+      rateUsd: 520,
+      discount: '72% OFF',
+      mealPlan: 'All-Inclusive (Breakfast, Lunch, Dinner, Drinks)',
+      inclusions: [
+        'Superior Makuti-roof garden room',
+        'Unlimited selected alcoholic & soft beverages',
+        'Free return transfers from Ukunda Airstrip',
+        '2 large freshwater swimming pools & beach direct access'
+      ]
+    },
+    {
+      id: 'sarova-mara',
+      title: '3 Days 2 Nights Luxury Safari at Sarova Mara Game Camp',
+      resortName: 'Sarova Mara Game Camp',
+      destination: 'Maasai Mara National Reserve, Kenya',
+      duration: '3D / 2N',
+      rateKes: 54900,
+      rateUsd: 420,
+      discount: 'Best Value Safari',
+      mealPlan: 'Full Board (All Gourmet Meals Included)',
+      inclusions: [
+        'Luxury Club Safari Tent with panoramic private deck',
+        'Unlimited game drives across Mara triangle with expert guide',
+        'Sundowner cocktails overlooking Isungeta stream',
+        'Nightly Maasai cultural dance and acoustic campfire fireside'
+      ]
+    },
+    {
+      id: 'prideinn-flamingo',
+      title: '4 Days 3 Nights Coastal Escape at PrideInn Flamingo Beach',
+      resortName: 'PrideInn Flamingo Beach Resort',
+      destination: 'Shanzu Beach, North Coast Mombasa',
+      duration: '4D / 3N',
+      rateKes: 42500,
+      rateUsd: 325,
+      discount: 'All-Inclusive Deal',
+      mealPlan: 'All-Inclusive (Full Dining & Selected Beverages)',
+      inclusions: [
+        'Cascade swimming pool with swim-up cocktail bar',
+        'Direct Shanzu white sand beach access',
+        'Water volleyball, aqua-aerobics, and kids club',
+        'Themed dinner buffets with live coastal band entertainment'
+      ]
+    }
+  ];
+
+  // HustleSasa Merch List
+  merchList: MerchItem[] = [
+    {
+      id: 'hoodie',
+      name: 'Konshens Official Tour Hoodie',
+      desc: 'Heavyweight 380gsm cotton with reflective 3M concert graphics.',
+      priceKes: 4500,
+      priceUsd: 35,
+      badge: 'Official Tour Merch'
+    },
+    {
+      id: 'tee',
+      name: 'Time Attack Trackside Team Tee',
+      desc: 'Breathable motorsport racing jersey with DMSC season finale sponsors.',
+      priceKes: 2200,
+      priceUsd: 18,
+      badge: 'Limited Sprint Edition'
+    },
+    {
+      id: 'cap',
+      name: 'Talanta Speed Snapback',
+      desc: 'Structured high-crown 6-panel cap with 3D stadium embroidery.',
+      priceKes: 1500,
+      priceUsd: 12,
+      badge: 'Talanta Official'
+    },
+    {
+      id: 'lanyard',
+      name: 'DMSC Pit Lane Drift Lanyard',
+      desc: 'Nylon weave with metal swivel clasp and paddock pass sleeve.',
+      priceKes: 600,
+      priceUsd: 5,
+      badge: 'Paddock Pass Holder'
+    }
+  ];
+
+  // HustleSasa Calculator State
+  hustleGrossInput = 50000;
+  readonly hustleCommissionRate = 0.04925; // 4.925% exactly
+
+  get hustleFee(): number {
+    return this.hustleGrossInput * this.hustleCommissionRate;
+  }
+
+  get hustlePayout(): number {
+    return Math.max(0, this.hustleGrossInput - this.hustleFee);
+  }
 
   // Checkout & Customer Data
   isCheckoutOpen = false;
   isPassModalOpen = false;
-  customerName = '';
-  customerEmail = '';
-  customerPhone = '';
+  customerName = 'Kamau Mwangi';
+  customerEmail = 'kamau@example.com';
+  customerPhone = '0712345678';
   isProcessingPayment = false;
   paymentStatusMessage = '';
   issuedDigitalPass: BookingPass | null = null;
@@ -45,9 +285,6 @@ export class AppComponent implements OnInit {
   catalogStatus = '';
   isLookingUp = false;
   private pendingOrder?: { fingerprint: string; reference: string };
-
-  // Audio preview toggle
-  isPlayingAudio = false;
 
   ngOnInit() {
     this.loadBackendData();
@@ -80,6 +317,11 @@ export class AppComponent implements OnInit {
     });
   }
 
+  switchTab(tab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet') {
+    this.activeTab = tab;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
   toggleCurrency() {
     this.currency = this.currency === 'KES' ? 'USD' : 'KES';
   }
@@ -93,12 +335,19 @@ export class AppComponent implements OnInit {
 
   updateQty(tierKey: string, change: number) {
     const current = this.quantities[tierKey] || 0;
-    const stock = this.ticketTiers.find(tier => tier.tierKey === tierKey)?.remainingAllocation ?? 0;
+    const stock = this.ticketTiers.find(tier => tier.tierKey === tierKey)?.remainingAllocation ?? 100;
     this.quantities[tierKey] = Math.min(stock, 100, Math.max(0, current + change));
   }
 
+  updateMerchQty(merchId: string, change: number) {
+    const current = this.merchQuantities[merchId] || 0;
+    this.merchQuantities[merchId] = Math.max(0, current + change);
+  }
+
   get totalTicketsCount(): number {
-    return Object.values(this.quantities).reduce((acc, q) => acc + q, 0);
+    const tickets = Object.values(this.quantities).reduce((acc, q) => acc + q, 0);
+    const merch = Object.values(this.merchQuantities).reduce((acc, q) => acc + q, 0);
+    return tickets + merch;
   }
 
   get cartTotal(): number {
@@ -108,7 +357,27 @@ export class AppComponent implements OnInit {
       const unit = this.currency === 'KES' ? tier.priceKes : tier.priceUsd;
       total += q * unit;
     }
+    for (const item of this.merchList) {
+      const q = this.merchQuantities[item.id] || 0;
+      const unit = this.currency === 'KES' ? item.priceKes : item.priceUsd;
+      total += q * unit;
+    }
     return total;
+  }
+
+  get filteredFlights(): FlightItem[] {
+    return this.flightsList.filter(f => {
+      const matchAirline = this.selectedAirline === 'all' || f.airline.toLowerCase().includes(this.selectedAirline.toLowerCase());
+      const matchRoute = (!this.flightOrigin || f.origin === this.flightOrigin) && (!this.flightDest || f.dest === this.flightDest);
+      return matchAirline && matchRoute;
+    });
+  }
+
+  bookFlightDemo(flight: FlightItem) {
+    this.flightBookingSuccess = `E-Ticket reserved on ${flight.airline} (${flight.flightNumber}): ${flight.origin} → ${flight.dest}. Booking confirmation sent to ${this.customerEmail}.`;
+    setTimeout(() => {
+      this.flightBookingSuccess = '';
+    }, 8000);
   }
 
   openCheckout() {
@@ -124,7 +393,7 @@ export class AppComponent implements OnInit {
   async triggerMpesaCheckout() {
     if (this.isProcessingPayment) return;
     this.isProcessingPayment = true;
-    this.paymentStatusMessage = 'Creating your demo order?';
+    this.paymentStatusMessage = 'Creating your demo order...';
 
     const payload: OrderPayload = {
       customer: { name: this.customerName, email: this.customerEmail, phone: this.customerPhone },
@@ -142,66 +411,49 @@ export class AppComponent implements OnInit {
         this.pendingOrder = { fingerprint, reference: order.data.orderReference };
       }
       const reference = this.pendingOrder.reference;
-      this.paymentStatusMessage = 'Completing your demo payment?';
+      this.paymentStatusMessage = 'Completing your demo payment via Safaricom Daraja...';
       const payment = await firstValueFrom(this.api.initiateMpesaStkPush(reference, this.customerPhone).pipe(timeout(15000)));
       const result = await firstValueFrom(this.api.confirmDemo(reference, payment.CheckoutRequestID).pipe(timeout(15000)));
       this.pendingOrder = undefined;
       this.orderEmail = this.customerEmail;
       this.setBooking(result);
-      this.isCheckoutOpen = false;
-      if (this.savedPasses.length) this.showPass(this.savedPasses[0]);
-      for (const key of Object.keys(this.quantities)) this.quantities[key] = 0;
-      this.loadBackendData();
-    } catch (error) {
-      if (error instanceof HttpErrorResponse && error.status === 410) this.pendingOrder = undefined;
-      this.paymentStatusMessage = this.bookingError(error);
+    } catch (err: any) {
+      this.paymentStatusMessage = err?.error?.message || err?.message || 'Payment simulation failed.';
     } finally {
       this.isProcessingPayment = false;
     }
   }
 
+  setBooking(result: BookingResult) {
+    this.savedPasses = result.passes;
+    this.orderReference = result.data.orderReference;
+    this.orderStatus = `Order ${result.data.orderReference} ${result.data.paymentStatus}`;
+    if (result.passes.length > 0) {
+      this.issuedDigitalPass = result.passes[0];
+      this.isPassModalOpen = true;
+    }
+    this.closeCheckout();
+    this.quantities = { regular: 0, paddock: 0, vip: 0, vvip: 0 };
+    this.merchQuantities = { hoodie: 0, tee: 0, cap: 0, lanyard: 0 };
+  }
+
   async lookupOrder() {
-    if (this.isLookingUp) return;
+    if (!this.orderReference || !this.orderEmail) return;
     this.isLookingUp = true;
-    this.orderStatus = 'Looking up your order?';
-    this.savedPasses = [];
+    this.orderStatus = 'Looking up order passes...';
     try {
-      const result = await firstValueFrom(this.api.lookupOrder(this.orderReference, this.orderEmail).pipe(timeout(15000)));
-      this.setBooking(result);
-    } catch (error) {
-      this.orderStatus = this.bookingError(error);
+      const res = await firstValueFrom(this.api.lookupOrder(this.orderReference, this.orderEmail).pipe(timeout(12000)));
+      this.savedPasses = res.passes;
+      this.orderStatus = `Order ${res.data.orderReference} - ${res.passes.length} passes recovered.`;
+    } catch (err: any) {
+      this.orderStatus = err?.error?.message || 'Could not find order. Please verify reference and email.';
     } finally {
       this.isLookingUp = false;
     }
   }
 
-  showPass(pass: BookingPass) {
+  viewPass(pass: BookingPass) {
     this.issuedDigitalPass = pass;
     this.isPassModalOpen = true;
   }
-
-  passQrUrl(token: string) {
-    return this.api.passQrUrl(token);
-  }
-
-  private setBooking(result: BookingResult) {
-    this.orderReference = result.data.orderReference;
-    this.savedPasses = result.passes;
-    this.orderStatus = (result.data.mode === 'demo' ? 'Demo order: ' : 'Order: ') +
-      result.data.paymentStatus.toLowerCase();
-  }
-
-  private bookingError(error: unknown) {
-    return error instanceof HttpErrorResponse && typeof error.error?.message === 'string'
-      ? error.error.message : 'Could not reach the booking service. Try again.';
-  }
-
-  closePassModal() {
-    this.isPassModalOpen = false;
-  }
-
-  toggleAudio() {
-    this.isPlayingAudio = !this.isPlayingAudio;
-  }
 }
-

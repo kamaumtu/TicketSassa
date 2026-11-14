@@ -1432,53 +1432,16 @@ function calculateFlightTotal() {
     return { totalKes, totalUsd };
 }
 
-async function handleFlightBookingSubmit(event) {
+function handleFlightBookingSubmit(event) {
     event.preventDefault();
     const flight = flightSearchState.selectedFlight;
     if (!flight) return;
-
-    const btn = document.getElementById('btn-fbm-submit');
-    const status = document.getElementById('fbm-status');
-    const name = document.getElementById('fbm-full-name').value.trim();
-    const phone = document.getElementById('fbm-phone').value.trim();
-    const email = document.getElementById('fbm-email').value.trim();
-    const idNum = document.getElementById('fbm-id-number').value.trim();
-    const { totalKes, totalUsd } = calculateFlightTotal();
-
-    if (btn) btn.disabled = true;
-    if (status) status.textContent = `Connecting to Safaricom Daraja... Prompt sent to ${phone}`;
-
-    await new Promise(r => setTimeout(r, 1200));
-
-    if (status) status.textContent = 'M-Pesa STK PIN Verified. Issuing IATA Electronic Ticket & Boarding Pass...';
-    await new Promise(r => setTimeout(r, 1000));
-
-    const pnrCode = flight.airline.slice(0, 2).toUpperCase() + '-' + Math.floor(100000 + Math.random() * 900000);
-    const assignedSeat = '12' + ['A', 'B', 'C', 'D', 'F'][Math.floor(Math.random() * 5)];
-
-    const flightPass = {
-        attendeeName: name,
-        orderReference: pnrCode,
-        eventTitle: `${flight.airline} · Flight ${flight.flightNumber} (${flight.origin} ➔ ${flight.dest})`,
-        tierName: `Seat ${assignedSeat} · ${flightSearchState.cabinClass.toUpperCase()}`,
-        designatedGate: `Gate ${flight.origin === 'NBO' ? '2B' : '1A'} · Boarding 40m prior`,
-        status: 'VALID',
-        passReference: `IATA-ETKT-${pnrCode}`,
-        qrCodeToken: `TICKETSASA-FLIGHT-${pnrCode}-${assignedSeat}`
-    };
-
-    rememberOrder({
-        orderReference: pnrCode,
-        totalKes,
-        totalUsd,
-        currency: state.currency,
-        items: [{ title: `${flight.airline} ${flight.flightNumber}`, quantity: 1, unitPriceKes: totalKes }]
-    }, [flightPass]);
-
-    if (btn) btn.disabled = false;
-    closeFlightBookingModal();
-    openDigitalPass(flightPass);
-    showToast(`Flight booking confirmed! E-Ticket PNR: ${pnrCode}`);
+    saveTravelPlan('flight', 'fbm-status', {
+        airline: flight.airline, origin: flight.origin, destination: flight.dest,
+        departure: document.getElementById('flight-depart-date').value,
+        returnDate: document.getElementById('flight-return-date').disabled ? '' : document.getElementById('flight-return-date').value,
+        cabin: flightSearchState.cabinClass
+    });
 }
 
 function initFlightEngine() {
@@ -1847,52 +1810,39 @@ function calculateHolidayTotal() {
     return { totalKes, totalUsd };
 }
 
-async function handleHolidayBookingSubmit(event) {
+function handleHolidayBookingSubmit(event) {
     event.preventDefault();
-    const pkg = currentHolidayBooking;
-    if (!pkg) return;
-
-    const btn = document.getElementById('btn-hbm-submit');
-    const status = document.getElementById('hbm-status');
-    const name = document.getElementById('hbm-guest-name').value.trim();
-    const phone = document.getElementById('hbm-phone').value.trim();
+    if (!currentHolidayBooking) return;
     const checkin = document.getElementById('hbm-checkin-date').value;
     const checkout = document.getElementById('hbm-checkout-date').value;
-    const { totalKes, totalUsd } = calculateHolidayTotal();
+    if (!checkin || !checkout || checkout <= checkin) {
+        document.getElementById('hbm-status').textContent = 'Choose a check-out date after check-in.';
+        return;
+    }
+    saveTravelPlan('holiday', 'hbm-status', {
+        title: currentHolidayBooking.title, checkin, checkout,
+        travellers: document.getElementById('hbm-adults-count').value
+    });
+}
 
-    if (btn) btn.disabled = true;
-    if (status) status.textContent = `Connecting to Safaricom Daraja... Prompt sent to ${phone}`;
+function saveTravelPlan(kind, statusId, plan) {
+    const status = document.getElementById(statusId);
+    try {
+        localStorage.setItem('ticketsasa-' + kind + '-itinerary', JSON.stringify(plan));
+        status.textContent = 'Itinerary saved on this browser. Booking requires provider confirmation.';
+    } catch {
+        status.textContent = 'This browser could not save the itinerary.';
+    }
+}
 
-    await new Promise(r => setTimeout(r, 1200));
-
-    if (status) status.textContent = 'M-Pesa STK PIN Verified. Issuing confirmed Resort Voucher & Check-in Pass...';
-    await new Promise(r => setTimeout(r, 1000));
-
-    const refCode = 'HOL-' + Math.floor(100000 + Math.random() * 900000);
-
-    const holidayPass = {
-        attendeeName: name,
-        orderReference: refCode,
-        eventTitle: pkg.title,
-        tierName: `Confirmed Reservation (${checkin} to ${checkout})`,
-        designatedGate: `${pkg.resortName} Front Desk Check-in (14:00)`,
-        status: 'VALID',
-        passReference: `RESORT-VOUCHER-${refCode}`,
-        qrCodeToken: `TICKETSASA-HOLIDAY-${refCode}-${pkg.key}`
-    };
-
-    rememberOrder({
-        orderReference: refCode,
-        totalKes,
-        totalUsd,
-        currency: state.currency,
-        items: [{ title: pkg.title, quantity: 1, unitPriceKes: totalKes }]
-    }, [holidayPass]);
-
-    if (btn) btn.disabled = false;
-    closeHolidayBookingModal();
-    openDigitalPass(holidayPass);
-    showToast(`Holiday package confirmed! Voucher: ${refCode}`);
+function showTravelPlan(kind) {
+    const status = document.getElementById('saved-' + kind + '-status');
+    try {
+        const plan = JSON.parse(localStorage.getItem('ticketsasa-' + kind + '-itinerary'));
+        status.textContent = plan ? Object.values(plan).filter(Boolean).join(' · ') : 'No saved itinerary yet.';
+    } catch {
+        status.textContent = 'Could not load the saved itinerary.';
+    }
 }
 
 // Maintain backwards compatibility for card clicks
@@ -1906,15 +1856,7 @@ function openHolidayPlan(card, saved) {
 // ADMIN LAUNCHER MODAL
 // ============================================================================
 
-function openAdminLauncherModal() {
-    const modal = document.getElementById('admin-launcher-modal');
-    if (modal) modal.classList.remove('hidden');
-}
 
-function closeAdminLauncherModal() {
-    const modal = document.getElementById('admin-launcher-modal');
-    if (modal) modal.classList.add('hidden');
-}
 
 
 function openJazaInfo() {
@@ -2545,61 +2487,8 @@ function calculateTalantaHubPrice() {
 }
 
 function proceedTalantaHubToCheckout() {
-    const zone = talantaHubZones[talantaHubState.zoneKey] || talantaHubZones.pitlane;
-    const isKes = state.currency === 'KES';
-    const unitPrice = isKes ? zone.priceKes : zone.priceUsd;
-    const parkingFee = talantaHubState.includeVipParking ? (isKes ? 1000 : 8) * talantaHubState.qty : 0;
-    const subtotal = (unitPrice * talantaHubState.qty) + parkingFee;
-    const serviceFee = Math.round(subtotal * 0.05);
-    const totalAmount = subtotal + serviceFee;
-
-    // Populate checkout modal items
-    const orderItemsEl = document.getElementById('modal-order-items');
-    if (orderItemsEl) {
-        orderItemsEl.innerHTML = `
-            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200">
-                <div class="space-y-0.5">
-                    <strong class="font-extrabold text-slate-900 block">Talanta Sports City &bull; ${zone.name}</strong>
-                    <div class="text-[11px] text-slate-500">${talantaHubState.selectedBlock} &bull; ${talantaHubState.selectedRow} &bull; Seat ${talantaHubState.selectedSeat} (${talantaHubState.qty} Seat${talantaHubState.qty > 1 ? 's' : ''})</div>
-                    <div class="text-[10px] text-emerald-600 font-bold">${zone.gate} &bull; ${zone.turnstiles}</div>
-                </div>
-                <div class="text-right font-extrabold text-slate-900">${isKes ? `KES ${(unitPrice * talantaHubState.qty).toLocaleString()}` : `$${unitPrice * talantaHubState.qty}`}</div>
-            </div>
-            ${talantaHubState.includeVipParking ? `
-            <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs">
-                <div>
-                    <strong class="text-amber-900 font-bold">VIP Express Gate & Parking Pass</strong>
-                    <div class="text-[10px] text-amber-700">Dedicated Gate A/B Priority Lane</div>
-                </div>
-                <div class="font-bold text-amber-900">${isKes ? `KES ${parkingFee.toLocaleString()}` : `$${parkingFee}`}</div>
-            </div>` : ''}
-            <div class="flex items-center justify-between text-xs text-slate-500 pt-1 px-1">
-                <span>Turnstile Biometric & Security Fee (5%)</span>
-                <span>${isKes ? `KES ${serviceFee.toLocaleString()}` : `$${serviceFee}`}</span>
-            </div>
-        `;
-    }
-
-    const modalTotalEl = document.getElementById('modal-order-total');
-    if (modalTotalEl) {
-        modalTotalEl.textContent = isKes ? `KES ${totalAmount.toLocaleString()}` : `$${totalAmount}`;
-    }
-
-    // Set checkout order reference
-    const checkoutRef = 'TSC-' + Math.floor(100000 + Math.random() * 900000);
-    state.checkout = {
-        title: `Talanta Sports City: ${zone.name}`,
-        itemKey: zone.key,
-        quantity: talantaHubState.qty,
-        currency: state.currency,
-        total: totalAmount,
-        seatInfo: `${talantaHubState.selectedBlock} · ${talantaHubState.selectedRow} · Seat ${talantaHubState.selectedSeat}`,
-        gate: zone.gate,
-        orderReference: checkoutRef
-    };
-
-    openCheckoutModal({ force: true });
-    showToast(`Loaded ${zone.name} Seat #${talantaHubState.selectedSeat} into checkout`);
+    switchTab('talanta');
+    scrollToTalantaSection('stadium-seat-selector');
 }
 
 // Auto-initialize Talanta Hub on DOM ready

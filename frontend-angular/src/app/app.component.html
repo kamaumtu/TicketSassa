@@ -1,182 +1,569 @@
 <a class="skip-link" href="#main-content">Skip to content</a>
-<header class="app-header">
-  <div class="app-header-inner">
-    <a class="app-brand" href="#upcoming-events">Talanta Tickets</a>
-    <div class="app-actions">
-      <button type="button" (click)="toggleCurrency()" aria-label="Switch currency">{{ currency }}</button>
-      <button type="button" (click)="openCheckout()" [disabled]="totalTicketsCount === 0">
-        Cart <span>{{ totalTicketsCount }}</span>
+
+<!-- APP NAVIGATION HEADER -->
+<header class="app-header sticky top-0 z-50 bg-[#080C14]/95 backdrop-blur-md border-b border-slate-800">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap items-center justify-between gap-4 py-3">
+    <!-- Brand -->
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 to-amber-400 flex items-center justify-center font-black text-black text-lg shadow-lg shadow-cyan-500/20">
+        T
+      </div>
+      <div>
+        <span class="font-extrabold text-white text-base tracking-tight block">TALANTA × TICKETSASA</span>
+        <span class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold block">Full Ecosystem · Angular 19</span>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="flex items-center gap-1.5 text-xs font-bold bg-slate-900/90 p-1 rounded-2xl border border-slate-800" aria-label="Main navigation">
+      <button type="button" (click)="switchTab('events')"
+        [class.bg-cyan-500]="activeTab === 'events'"
+        [class.text-black]="activeTab === 'events'"
+        [class.text-slate-300]="activeTab !== 'events'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        🎟 Events
+      </button>
+      <button type="button" (click)="switchTab('flights')"
+        [class.bg-sky-500]="activeTab === 'flights'"
+        [class.text-black]="activeTab === 'flights'"
+        [class.text-slate-300]="activeTab !== 'flights'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        ✈ Flights
+      </button>
+      <button type="button" (click)="switchTab('holidays')"
+        [class.bg-amber-400]="activeTab === 'holidays'"
+        [class.text-black]="activeTab === 'holidays'"
+        [class.text-slate-300]="activeTab !== 'holidays'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        🌴 Holidays
+      </button>
+      <button type="button" (click)="switchTab('talanta')"
+        [class.bg-emerald-400]="activeTab === 'talanta'"
+        [class.text-black]="activeTab === 'talanta'"
+        [class.text-slate-300]="activeTab !== 'talanta'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        🏟 Talanta Arena
+      </button>
+      <button type="button" (click)="switchTab('hustle')"
+        [class.bg-red-500]="activeTab === 'hustle'"
+        [class.text-white]="activeTab === 'hustle'"
+        [class.text-slate-300]="activeTab !== 'hustle'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        ⚡ HustleSasa
+      </button>
+      <button type="button" (click)="switchTab('wallet')"
+        [class.bg-purple-500]="activeTab === 'wallet'"
+        [class.text-white]="activeTab === 'wallet'"
+        [class.text-slate-300]="activeTab !== 'wallet'"
+        class="px-3.5 py-2 rounded-xl transition hover:text-white">
+        🎫 My Tickets <span *ngIf="savedPasses.length" class="ml-1 px-1.5 py-0.5 rounded-full bg-black/40 text-[10px]">{{ savedPasses.length }}</span>
+      </button>
+    </nav>
+
+    <!-- Header Actions -->
+    <div class="flex items-center gap-2">
+      <button type="button" (click)="toggleCurrency()" class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-200 hover:border-slate-500 transition">
+        {{ currency }}
+      </button>
+      <button type="button" (click)="openCheckout()" [disabled]="totalTicketsCount === 0"
+        class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-black font-extrabold text-xs transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-cyan-500/20">
+        Cart ({{ totalTicketsCount }}) · {{ currency === 'KES' ? 'KES ' + (cartTotal | number) : '$' + cartTotal }}
       </button>
     </div>
-    <nav class="app-nav" aria-label="Main navigation">
-      <a href="#upcoming-events">Events</a>
-      <a href="#stadium-seating">Stadium seating</a>
-      <a href="#ticket-passes">Ticket passes</a>
-      <a href="#my-tickets">My tickets</a>
-    </nav>
   </div>
 </header>
 
-<!-- Main Container -->
-<main id="main-content" tabindex="-1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-16">
-  <kenya-event-catalog id="upcoming-events"></kenya-event-catalog>
-  
-  <!-- HERO BANNER -->
-  <section class="rounded-3xl bg-gradient-to-r from-slate-900 via-[#0F172A] to-slate-900 p-8 border border-slate-800 relative overflow-hidden">
-    <div class="max-w-2xl space-y-4 relative z-10">
-      <h1 class="text-4xl sm:text-5xl font-extrabold text-white leading-tight">
-        TIME ATTACK: THE LAST LAP <br>
-        <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-cyan-400">
-          + KONSHENS LIVE AT TALANTA
-        </span>
-      </h1>
-      <p class="text-slate-400 text-sm leading-relaxed">
-        60,000 capacity mega event combining high-octane motorsport sprinting with Caribbean dancehall kings inside Raila Odinga International Stadium.
-      </p>
-    </div>
-  </section>
+<!-- MAIN APP CONTAINER -->
+<main id="main-content" tabindex="-1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-  <!-- STADIUM BLUEPRINT & ZONE PICKER -->
-  <section id="stadium-seating" class="space-y-6">
-    <div class="flex justify-between items-end">
+  <!-- ========================================================================= -->
+  <!-- TAB 1: TICKETSASA EVENTS & CONCERTS                                      -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'events'" class="space-y-12">
+    <!-- HERO BANNER -->
+    <section class="rounded-3xl bg-gradient-to-br from-slate-950 via-[#0F172A] to-slate-900 p-8 sm:p-10 border border-slate-800 relative overflow-hidden shadow-2xl">
+      <div class="max-w-3xl space-y-4 relative z-10">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold tracking-wider uppercase">
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+          Motorsport Sprint Finale + Caribbean Dancehall
+        </div>
+        <h1 class="text-3xl sm:text-5xl font-black text-white leading-tight">
+          TIME ATTACK: THE LAST LAP <br>
+          <span class="text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-amber-400 to-cyan-400">
+            + KONSHENS LIVE IN KENYA
+          </span>
+        </h1>
+        <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
+          60,000 capacity mega-production inside Raila Odinga International Stadium, Talanta Sports City. High-octane track sprints followed by Konshens live on the main stage.
+        </p>
+        <div class="flex flex-wrap items-center gap-4 pt-2">
+          <button (click)="switchTab('talanta')" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs transition">
+            🏟 Inspect Stadium Blueprint
+          </button>
+          <a href="#ticket-passes" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition">
+            🎟 Choose Passes Below
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- AUTOMATIC KENYA EVENT CATALOG COMPONENT -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-black text-white">Kenya Live Events Discovery</h2>
+        <span class="text-xs text-slate-400">Powered by SoldOutAfrica Integration</span>
+      </div>
+      <kenya-event-catalog id="upcoming-events"></kenya-event-catalog>
+    </section>
+
+    <!-- TICKETSASA TICKET TIERS -->
+    <section id="ticket-passes" class="space-y-6">
       <div>
-        <h2 class="text-2xl font-bold text-white">Talanta Sports City seating</h2>
+        <h2 class="text-2xl font-black text-white">Official Ticket Passes &amp; Tiers</h2>
+        <p class="text-xs text-slate-400">Instant digital QR passes delivered via Safaricom Daraja STK Push demo checkout.</p>
+      </div>
+
+      <p *ngIf="catalogStatus" role="status" class="text-slate-300">{{ catalogStatus }}</p>
+      
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div *ngFor="let tier of ticketTiers" class="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-cyan-500/50 transition shadow-lg">
+          <div>
+            <div class="text-[10px] text-cyan-400 uppercase tracking-widest font-extrabold">{{ tier.category }} · {{ tier.designatedGate }}</div>
+            <h4 class="text-xl font-bold text-white mt-1">{{ tier.title }}</h4>
+            <p class="text-xs text-slate-400 mt-1 line-clamp-3">{{ tier.description }}</p>
+            <div class="text-2xl font-black text-white mt-4">
+              {{ currency === 'KES' ? 'KES ' + (tier.priceKes | number) : '$' + tier.priceUsd }}
+            </div>
+            <div class="text-[11px] text-emerald-400 font-semibold mt-1">
+              ✓ {{ tier.remainingAllocation }} seats remaining
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
+            <button (click)="updateQty(tier.tierKey, -1)" class="w-9 h-9 rounded-xl bg-slate-800 text-white font-extrabold hover:bg-slate-700 transition">-</button>
+            <span class="text-base font-black text-cyan-400">{{ quantities[tier.tierKey] || 0 }}</span>
+            <button (click)="updateQty(tier.tierKey, 1)" class="w-9 h-9 rounded-xl bg-cyan-500 text-black font-extrabold hover:bg-cyan-400 transition">+</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TAB 2: IATA DOMESTIC & REGIONAL FLIGHTS GDS ENGINE                       -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'flights'" class="space-y-8">
+    <!-- Header banner -->
+    <div class="p-8 rounded-3xl bg-gradient-to-r from-slate-950 via-sky-950 to-slate-900 border border-sky-800/40">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <span class="px-3 py-1 rounded-full bg-sky-500/10 border border-sky-400/30 text-sky-400 text-xs font-bold uppercase tracking-wider">
+            ✈ Live GDS Schedule &amp; E-Ticket Hub
+          </span>
+          <h2 class="text-3xl font-black text-white mt-2">Search &amp; Book Flights</h2>
+          <p class="text-xs text-slate-300 mt-1">Instant reservations for Kenya Airways, Jambojet, Skyward Express, and Fly540 across Kenya.</p>
+        </div>
+        <div class="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-2xl border border-white/10 text-xs text-emerald-400 font-bold">
+          ● Direct E-Ticket &amp; Boarding Pass Delivery
+        </div>
+      </div>
+
+      <!-- Flight Filter Form -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-slate-800">
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 block mb-1">From Airport</label>
+          <select [(ngModel)]="flightOrigin" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none">
+            <option value="NBO">Nairobi – Jomo Kenyatta (NBO)</option>
+            <option value="WIL">Nairobi – Wilson (WIL)</option>
+            <option value="MBA">Mombasa – Moi Intl (MBA)</option>
+            <option value="KIS">Kisumu Intl (KIS)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 block mb-1">To Airport</label>
+          <select [(ngModel)]="flightDest" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none">
+            <option value="MBA">Mombasa – Moi Intl (MBA)</option>
+            <option value="KIS">Kisumu Intl (KIS)</option>
+            <option value="NBO">Nairobi – Jomo Kenyatta (NBO)</option>
+            <option value="WIL">Nairobi – Wilson (WIL)</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 block mb-1">Airline Filter</label>
+          <select [(ngModel)]="selectedAirline" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none">
+            <option value="all">All Airlines</option>
+            <option value="Kenya Airways">Kenya Airways</option>
+            <option value="Jambojet">Jambojet</option>
+            <option value="Skyward">Skyward Express</option>
+            <option value="Fly540">Fly540</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-slate-400 block mb-1">Trip Type</label>
+          <div class="flex rounded-xl overflow-hidden border border-slate-700">
+            <button type="button" (click)="tripType = 'round'" [class.bg-sky-500]="tripType === 'round'" [class.text-black]="tripType === 'round'" class="flex-1 py-2 text-xs font-bold bg-slate-900 text-slate-300">Round</button>
+            <button type="button" (click)="tripType = 'one'" [class.bg-sky-500]="tripType === 'one'" [class.text-black]="tripType === 'one'" class="flex-1 py-2 text-xs font-bold bg-slate-900 text-slate-300">One Way</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Zones Selector Tabs -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+    <!-- Booking Confirmation Toast -->
+    <div *ngIf="flightBookingSuccess" class="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-bold">
+      {{ flightBookingSuccess }}
+    </div>
+
+    <!-- Flight Search Results Cards -->
+    <div class="space-y-4">
+      <div *ngFor="let flight of filteredFlights" class="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 hover:border-sky-500/40 transition flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xl">
+        <div class="space-y-2">
+          <div class="flex items-center gap-3">
+            <span class="px-2.5 py-1 rounded-lg bg-sky-500/20 text-sky-400 text-xs font-extrabold uppercase">{{ flight.airline }}</span>
+            <span class="text-xs font-semibold text-slate-400">{{ flight.flightNumber }} · {{ flight.aircraft }}</span>
+          </div>
+          <div class="flex items-center gap-4 text-white">
+            <div>
+              <div class="text-2xl font-black">{{ flight.depTime }}</div>
+              <div class="text-xs text-slate-400">{{ flight.originCity }}</div>
+            </div>
+            <div class="text-center px-4">
+              <span class="text-[10px] text-slate-400 block">{{ flight.durationText }}</span>
+              <div class="w-24 h-0.5 bg-sky-500/60 my-1 relative">
+                <span class="absolute right-0 -top-1 w-2 h-2 rounded-full bg-sky-400"></span>
+              </div>
+              <span class="text-[10px] text-emerald-400 font-bold block">{{ flight.stops }}</span>
+            </div>
+            <div>
+              <div class="text-2xl font-black">{{ flight.arrTime }}</div>
+              <div class="text-xs text-slate-400">{{ flight.destCity }}</div>
+            </div>
+          </div>
+          <div class="text-xs text-slate-400 flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            <span>💼 {{ flight.baggage }}</span>
+            <span>☕ {{ flight.amenities }}</span>
+          </div>
+        </div>
+
+        <div class="text-right md:border-l md:border-slate-800 md:pl-6 space-y-2">
+          <div class="text-xs text-slate-400">Total Fare per passenger</div>
+          <div class="text-2xl font-black text-white">
+            {{ currency === 'KES' ? 'KES ' + (flight.priceKes | number) : '$' + flight.priceUsd }}
+          </div>
+          <div class="text-[11px] text-amber-400 font-semibold">{{ flight.seatsLeft }} seats remaining</div>
+          <button (click)="bookFlightDemo(flight)" class="w-full md:w-auto px-6 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-extrabold text-xs transition shadow-lg shadow-sky-500/20">
+            Book Flight Now
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TAB 3: TICKETSASA HOLIDAYS & COAST RESORT PACKAGES                        -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'holidays'" class="space-y-8">
+    <div class="p-8 rounded-3xl bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950 border border-amber-800/40">
+      <span class="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/30 text-amber-400 text-xs font-bold uppercase tracking-wider">
+        🌴 Safari &amp; Beach Holidays
+      </span>
+      <h2 class="text-3xl font-black text-white mt-2">Exclusive Kenya Vacation Packages</h2>
+      <p class="text-xs text-slate-300 mt-1">Curated all-inclusive beach resorts and Maasai Mara safari luxury camps with VIP transfers.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div *ngFor="let hol of holidaysList" class="rounded-3xl bg-slate-900 border border-slate-800 overflow-hidden flex flex-col justify-between hover:border-amber-500/40 transition shadow-xl">
+        <div class="p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <span class="px-2.5 py-1 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-black uppercase">{{ hol.duration }}</span>
+            <span class="text-xs font-bold text-emerald-400">{{ hol.discount }}</span>
+          </div>
+          <h3 class="text-xl font-bold text-white">{{ hol.title }}</h3>
+          <p class="text-xs text-slate-400">📍 {{ hol.destination }}</p>
+          <div class="text-xs font-semibold text-amber-300 bg-amber-950/30 p-2.5 rounded-xl border border-amber-800/20">
+            🍽 {{ hol.mealPlan }}
+          </div>
+          <ul class="text-xs text-slate-300 space-y-1.5 pt-2">
+            <li *ngFor="let inc of hol.inclusions" class="flex items-start gap-2">
+              <span class="text-emerald-400 font-bold">✓</span>
+              <span>{{ inc }}</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="p-6 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] text-slate-400">Starting from</div>
+            <div class="text-xl font-black text-white">
+              {{ currency === 'KES' ? 'KES ' + (hol.rateKes | number) : '$' + hol.rateUsd }}
+            </div>
+          </div>
+          <button (click)="switchTab('events')" class="px-4 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-black font-extrabold text-xs transition">
+            Inquire / Book
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TAB 4: TALANTA SPORTS CITY STADIUM BLUEPRINT                              -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'talanta'" class="space-y-8">
+    <div class="p-8 rounded-3xl bg-[#0B1120] border border-slate-800 flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <span class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-xs font-bold uppercase tracking-wider">
+          🏟 Raila Odinga International Stadium
+        </span>
+        <h2 class="text-3xl font-black text-white mt-2">60,000-Seater Interactive Arena Blueprint</h2>
+        <p class="text-xs text-slate-400 mt-1">Telemetry, gate access coordinates, turnstiles, and grandstand sightlines.</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-xs text-slate-300 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
+          📍 Ngong Road, Nairobi, Kenya
+        </span>
+      </div>
+    </div>
+
+    <!-- Interactive Zones Selector -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
       <button *ngFor="let z of zones" (click)="selectZone(z.zoneKey)"
-        [class.border-cyan-400]="selectedZone?.zoneKey === z.zoneKey"
-        [class.bg-cyan-950]="selectedZone?.zoneKey === z.zoneKey"
-        class="p-3 rounded-xl bg-slate-900 border border-slate-800 text-left transition hover:border-slate-600">
-        <div class="text-[10px] text-slate-400 uppercase">{{ z.gate }}</div>
-        <div class="text-xs font-bold text-white truncate">{{ z.name }}</div>
+        [class.border-emerald-400]="selectedZone?.zoneKey === z.zoneKey"
+        [class.bg-emerald-950]="selectedZone?.zoneKey === z.zoneKey"
+        class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-left transition hover:border-slate-600 shadow-md">
+        <div class="text-[10px] text-slate-400 uppercase font-black">{{ z.gate }}</div>
+        <div class="text-sm font-extrabold text-white truncate">{{ z.name }}</div>
+        <div class="text-[10px] text-emerald-400 font-bold mt-1">{{ z.availablePercent }}% Left</div>
       </button>
     </div>
 
-    <!-- Selected Zone Card -->
-    <div *ngIf="selectedZone" class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-      <div class="md:col-span-2 space-y-2">
-        <span class="text-[11px] text-amber-400 uppercase font-bold">{{ selectedZone.gate }} Access</span>
-        <h3 class="text-xl font-bold text-white">{{ selectedZone.name }}</h3>
-        <p class="text-xs text-slate-400">{{ selectedZone.description }}</p>
-        <div class="flex flex-wrap gap-x-4 gap-y-2 pt-2 text-xs text-slate-300">
-          <span>Capacity: <strong class="text-white">{{ selectedZone.capacity | number }}</strong></span>
-          <span>Availability: <strong class="text-emerald-400">{{ selectedZone.availablePercent }}% Left</strong></span>
+    <!-- Active Zone Detailed Telemetry Card -->
+    <div *ngIf="selectedZone" class="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-8 shadow-2xl">
+      <div class="md:col-span-2 space-y-4">
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase">{{ selectedZone.gate }} Access</span>
+          <span class="text-xs text-slate-400">Angle: {{ selectedZone.fieldOfViewAngle }}</span>
+        </div>
+        <h3 class="text-2xl font-black text-white">{{ selectedZone.name }}</h3>
+        <p class="text-sm text-slate-300 leading-relaxed">{{ selectedZone.description }}</p>
+        
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block uppercase">Zone Capacity</span>
+            <span class="text-lg font-black text-white">{{ selectedZone.capacity | number }}</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block uppercase">Remaining</span>
+            <span class="text-lg font-black text-emerald-400">{{ selectedZone.availablePercent }}%</span>
+          </div>
+          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
+            <span class="text-[10px] text-slate-400 block uppercase">Designated Gate</span>
+            <span class="text-lg font-black text-amber-400">{{ selectedZone.gate }}</span>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <span class="text-xs font-bold text-slate-400 block mb-2">Zone Privileges &amp; Inclusions:</span>
+          <div class="flex flex-wrap gap-2">
+            <span *ngFor="let perk of selectedZone.includedPerks" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold">
+              ✓ {{ perk }}
+            </span>
+          </div>
         </div>
       </div>
-      <div>
-        <button (click)="updateQty(selectedZone.recommendedTier, 1)" class="w-full py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs transition">
+
+      <div class="flex flex-col justify-between space-y-4 bg-slate-950 p-6 rounded-2xl border border-slate-800">
+        <div>
+          <span class="text-xs text-slate-400 block">Recommended Pass</span>
+          <h4 class="text-xl font-bold text-white mt-1">{{ selectedZone.recommendedTier | uppercase }}</h4>
+          <p class="text-xs text-slate-400 mt-2">Instant checkout allocation holds seat position for 10 minutes.</p>
+        </div>
+        <button (click)="updateQty(selectedZone.recommendedTier, 1); switchTab('events')" class="w-full py-3.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-black text-xs transition shadow-lg shadow-emerald-400/20">
           + Book {{ selectedZone.recommendedTier | uppercase }} Pass
         </button>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- TICKETSASA TICKET TIERS -->
-  <section id="ticket-passes" class="space-y-6">
-    <div>
-      <h2 class="text-2xl font-bold text-white">Ticket passes</h2>
-      <p class="text-xs text-slate-400">Select your passes to try demo checkout.</p>
+  <!-- ========================================================================= -->
+  <!-- TAB 5: HUSTLESASA CREATOR HUB & MERCH STORE                              -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'hustle'" class="space-y-10">
+    <div class="p-8 rounded-3xl bg-gradient-to-r from-red-950/60 via-slate-900 to-slate-950 border border-red-800/40">
+      <span class="px-3 py-1 rounded-full bg-red-500/10 border border-red-400/30 text-red-400 text-xs font-bold uppercase tracking-wider">
+        ⚡ HustleSasa Creator Commerce
+      </span>
+      <h2 class="text-3xl font-black text-white mt-2">Creator Merch Storefront &amp; Earnings Engine</h2>
+      <p class="text-xs text-slate-300 mt-1">HustleSasa platform calculator (4.925% commission) &amp; official event merchandise.</p>
     </div>
 
-    <p *ngIf="catalogStatus" role="status" class="text-slate-300">{{ catalogStatus }}</p>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <div *ngFor="let tier of ticketTiers" class="p-6 rounded-2xl bg-slate-900/90 border border-slate-800 flex flex-col justify-between space-y-4">
-        <p class="text-sm text-slate-300">{{ tier.eventTitle }}</p>
+    <!-- HustleSasa Commission Calculator -->
+    <div class="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-8 shadow-2xl">
+      <div class="space-y-4">
+        <h3 class="text-xl font-black text-white">Interactive Earnings &amp; Commission Calculator</h3>
+        <p class="text-xs text-slate-300">
+          HustleSasa charges an exact flat rate of <strong class="text-amber-400">4.925%</strong> for full merchant checkout, instant M-Pesa STK push, fraud screening, and creator payout settlement.
+        </p>
         <div>
-          <div class="text-[10px] text-cyan-400 uppercase">{{ tier.category }}</div>
-          <h4 class="text-lg font-bold text-white mt-1">{{ tier.title }}</h4>
-          <p class="text-xs text-slate-400 mt-1">{{ tier.description }}</p>
-          <div class="text-2xl font-extrabold text-white mt-4">
-            {{ currency === 'KES' ? 'KES ' + (tier.priceKes | number) : '$' + tier.priceUsd }}
-          </div>
+          <label class="text-xs font-bold text-slate-400 block mb-1">Enter Estimated Gross Sales (KES)</label>
+          <input type="number" [(ngModel)]="hustleGrossInput" min="1000" step="1000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-lg font-black text-white outline-none focus:border-red-500">
         </div>
+      </div>
 
-        <div class="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800">
-          <button (click)="updateQty(tier.tierKey, -1)" class="w-8 h-8 rounded-lg bg-slate-800 text-white font-bold">-</button>
-          <span class="text-base font-bold text-cyan-400">{{ quantities[tier.tierKey] || 0 }}</span>
-          <button (click)="updateQty(tier.tierKey, 1)" class="w-8 h-8 rounded-lg bg-slate-800 text-white font-bold">+</button>
+      <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-center space-y-4">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+          <span class="text-xs text-slate-400">Gross Creator Sales</span>
+          <span class="text-sm font-bold text-white">KES {{ hustleGrossInput | number }}</span>
+        </div>
+        <div class="flex justify-between items-center pb-3 border-b border-slate-800">
+          <span class="text-xs text-slate-400">HustleSasa Fee (4.925%)</span>
+          <span class="text-sm font-bold text-red-400">- KES {{ hustleFee | number:'1.2-2' }}</span>
+        </div>
+        <div class="flex justify-between items-center pt-2">
+          <span class="text-xs font-black text-slate-300 uppercase">Net Payout to Bank/M-Pesa</span>
+          <span class="text-2xl font-black text-emerald-400">KES {{ hustlePayout | number:'1.2-2' }}</span>
         </div>
       </div>
     </div>
-  </section>
 
-  <section id="my-tickets" class="space-y-4">
-    <h2 class="text-2xl font-bold">My tickets</h2>
-    <form (ngSubmit)="lookupOrder()" ngNativeValidate class="grid gap-3 sm:grid-cols-2 max-w-2xl">
-      <label class="block text-sm">Order reference
-        <input [(ngModel)]="orderReference" name="orderReference" required class="block w-full rounded-lg border border-slate-600 bg-slate-900 p-2">
-      </label>
-      <label class="block text-sm">Email used at checkout
-        <input [(ngModel)]="orderEmail" name="orderEmail" type="email" required class="block w-full rounded-lg border border-slate-600 bg-slate-900 p-2">
-      </label>
-      <button type="submit" [disabled]="isLookingUp" class="rounded-lg bg-rose-700 px-4 py-2 font-bold">Find order</button>
-    </form>
-    <p role="status" class="text-sm text-slate-300">{{ orderStatus }}</p>
-    <button *ngFor="let pass of savedPasses" type="button" (click)="showPass(pass)"
-      class="block rounded-lg border border-slate-500 px-4 py-2">{{ pass.tierName }} ? {{ pass.status }}</button>
-  </section>
+    <!-- HustleSasa Official Merchandise Store -->
+    <div class="space-y-6">
+      <h3 class="text-2xl font-black text-white">Official Event Merchandise</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div *ngFor="let item of merchList" class="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-red-500/40 transition shadow-xl">
+          <div>
+            <span class="px-2.5 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-extrabold uppercase">{{ item.badge }}</span>
+            <h4 class="text-lg font-bold text-white mt-3">{{ item.name }}</h4>
+            <p class="text-xs text-slate-400 mt-1">{{ item.desc }}</p>
+            <div class="text-2xl font-black text-white mt-4">
+              {{ currency === 'KES' ? 'KES ' + (item.priceKes | number) : '$' + item.priceUsd }}
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
+            <button (click)="updateMerchQty(item.id, -1)" class="w-9 h-9 rounded-xl bg-slate-800 text-white font-extrabold hover:bg-slate-700 transition">-</button>
+            <span class="text-base font-black text-red-400">{{ merchQuantities[item.id] || 0 }}</span>
+            <button (click)="updateMerchQty(item.id, 1)" class="w-9 h-9 rounded-xl bg-red-500 text-white font-extrabold hover:bg-red-400 transition">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- TAB 6: DIGITAL TICKET WALLET & ORDER RECOVERY                            -->
+  <!-- ========================================================================= -->
+  <div *ngIf="activeTab === 'wallet'" class="max-w-2xl mx-auto space-y-8">
+    <div class="p-8 rounded-3xl bg-slate-900 border border-slate-800 space-y-4 shadow-xl">
+      <h2 class="text-2xl font-black text-white">Ticket Wallet &amp; Order Lookup</h2>
+      <p class="text-xs text-slate-400">Enter your order reference code and checkout email address to recover your verified digital QR gate passes.</p>
+
+      <form (submit)="lookupOrder()" class="space-y-4 pt-2">
+        <div>
+          <label class="text-xs font-bold text-slate-400 block mb-1">Order Reference</label>
+          <input type="text" [(ngModel)]="orderReference" name="orderRef" placeholder="e.g. TAL-12345" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-purple-500">
+        </div>
+        <div>
+          <label class="text-xs font-bold text-slate-400 block mb-1">Checkout Email</label>
+          <input type="email" [(ngModel)]="orderEmail" name="orderEmail" placeholder="e.g. kamau@example.com" required class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-xs text-white outline-none focus:border-purple-500">
+        </div>
+        <button type="submit" [disabled]="isLookingUp" class="w-full py-3 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-black text-xs transition disabled:opacity-50">
+          {{ isLookingUp ? 'Searching Order...' : 'Recover Digital Passes' }}
+        </button>
+      </form>
+
+      <p *ngIf="orderStatus" class="text-xs font-bold text-cyan-400 pt-2">{{ orderStatus }}</p>
+    </div>
+
+    <!-- Recovered Passes List -->
+    <div *ngIf="savedPasses.length" class="space-y-4">
+      <h3 class="text-lg font-bold text-white">Your Available Passes ({{ savedPasses.length }})</h3>
+      <div *ngFor="let pass of savedPasses" (click)="viewPass(pass)" class="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 cursor-pointer transition flex items-center justify-between">
+        <div>
+          <div class="text-xs font-bold text-white">{{ pass.tierName }}</div>
+          <div class="text-[11px] text-slate-400">{{ pass.eventTitle || 'Talanta Sports City' }} · {{ pass.designatedGate }}</div>
+        </div>
+        <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase"
+          [ngClass]="pass.status === 'VALID' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'">
+          {{ pass.status }}
+        </span>
+      </div>
+    </div>
+  </div>
 
 </main>
 
 <!-- CHECKOUT MODAL -->
-<div *ngIf="isCheckoutOpen" class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4 bg-black/80 backdrop-blur-md">
-  <div class="w-full max-w-md bg-[#0E1525] border border-slate-800 rounded-3xl p-6 space-y-4 text-left">
-    <div class="flex justify-between items-center">
-      <h3 class="text-xl font-bold text-white">Demo checkout</h3>
-      <button (click)="closeCheckout()" class="text-slate-400 hover:text-white font-bold">Close</button>
+<div *ngIf="isCheckoutOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-lg w-full space-y-6 shadow-2xl">
+    <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+      <h3 class="text-xl font-black text-white">Safaricom Daraja Checkout</h3>
+      <button (click)="closeCheckout()" class="text-slate-400 hover:text-white text-lg font-bold">✕</button>
     </div>
 
-    <form (ngSubmit)="triggerMpesaCheckout()" ngNativeValidate class="space-y-4">
-    <p class="text-sm text-slate-300">No money is charged.</p>
-    <div class="space-y-3 text-xs">
+    <div class="space-y-3">
       <div>
-        <label class="block text-slate-400 mb-1">Attendee Name</label>
-        <input type="text" [(ngModel)]="customerName" name="customerName" required autocomplete="name" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white">
+        <label class="text-xs font-bold text-slate-400 block mb-1">Full Name</label>
+        <input type="text" [(ngModel)]="customerName" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
       </div>
       <div>
-        <label class="block text-slate-400 mb-1">Email Address</label>
-        <input type="email" [(ngModel)]="customerEmail" name="customerEmail" required autocomplete="email" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white">
+        <label class="text-xs font-bold text-slate-400 block mb-1">Email Address (For E-Ticket Delivery)</label>
+        <input type="email" [(ngModel)]="customerEmail" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
       </div>
       <div>
-        <label class="block text-emerald-400 mb-1">Kenyan mobile number</label>
-        <input type="tel" [(ngModel)]="customerPhone" name="customerPhone" required autocomplete="tel" class="w-full px-3 py-2 rounded-xl bg-slate-950 border border-emerald-500/40 text-white ">
+        <label class="text-xs font-bold text-slate-400 block mb-1">M-Pesa Phone Number</label>
+        <input type="tel" [(ngModel)]="customerPhone" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
       </div>
     </div>
 
-    <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex justify-between text-sm font-bold">
-      <span class="text-slate-400">Total Payable:</span>
-      <span class="text-cyan-400">{{ currency === 'KES' ? 'KES ' + (cartTotal | number) : '$' + cartTotal }}</span>
+    <div class="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex justify-between items-center">
+      <span class="text-xs font-bold text-slate-400">Total Due</span>
+      <span class="text-xl font-black text-cyan-400">
+        {{ currency === 'KES' ? 'KES ' + (cartTotal | number) : '$' + cartTotal }}
+      </span>
     </div>
 
-    <p role="status" class="text-sm text-slate-200">{{ paymentStatusMessage }}</p>
-    <button type="submit" [disabled]="isProcessingPayment" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 text-white font-bold text-xs uppercase tracking-wider transition">
-      Complete demo checkout
-    </button>
-    </form>
+    <div *ngIf="paymentStatusMessage" class="text-xs font-bold text-amber-400">
+      {{ paymentStatusMessage }}
+    </div>
+
+    <div class="flex gap-3">
+      <button (click)="closeCheckout()" class="flex-1 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition">
+        Cancel
+      </button>
+      <button (click)="triggerMpesaCheckout()" [disabled]="isProcessingPayment" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-black text-xs transition disabled:opacity-50">
+        {{ isProcessingPayment ? 'Processing...' : 'Simulate M-Pesa STK Push' }}
+      </button>
+    </div>
   </div>
 </div>
 
 <!-- DIGITAL PASS MODAL -->
-<div *ngIf="isPassModalOpen" class="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4 bg-black/85 backdrop-blur-md">
-  <div class="w-full max-w-sm bg-[#0D1525] border-2 border-emerald-500/40 rounded-3xl p-6 text-center space-y-4">
-    <div class="text-xs text-emerald-400 font-bold">{{ issuedDigitalPass?.mode === 'demo' ? 'Demo pass' : issuedDigitalPass?.status }}</div>
-    <div class="p-4 rounded-2xl bg-white text-black space-y-2">
-      <div class="font-extrabold text-base">{{ issuedDigitalPass?.eventTitle }}<br>{{ issuedDigitalPass?.attendeeName }}</div>
-      <div class="text-xs text-slate-700">{{ issuedDigitalPass?.tierName }}</div>
-      <div class="text-[10px] text-emerald-700 font-bold">{{ issuedDigitalPass?.designatedGate }}</div>
-      <div class="break-all py-4 border-y border-dashed border-slate-300 text-xs tracking-widest font-bold">
-        <ng-container *ngIf="issuedDigitalPass as pass">
-          <img *ngIf="pass.status === 'VALID'" [src]="passQrUrl(pass.qrCodeToken)" alt="Ticket QR code" class="mx-auto h-40 w-40">
-        </ng-container>
-        {{ issuedDigitalPass?.passReference }}
-      </div>
+<div *ngIf="isPassModalOpen && issuedDigitalPass" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+  <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full space-y-6 shadow-2xl text-center">
+    <div>
+      <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-black uppercase">
+        ✓ Gate Scanner Verified
+      </span>
+      <h3 class="text-xl font-black text-white mt-2">{{ issuedDigitalPass.tierName }}</h3>
+      <p class="text-xs text-slate-400">{{ issuedDigitalPass.eventTitle || 'Talanta Sports City' }}</p>
     </div>
-    <button (click)="closePassModal()" class="w-full py-3 rounded-xl bg-cyan-500 text-black font-extrabold text-xs">
-      Done
+
+    <!-- QR Code Preview Block -->
+    <div class="p-6 bg-white rounded-2xl shadow-inner mx-auto w-48 h-48 flex flex-col items-center justify-center">
+      <div class="font-mono text-black font-black text-xs break-all">
+        {{ issuedDigitalPass.qrCodeToken }}
+      </div>
+      <div class="text-[9px] text-slate-500 uppercase font-semibold mt-2">Gate Pass QR Code</div>
+    </div>
+
+    <div class="text-xs text-slate-300 space-y-1">
+      <div>Attendee: <strong class="text-white">{{ issuedDigitalPass.attendeeName }}</strong></div>
+      <div>Gate Access: <strong class="text-cyan-400">{{ issuedDigitalPass.designatedGate }}</strong></div>
+      <div>Reference: <span class="font-mono text-amber-400">{{ issuedDigitalPass.passReference }}</span></div>
+    </div>
+
+    <button (click)="isPassModalOpen = false" class="w-full py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs transition">
+      Close &amp; Save To Wallet
     </button>
   </div>
 </div>
-
