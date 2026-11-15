@@ -5,10 +5,35 @@ const { collection, transaction } = require('../services/commerceDb');
 const router = express.Router();
 const { isConnected } = require('../config/db');
 const { route } = require('../services/http');
+const { ticketsasaEvents } = require('../config/ticketsasaEvents');
 
 async function events() {
-    if (!isConnected()) return [];
-    return collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray();
+    const dbEvents = isConnected()
+        ? await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray()
+        : [];
+    const defaultPublished = ticketsasaEvents.map(ev => ({
+        id: ev.id,
+        title: ev.title,
+        venue: ev.locationFull || ev.venue,
+        description: ev.description,
+        salesOpen: '2026-01-01T00:00:00.000Z',
+        salesClose: '2027-12-31T23:59:59.000Z',
+        startsAt: ev.startsAt,
+        formattedDate: ev.formattedDate,
+        startAtLabel: ev.startAtLabel,
+        image: ev.imageUrl,
+        imageUrl: ev.imageUrl,
+        remoteImageUrl: ev.remoteImageUrl,
+        category: ev.category,
+        host: ev.host,
+        startingPrice: ev.startingPrice,
+        isFree: ev.isFree,
+        status: 'published',
+        tiers: ev.tiers
+    }));
+    const byId = new Map(defaultPublished.map(e => [e.id, e]));
+    for (const ev of dbEvents) byId.set(ev.id, ev);
+    return [...byId.values()];
 }
 
 function visible(event) {

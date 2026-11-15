@@ -1,6 +1,7 @@
 const TicketTier = require('../models/TicketTier');
 const { isConnected } = require('../config/db');
 const { availability, demoEnabled } = require('../services/commerceDb');
+const { ticketsasaTiers } = require('../config/ticketsasaEvents');
 
 const defaultTiers = [
     {
@@ -88,11 +89,18 @@ async function getTicketCatalog() {
     const baseTiers = tiers.length ? tiers : defaultTiers;
     const { publishedTiers } = require('../routes/publishedEvents');
     const pub = await publishedTiers().catch(() => []);
-    return [...baseTiers, ...pub].map(tier => ({
-        ...tier,
-        eventId: tier.eventId || demoEvent.id,
-        eventTitle: tier.eventTitle || demoEvent.title
-    }));
+    const seen = new Set();
+    const combined = [];
+    for (const tier of [...baseTiers, ...ticketsasaTiers, ...pub]) {
+        if (!tier?.tierKey || seen.has(tier.tierKey)) continue;
+        seen.add(tier.tierKey);
+        combined.push({
+            ...tier,
+            eventId: tier.eventId || demoEvent.id,
+            eventTitle: tier.eventTitle || demoEvent.title
+        });
+    }
+    return combined;
 }
 
 exports.getTicketCatalog = getTicketCatalog;

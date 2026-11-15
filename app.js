@@ -628,11 +628,15 @@ function switchTab(tabName, { updateHistory = true } = {}) {
 
 function filterEvents(category) {
     document.getElementById('event-search-input').value = category === 'all' ? '' : category;
+    const cityInput = document.getElementById('event-city-input');
+    if (cityInput && category === 'all') cityInput.value = '';
     executeEventSearch();
 }
 
 function executeEventSearch() {
-    const query = document.getElementById('event-search-input').value.trim();
+    const nameQuery = document.getElementById('event-search-input')?.value.trim() || '';
+    const cityQuery = document.getElementById('event-city-input')?.value.trim() || '';
+    const query = [nameQuery, cityQuery].filter(Boolean).join(' ').trim();
     const catalog = document.getElementById('upcoming-events');
     const term = query.toLowerCase();
     let matches = 0;
@@ -645,38 +649,176 @@ function executeEventSearch() {
         publishedStatus.textContent = matches ? '' : 'No ticketed events match your search.';
     }
     catalog.setQuery?.(query);
-    const results = matches ? document.getElementById('published-events') : catalog;
+    const results = catalog || (matches ? document.getElementById('published-events') : catalog);
     results.setAttribute('tabindex', '-1');
     results.focus({ preventScroll: true });
-    results.scrollIntoView({ block: 'start' });
+    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // =========================================================================
-// NEW ENHANCEMENTS FROM LATEST 7 SCREENSHOTS
+// 3-TAB HERO SEARCH CARD & FEATURED EVENT SLIDER (ticketsasa.com 1:1)
 // =========================================================================
+const heroSliderItems = [
+    {
+        eventId: 'ticketsasa-back-to-rock-5',
+        title: 'Back To Rock 5',
+        priceKes: 2000,
+        imageUrl: 'assets/real/QZGqWDTxBF-1791963807.jpg'
+    },
+    {
+        eventId: 'ticketsasa-rx-fest-round-3',
+        title: 'RX FEST ROUND 3',
+        priceKes: 500,
+        imageUrl: 'assets/real/SzYy0XWlBI-1792688119.png'
+    },
+    {
+        eventId: 'ticketsasa-mr-miss-usiu-africa',
+        title: 'Mr & Miss USIU - Africa',
+        priceKes: 400,
+        imageUrl: 'assets/real/GAzVjovyNO-1794384397.jpg'
+    },
+    {
+        eventId: 'ticketsasa-back-forth-old-school-party-dec19',
+        title: 'BACK & FORTH Old School Party',
+        priceKes: 1500,
+        imageUrl: 'assets/real/DzLV4G9UWo-1790859483.jpg'
+    },
+    {
+        eventId: 'ticketsasa-l-boogie-the-2026-annual-diaspora-reunion',
+        title: 'L-BOOGIE - THE 2026 ANNUAL DIASPORA REUNION',
+        priceKes: 2000,
+        imageUrl: 'assets/real/lheAq1Zpc0-1794303741.jpg'
+    },
+    {
+        eventId: 'ticketsasa-street-courture-padel-meets-fashion',
+        title: 'Street Courture: Padel Meets Fashion',
+        priceKes: 1500,
+        imageUrl: 'assets/real/61JOc0e8b5-1793268189.jpg'
+    },
+    {
+        eventId: 'ticketsasa-sportpesa-boxing-presents-to-you-wba-ko-drugs',
+        title: 'Sportpesa Boxing Presents to you: WBA KO Drugs',
+        priceKes: 1500,
+        imageUrl: 'assets/real/g4Gi3xRTDO-1793174308.jpg'
+    },
+    {
+        eventId: 'ticketsasa-badshah',
+        title: 'BADSHAH LIVE IN KENYA – ONE VOICE EDITION',
+        priceKes: 5000,
+        imageUrl: 'assets/real/aeIvhrxstM-1793471602.jpg'
+    }
+];
+let currentHeroSlideIndex = 0;
+let heroSliderTimer = null;
+
+function switchHeroSearchTab(tab) {
+    const card = document.getElementById('hero-search-card');
+    if (!card) return;
+    const colors = {
+        events: '#D81A21',
+        flights: '#009FE3',
+        holidays: '#689F38'
+    };
+    card.style.backgroundColor = colors[tab] || '#D81A21';
+    for (const key of ['events', 'flights', 'holidays']) {
+        const btn = document.getElementById('hero-tab-' + key);
+        const panel = document.getElementById('hero-panel-' + key);
+        const active = key === tab;
+        if (btn) {
+            btn.classList.toggle('border-white', active);
+            btn.classList.toggle('bg-white/10', active);
+            btn.classList.toggle('border-transparent', !active);
+            btn.classList.toggle('text-white/85', !active);
+        }
+        if (panel) panel.classList.toggle('hidden', !active);
+    }
+}
+
+function submitHeroFlightSearch() {
+    const orig = document.getElementById('hero-flight-origin')?.value || 'NBO';
+    const dest = document.getElementById('hero-flight-dest')?.value || 'MBA';
+    const cabin = document.getElementById('hero-flight-cabin')?.value || 'economy';
+    const type = document.getElementById('hero-flight-type')?.value || 'round';
+    switchTab('flights');
+    const origEl = document.getElementById('flight-origin');
+    const destEl = document.getElementById('flight-destination');
+    const cabinEl = document.getElementById('flight-cabin-class');
+    if (origEl) origEl.value = orig;
+    if (destEl) destEl.value = dest;
+    if (cabinEl) cabinEl.value = cabin;
+    toggleTripType(type);
+    executeFlightSearch(true);
+}
+
+function submitHeroHolidaySearch() {
+    const loc = document.getElementById('hero-holiday-loc')?.value.trim() || '';
+    switchTab('holidays');
+    filterHolidays(loc || 'all');
+}
+
+function renderHeroSlide() {
+    const slide = heroSliderItems[currentHeroSlideIndex] || heroSliderItems[0];
+    if (!slide) return;
+    const poster = document.getElementById('hero-poster-img');
+    const titleEl = document.getElementById('hero-floating-title');
+    const priceEl = document.getElementById('hero-floating-price');
+    const linkEl = document.getElementById('hero-floating-link');
+    const cardEl = document.getElementById('hero-floating-card');
+
+    if (poster) {
+        poster.src = slide.imageUrl;
+        poster.alt = slide.title;
+    }
+    if (titleEl) titleEl.textContent = slide.title;
+    if (priceEl) {
+        const isKes = state.currency === 'KES';
+        priceEl.textContent = isKes
+            ? `KES ${Number(slide.priceKes).toLocaleString()}`
+            : `$${Math.max(1, Math.round(slide.priceKes / 125))}`;
+    }
+    if (linkEl) linkEl.href = '?view=events&event=' + encodeURIComponent(slide.eventId);
+    if (cardEl) cardEl.hidden = false;
+
+    const dots = document.getElementById('hero-slider-dots');
+    if (dots) {
+        dots.replaceChildren(...heroSliderItems.map((item, idx) => {
+            const dot = document.createElement('button');
+            dot.type = 'button';
+            dot.setAttribute('aria-label', 'Slide ' + (idx + 1) + ': ' + item.title);
+            dot.className = idx === currentHeroSlideIndex
+                ? 'w-6 h-2 rounded-full bg-[#D81A21] transition-all'
+                : 'w-2 h-2 rounded-full bg-white/70 hover:bg-white transition-all';
+            dot.onclick = () => {
+                currentHeroSlideIndex = idx;
+                renderHeroSlide();
+            };
+            return dot;
+        }));
+    }
+}
+
+function stepHeroSlider(delta) {
+    currentHeroSlideIndex = (currentHeroSlideIndex + delta + heroSliderItems.length) % heroSliderItems.length;
+    renderHeroSlide();
+}
+
+function openCurrentHeroSliderEvent() {
+    const slide = heroSliderItems[currentHeroSlideIndex] || heroSliderItems[0];
+    if (slide) openTicketsasaEventModal(slide.eventId);
+}
 
 async function loadFeaturedEvent() {
+    renderHeroSlide();
+    if (!heroSliderTimer) {
+        heroSliderTimer = setInterval(() => stepHeroSlider(1), 6000);
+    }
     try {
         const { data: event } = await commerceRequest('/events/featured');
         if (!event) return;
         const card = document.getElementById('hero-floating-card');
-        document.getElementById('hero-floating-title').textContent = event.title;
-        document.getElementById('hero-floating-price').textContent = event.price
-            ? 'From ' + formatMoney(event.price.amount, event.price.currency) : '';
-        if (event.bannerImageUrl) {
-            const poster = document.getElementById('hero-poster-img');
-            poster.src = event.bannerImageUrl;
-            poster.alt = event.title;
-        }
-        if (event.checkout) {
-            const link = document.createElement('a');
-            link.href = '?view=events&event=' + encodeURIComponent(event.id);
-            link.textContent = 'View tickets';
-            card.append(link);
-        }
-        card.hidden = false;
+        if (card) card.hidden = false;
     } catch {
-        // Event discovery carries its own status.
+        // Fallback slider already rendered
     }
 }
 
@@ -2484,10 +2626,23 @@ function updateTalantaTickets() {
     renderPublishedTiers(currentTicketTiers);
 }
 
+const ticketsasaCatalogMap = new Map();
+let activeTicketsasaDetailEvent = null;
+
+window.onTicketsasaCatalogLoaded = function (eventsList) {
+    if (!Array.isArray(eventsList)) return;
+    for (const ev of eventsList) {
+        if (ev?.id) ticketsasaCatalogMap.set(ev.id, ev);
+    }
+};
+
 async function loadPublishedEvents() {
     const section = document.getElementById('published-events');
     try {
         const { data } = await commerceRequest('/published-events');
+        for (const ev of data) {
+            if (ev?.id) ticketsasaCatalogMap.set(ev.id, ev);
+        }
         talantaEvents = data.filter(event => /talanta|raila odinga/i.test(event.venue));
         const picker = document.getElementById('talanta-event-picker');
         const previous = picker.value;
@@ -2512,18 +2667,22 @@ async function loadPublishedEvents() {
             title.className = 'cursor-pointer text-lg font-semibold';
             title.textContent = event.title;
             const info = document.createElement('p');
-            info.textContent = event.venue + ' · ' + eventDateFormatter.format(new Date(event.startsAt));
+            info.textContent = event.venue + ' · ' + (event.startAtLabel || eventDateFormatter.format(new Date(event.startsAt)));
             const description = document.createElement('p');
             description.className = 'my-3 whitespace-pre-line';
             description.textContent = event.description;
             const permalink = document.createElement('a');
             permalink.href = '?view=events&event=' + encodeURIComponent(event.id);
-            permalink.textContent = 'Event details';
-            permalink.className = 'underline text-rose-700';
+            permalink.textContent = 'Open Ticketsasa Event & Booking Page →';
+            permalink.className = 'underline text-rose-700 font-semibold';
+            permalink.addEventListener('click', ev => {
+                ev.preventDefault();
+                openTicketsasaEventModal(event.id);
+            });
             card.append(title, info, description, permalink);
             if (event.image) {
                 const image = new Image();
-                image.src = event.image;
+                image.src = event.image.startsWith('/') ? event.image.slice(1) : event.image;
                 image.alt = event.title;
                 image.loading = 'lazy';
                 image.className = 'my-3 max-h-64 rounded-lg object-contain';
@@ -2616,10 +2775,250 @@ function talantaPositionPreview(tier) {
 
 
 
+function openTicketsasaEventModal(eventId) {
+    let ev = ticketsasaCatalogMap.get(eventId);
+    if (!ev) {
+        ev = [...ticketsasaCatalogMap.values()].find(item => item.slug === eventId || item.id.includes(eventId))
+            || [...ticketsasaCatalogMap.values()][0];
+    }
+    if (!ev) return;
+    activeTicketsasaDetailEvent = ev;
+
+    const imgPath = (ev.imageUrl || ev.image || 'assets/real/QZGqWDTxBF-1791963807.jpg').replace(/^\//, '');
+    const catEl = document.getElementById('ts-detail-category');
+    const titleEl = document.getElementById('ts-detail-title');
+    const venueEl = document.getElementById('ts-detail-venue');
+    const dateEl = document.getElementById('ts-detail-date');
+    const imgEl = document.getElementById('ts-detail-image');
+    const ticketHeadingEl = document.getElementById('ts-detail-ticket-heading');
+    const hostEl = document.getElementById('ts-detail-host');
+    const descEl = document.getElementById('ts-detail-description');
+    const datesBoxEl = document.getElementById('ts-detail-dates-box');
+    const locBoxEl = document.getElementById('ts-detail-location-box');
+    const mapLinkEl = document.getElementById('ts-detail-map-link');
+    const statusEl = document.getElementById('ts-checkout-status');
+
+    if (catEl) catEl.textContent = ev.category || 'Featured Event';
+    if (titleEl) titleEl.textContent = ev.title;
+    if (venueEl) venueEl.textContent = ev.locationFull || ev.venue || 'Nairobi, Kenya';
+    if (dateEl) dateEl.textContent = ev.formattedDate || ev.startAtLabel || eventDateFormatter.format(new Date(ev.startsAt));
+    if (imgEl) {
+        imgEl.src = imgPath;
+        imgEl.alt = ev.title;
+        imgEl.onerror = () => {
+            if (ev.remoteImageUrl && imgEl.src !== ev.remoteImageUrl) imgEl.src = ev.remoteImageUrl;
+        };
+    }
+    if (ticketHeadingEl) ticketHeadingEl.textContent = 'Get your tickets to ' + ev.title;
+    if (hostEl) hostEl.textContent = ev.host || 'Ticketsasa Official Organizer';
+    if (descEl) descEl.textContent = ev.description || '';
+    if (datesBoxEl) datesBoxEl.textContent = ev.startAtLabel || ev.formattedDate || eventDateFormatter.format(new Date(ev.startsAt));
+    if (locBoxEl) locBoxEl.textContent = ev.locationFull || ev.venue || 'Nairobi, Kenya';
+    if (mapLinkEl) {
+        mapLinkEl.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(ev.locationFull || ev.venue || 'Nairobi');
+    }
+    if (statusEl) statusEl.textContent = '';
+
+    // Ensure at least 1 ticket of first tier is preselected if none of this event's tiers are in cart yet
+    const eventTiers = (ev.tiers && ev.tiers.length)
+        ? ev.tiers
+        : currentTicketTiers.filter(t => t.eventId === ev.id);
+    for (const tier of eventTiers) {
+        state.quantities[tier.tierKey] ??= 0;
+        state.tierPrices[tier.tierKey] ??= {
+            name: tier.title,
+            eventId: ev.id,
+            eventTitle: ev.title,
+            kes: tier.priceKes,
+            usd: tier.priceUsd,
+            gate: tier.designatedGate || 'Gate A',
+            stock: tier.remainingAllocation || 250
+        };
+    }
+
+    renderTicketsasaDetailTiers(eventTiers);
+    renderTicketsasaRelatedEvents(ev.id);
+
+    const modal = document.getElementById('ticketsasa-event-modal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.scrollTop = 0;
+    }
+}
+window.openTicketsasaEventModal = openTicketsasaEventModal;
+
+function closeTicketsasaEventModal() {
+    const modal = document.getElementById('ticketsasa-event-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function renderTicketsasaDetailTiers(eventTiers) {
+    const tbody = document.getElementById('ts-detail-tiers-tbody');
+    if (!tbody) return;
+    tbody.replaceChildren();
+    const isKes = state.currency === 'KES';
+
+    for (const tier of eventTiers) {
+        const qty = state.quantities[tier.tierKey] || 0;
+        const unitPrice = isKes ? tier.priceKes : tier.priceUsd;
+        const subtotal = qty * unitPrice;
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition';
+        tr.innerHTML = `
+            <td class="py-3.5 px-4">
+                <div class="font-extrabold text-slate-900">${tier.title}</div>
+                <div class="text-[11px] text-slate-500 mt-0.5">Closes on ${tier.formattedSaleEnd || 'Event Day'} &bull; ${tier.designatedGate || 'Gate A'}</div>
+            </td>
+            <td class="py-3.5 px-4 font-bold text-slate-900">
+                ${isKes ? 'KES ' + Number(tier.priceKes).toLocaleString() : '$' + tier.priceUsd}
+            </td>
+            <td class="py-3.5 px-4">
+                <div class="flex items-center justify-center gap-2">
+                    <button type="button" data-ts-tier="${tier.tierKey}" data-ts-delta="-1" class="w-8 h-8 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-extrabold text-slate-700">&minus;</button>
+                    <span class="w-7 text-center font-extrabold text-slate-900">${qty}</span>
+                    <button type="button" data-ts-tier="${tier.tierKey}" data-ts-delta="1" class="w-8 h-8 rounded-lg border border-slate-300 bg-white hover:bg-slate-100 font-extrabold text-slate-700">&plus;</button>
+                </div>
+            </td>
+            <td class="py-3.5 px-4 text-right font-extrabold text-slate-900">
+                ${isKes ? 'KES ' + Number(subtotal).toLocaleString() : '$' + subtotal.toFixed(2)}
+            </td>
+        `;
+        tr.querySelectorAll('button[data-ts-tier]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                updateQty(btn.dataset.tsTier, Number(btn.dataset.tsDelta));
+                renderTicketsasaDetailTiers(eventTiers);
+            });
+        });
+        tbody.append(tr);
+    }
+
+    // Update live Your Order box
+    const linesEl = document.getElementById('ts-detail-order-lines');
+    const countEl = document.getElementById('ts-detail-order-count');
+    const totalEl = document.getElementById('ts-detail-order-total');
+    let selectedCount = 0;
+    let totalAmount = 0;
+
+    if (linesEl) {
+        linesEl.replaceChildren();
+        for (const tier of eventTiers) {
+            const qty = state.quantities[tier.tierKey] || 0;
+            if (!qty) continue;
+            selectedCount += qty;
+            const unit = isKes ? tier.priceKes : tier.priceUsd;
+            const lineSub = qty * unit;
+            totalAmount += lineSub;
+
+            const row = document.createElement('div');
+            row.className = 'flex items-center justify-between py-1 border-b border-slate-100 last:border-0';
+            row.innerHTML = `
+                <div>
+                    <span class="font-bold text-slate-900">${qty} &times; ${tier.title}</span>
+                    <span class="text-slate-400 ml-1">(${activeTicketsasaDetailEvent?.title || ''})</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="font-bold text-slate-900">${isKes ? 'KES ' + lineSub.toLocaleString() : '$' + lineSub.toFixed(2)}</span>
+                    <button type="button" class="text-rose-600 hover:underline font-bold text-[11px]">Remove</button>
+                </div>
+            `;
+            row.querySelector('button').addEventListener('click', () => {
+                updateQty(tier.tierKey, -qty);
+                renderTicketsasaDetailTiers(eventTiers);
+            });
+            linesEl.append(row);
+        }
+        if (!selectedCount) {
+            const p = document.createElement('p');
+            p.className = 'text-slate-400';
+            p.textContent = 'Select ticket quantities above to build your order.';
+            linesEl.append(p);
+        }
+    }
+    if (countEl) countEl.textContent = `${selectedCount} ${selectedCount === 1 ? 'ticket' : 'tickets'} selected`;
+    if (totalEl) totalEl.textContent = isKes ? `KES ${totalAmount.toLocaleString()}` : `$${totalAmount.toFixed(2)}`;
+}
+
+function renderTicketsasaRelatedEvents(excludeId) {
+    const grid = document.getElementById('ts-detail-related-grid');
+    if (!grid) return;
+    grid.replaceChildren();
+    const others = [...ticketsasaCatalogMap.values()].filter(e => e.id !== excludeId).slice(0, 4);
+    for (const ev of others) {
+        const imgPath = (ev.imageUrl || ev.image || '').replace(/^\//, '');
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.className = 'text-left rounded-xl border border-slate-200 overflow-hidden bg-white hover:shadow-md transition flex flex-col';
+        card.innerHTML = `
+            <div class="aspect-square w-full bg-slate-100 overflow-hidden">
+                <img src="${imgPath}" alt="${ev.title}" class="w-full h-full object-cover">
+            </div>
+            <div class="p-2.5 space-y-1">
+                <div class="text-[10px] font-extrabold text-[#D81A21] uppercase truncate">${ev.formattedDate || ev.startAtLabel || ''}</div>
+                <div class="text-xs font-extrabold text-slate-900 line-clamp-1">${ev.title}</div>
+                <div class="text-[11px] font-bold text-slate-600">KES ${Number(ev.startingPrice || 1000).toLocaleString()}</div>
+            </div>
+        `;
+        card.addEventListener('click', () => openTicketsasaEventModal(ev.id));
+        grid.append(card);
+    }
+}
+
+async function handleTicketsasaDetailCheckout(event) {
+    event.preventDefault();
+    if (!activeTicketsasaDetailEvent) return;
+    const eventTiers = activeTicketsasaDetailEvent.tiers || [];
+    const hasSelected = eventTiers.some(t => (state.quantities[t.tierKey] || 0) > 0);
+    if (!hasSelected && eventTiers[0]) {
+        updateQty(eventTiers[0].tierKey, 1);
+        renderTicketsasaDetailTiers(eventTiers);
+    }
+    // Sync form values into the main checkout modal inputs and trigger handleMpesaSubmit
+    const nameVal = document.getElementById('ts-cust-name')?.value.trim() || '';
+    const emailVal = document.getElementById('ts-cust-email')?.value.trim() || '';
+    const phoneVal = document.getElementById('ts-cust-phone')?.value.trim() || '';
+    const providerVal = document.getElementById('ts-payment-provider')?.value || 'payhero';
+
+    const mainName = document.getElementById('cust-name');
+    const mainEmail = document.getElementById('cust-email');
+    const mainPhone = document.getElementById('cust-phone');
+    const mainProvider = document.getElementById('payment-provider');
+    if (mainName) mainName.value = nameVal;
+    if (mainEmail) mainEmail.value = emailVal;
+    if (mainPhone) mainPhone.value = phoneVal;
+    if (mainProvider) mainProvider.value = providerVal;
+
+    closeTicketsasaEventModal();
+    openCheckoutModal();
+    const fakeEvent = { preventDefault() {} };
+    await handleMpesaSubmit(fakeEvent);
+}
+
+function openTicketsasaAuthModal(mode = 'login') {
+    const modal = document.getElementById('ticketsasa-auth-modal');
+    const title = document.getElementById('ts-auth-title');
+    if (!modal || !title) return;
+    const titles = {
+        login: 'Log In to Ticketsasa',
+        sell: 'Sell Your Event on Ticketsasa',
+        terms: 'Ticketsasa Terms & Conditions',
+        privacy: 'Ticketsasa Privacy Policy'
+    };
+    title.textContent = titles[mode] || 'Ticketsasa Account';
+    modal.classList.remove('hidden');
+}
+
+function closeTicketsasaAuthModal() {
+    const modal = document.getElementById('ticketsasa-auth-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
 document.addEventListener('keydown', event => {
     const dialog = Array.from(document.querySelectorAll('[role="dialog"]:not(.hidden)')).at(-1);
     if (event.key === 'Escape') {
-        if (dialog?.id === 'checkout-modal') closeCheckoutModal();
+        if (dialog?.id === 'ticketsasa-event-modal') closeTicketsasaEventModal();
+        else if (dialog?.id === 'ticketsasa-auth-modal') closeTicketsasaAuthModal();
+        else if (dialog?.id === 'checkout-modal') closeCheckoutModal();
         else if (dialog?.id === 'ticket-wallet') closeTicketWallet();
         else if (!document.getElementById('chat-support-modal').classList.contains('hidden')) toggleChatSupport();
     }

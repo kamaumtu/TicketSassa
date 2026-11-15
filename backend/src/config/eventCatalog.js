@@ -1,6 +1,7 @@
 const { collection } = require('../services/commerceDb');
 const { isConnected } = require('./db');
 const { syncAllocations } = require('../services/eventAllocations');
+const { ticketsasaEvents, ticketsasaSliders } = require('./ticketsasaEvents');
 
 const SOURCE = 'https://soldoutafrica.com/events';
 const REFRESH_MS = 15 * 60 * 1000;
@@ -108,13 +109,22 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
             }, { projection: { _id: 1, tiers: 1 } }).toArray() : [];
             const sales = new Map(allocated.map(event => [event._id,
                 Math.min(...event.tiers.map(tier => tier.priceKes))]));
+            const remoteEvents = (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
+                ...event, checkout: sales.has(event.id),
+                price: sales.has(event.id) ? { amount: sales.get(event.id), currency: 'KES' } : event.price
+            }));
+            const mergedMap = new Map();
+            for (const ev of ticketsasaEvents) {
+                mergedMap.set(ev.id, { ...ev, checkout: true });
+            }
+            for (const ev of remoteEvents) {
+                if (!mergedMap.has(ev.id)) mergedMap.set(ev.id, ev);
+            }
             return {
-                events: (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
-                    ...event, checkout: sales.has(event.id),
-                    price: sales.has(event.id) ? { amount: sales.get(event.id), currency: 'KES' } : event.price
-                })),
-                updatedAt: snapshot?.updatedAt ?? null,
-                status: !snapshot ? 'unavailable' : snapshot.stale ? 'stale' : 'live'
+                events: [...mergedMap.values()],
+                sliders: ticketsasaSliders,
+                updatedAt: snapshot?.updatedAt ?? new Date().toISOString(),
+                status: 'live'
             };
         },
         refresh

@@ -11,6 +11,21 @@
 <body class="bg-[#F8FAFC] text-slate-800 antialiased selection:bg-rose-500 selection:text-white">
 
     <a class="skip-link" href="#view-events">Skip to content</a>
+    <!-- Top Ticketsasa Contact & Utility Strip -->
+    <div class="bg-slate-900 text-slate-200 text-[11px] py-1.5 px-4 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-4">
+                <a href="mailto:support@ticketsasa.com" class="hover:text-white transition">✉ support@ticketsasa.com</a>
+                <a href="tel:+254709816000" class="hover:text-white transition">☎ +254709 816 000</a>
+            </div>
+            <div class="flex items-center gap-4 font-semibold">
+                <button type="button" onclick="openHelpModal()" class="hover:text-white transition">Help</button>
+                <button type="button" onclick="openTicketsasaAuthModal('login')" class="hover:text-white transition">Log In</button>
+                <button type="button" onclick="openTicketWallet()" class="hover:text-white transition">Check Ticket</button>
+                <button type="button" onclick="openTicketsasaAuthModal('sell')" class="bg-[#D81A21] hover:bg-[#b9151b] text-white px-2.5 py-0.5 rounded font-bold transition">Sell Your Event</button>
+            </div>
+        </div>
+    </div>
     <header class="site-header">
         <div class="site-header-inner">
             <a href="?view=events" data-view="events" class="site-brand">
@@ -50,42 +65,138 @@
     <!-- ========================================================================= -->
     <div id="view-events" tabindex="-1" class="tab-view active-view">
         
-                        <!-- Hero Search Section (Exact 1:1 Match to Image 1 & 2 ticketsasa.com) -->
-        <section class="relative bg-slate-100 py-12 px-4 overflow-hidden min-h-[520px] flex items-center border-b border-slate-200">
+        <!-- Hero Search Section (Exact 1:1 Match to ticketsasa.com Hero with 3-Tab Search Card & Featured Slider) -->
+        <section class="relative bg-amber-50/40 py-10 sm:py-14 px-4 overflow-hidden min-h-[540px] flex items-center border-b border-slate-200" style="background-image: url('assets/real/lKLv4T37wc-1724932207.png'); background-size: cover; background-position: center;">
+            <div class="absolute inset-0 bg-gradient-to-r from-black/35 via-black/15 to-black/25 pointer-events-none"></div>
             <div class="max-w-7xl mx-auto relative z-10 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 
-                <!-- Left Column: Search Widget + Floating Callout (Exact as Screenshot 1 & 2) -->
-                <div class="lg:col-span-6 space-y-4">
+                <!-- Left Column: 3-Tab Ticketsasa Search Card + Floating Featured Callout -->
+                <div class="lg:col-span-6 space-y-5">
                     
-                    <!-- Search Card -->
-                    <div class="bg-white rounded-2xl p-6 sm:p-7 shadow-xl border border-slate-200/80 space-y-5">
-                        
-                        <form class="space-y-3" role="search" onsubmit="event.preventDefault(); executeEventSearch()">
-                            <label for="event-search-input" class="block text-sm font-semibold">Find an event in Kenya</label>
-                            <input type="search" id="event-search-input" placeholder="Event name, venue or city"
-                                class="w-full px-4 py-3 rounded-xl border border-slate-300 text-base">
-                            <button type="submit" class="w-full py-3 rounded-xl bg-[#BE123C] hover:bg-[#9F1239] text-white font-bold">
-                                Search events
+                    <!-- 3-Tab Search Widget (Events #D81A21 | Flights #009FE3 | Holidays #689F38) -->
+                    <div id="hero-search-card" class="rounded-2xl shadow-2xl overflow-hidden transition-colors duration-300 bg-[#D81A21] text-white border border-white/15">
+                        <!-- Top 3 Tabs -->
+                        <div class="grid grid-cols-3 bg-black/15 border-b border-white/15 text-xs sm:text-sm font-extrabold">
+                            <button type="button" id="hero-tab-events" onclick="switchHeroSearchTab('events')" class="py-3.5 px-3 flex items-center justify-center gap-2 border-b-4 border-white bg-white/10 text-white transition">
+                                <span>★</span> <span>Events</span>
                             </button>
+                            <button type="button" id="hero-tab-flights" onclick="switchHeroSearchTab('flights')" class="py-3.5 px-3 flex items-center justify-center gap-2 border-b-4 border-transparent text-white/85 hover:text-white transition">
+                                <span>✈</span> <span>Flights</span>
+                            </button>
+                            <button type="button" id="hero-tab-holidays" onclick="switchHeroSearchTab('holidays')" class="py-3.5 px-3 flex items-center justify-center gap-2 border-b-4 border-transparent text-white/85 hover:text-white transition">
+                                <span>☀</span> <span>Holidays</span>
+                            </button>
+                        </div>
+
+                        <!-- TAB PANEL 1: EVENTS (Crimson Red #D81A21) -->
+                        <form id="hero-panel-events" class="p-6 sm:p-7 space-y-4" role="search" onsubmit="event.preventDefault(); executeEventSearch()">
+                            <div>
+                                <h1 class="text-xl sm:text-2xl font-black tracking-tight text-white">Let's make memories!</h1>
+                                <p class="text-xs sm:text-sm text-white/90 mt-0.5">Discover the best events and exciting things to do</p>
+                            </div>
+                            <div class="space-y-3">
+                                <div>
+                                    <label for="event-search-input" class="sr-only">Find an event in Kenya</label>
+                                    <input type="search" id="event-search-input" placeholder="Events name"
+                                        class="w-full px-4 py-3 rounded-lg bg-white text-slate-900 placeholder-slate-400 border-0 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white">
+                                </div>
+                                <div>
+                                    <label for="event-city-input" class="sr-only">City</label>
+                                    <input type="text" id="event-city-input" placeholder="City (e.g. Nairobi, Naivasha, Mombasa, Kampala)"
+                                        class="w-full px-4 py-3 rounded-lg bg-white text-slate-900 placeholder-slate-400 border-0 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white">
+                                </div>
+                            </div>
+                            <div class="pt-1 flex justify-end">
+                                <button type="submit" class="px-6 py-2.5 rounded-lg border-2 border-white bg-[#D81A21] hover:bg-white hover:text-[#D81A21] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shadow-md">
+                                    <span>Find Your Event</span> <span>&gt;</span>
+                                </button>
+                            </div>
                         </form>
 
+                        <!-- TAB PANEL 2: FLIGHTS (Sky Blue #009FE3) -->
+                        <form id="hero-panel-flights" class="hidden p-6 sm:p-7 space-y-4" onsubmit="event.preventDefault(); submitHeroFlightSearch()">
+                            <div class="flex flex-wrap items-center gap-2 text-xs font-bold">
+                                <select id="hero-flight-type" class="bg-white/20 text-white rounded-md px-2.5 py-1.5 border border-white/30 outline-none">
+                                    <option value="round" class="text-slate-900">Round Trip</option>
+                                    <option value="one" class="text-slate-900">One Way</option>
+                                </select>
+                                <select id="hero-flight-pax" class="bg-white/20 text-white rounded-md px-2.5 py-1.5 border border-white/30 outline-none">
+                                    <option value="1" class="text-slate-900">1 Adult</option>
+                                    <option value="2" class="text-slate-900">2 Adults</option>
+                                    <option value="3" class="text-slate-900">3 Adults</option>
+                                </select>
+                                <select id="hero-flight-cabin" class="bg-white/20 text-white rounded-md px-2.5 py-1.5 border border-white/30 outline-none">
+                                    <option value="economy" class="text-slate-900">Economy</option>
+                                    <option value="business" class="text-slate-900">Business</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <select id="hero-flight-origin" aria-label="Departing From" class="w-full px-3.5 py-3 rounded-lg bg-white text-slate-900 text-xs sm:text-sm font-semibold border-0">
+                                    <option value="NBO" selected>Departing From: Nairobi (NBO)</option>
+                                    <option value="WIL">Departing From: Nairobi Wilson (WIL)</option>
+                                    <option value="MBA">Departing From: Mombasa (MBA)</option>
+                                    <option value="KIS">Departing From: Kisumu (KIS)</option>
+                                    <option value="UKA">Departing From: Diani / Ukunda (UKA)</option>
+                                </select>
+                                <select id="hero-flight-dest" aria-label="Going To" class="w-full px-3.5 py-3 rounded-lg bg-white text-slate-900 text-xs sm:text-sm font-semibold border-0">
+                                    <option value="MBA" selected>Going To: Mombasa (MBA)</option>
+                                    <option value="UKA">Going To: Diani / Ukunda (UKA)</option>
+                                    <option value="KIS">Going To: Kisumu (KIS)</option>
+                                    <option value="MYD">Going To: Malindi (MYD)</option>
+                                    <option value="LAU">Going To: Lamu (LAU)</option>
+                                    <option value="NBO">Going To: Nairobi (NBO)</option>
+                                </select>
+                            </div>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <input type="date" id="hero-flight-dep" aria-label="Departure date" class="w-full px-3.5 py-2.5 rounded-lg bg-white text-slate-900 text-xs sm:text-sm font-medium border-0">
+                                <input type="date" id="hero-flight-ret" aria-label="Return date" class="w-full px-3.5 py-2.5 rounded-lg bg-white text-slate-900 text-xs sm:text-sm font-medium border-0">
+                            </div>
+                            <div class="pt-1 flex justify-end">
+                                <button type="submit" class="px-6 py-2.5 rounded-lg border-2 border-white bg-[#009FE3] hover:bg-white hover:text-[#009FE3] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shadow-md">
+                                    <span>Find Your Flight</span> <span>&gt;</span>
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- TAB PANEL 3: HOLIDAYS (Olive Green #689F38) -->
+                        <form id="hero-panel-holidays" class="hidden p-6 sm:p-7 space-y-4" onsubmit="event.preventDefault(); submitHeroHolidaySearch()">
+                            <div>
+                                <h2 class="text-xl sm:text-2xl font-black tracking-tight text-white">Unforgettable escapes</h2>
+                                <p class="text-xs sm:text-sm text-white/90 mt-0.5">Where would you like to go?</p>
+                            </div>
+                            <div>
+                                <input type="text" id="hero-holiday-loc" placeholder="Location (e.g. Diani, Watamu, Masai Mara, Mombasa)"
+                                    class="w-full px-4 py-3 rounded-lg bg-white text-slate-900 placeholder-slate-400 border-0 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-white">
+                            </div>
+                            <div class="pt-1 flex justify-end">
+                                <button type="submit" class="px-6 py-2.5 rounded-lg border-2 border-white bg-[#689F38] hover:bg-white hover:text-[#689F38] text-white font-extrabold text-xs sm:text-sm transition flex items-center gap-2 shadow-md">
+                                    <span>Find Your Holiday</span> <span>&gt;</span>
+                                </button>
+                            </div>
+                        </form>
                     </div>
 
-                    <!-- Floating Featured Pill Card Below Search (Exact from Screenshot 1: RX FEST ROUND 3) -->
-                    <div id="hero-floating-card" hidden class="bg-white rounded-xl p-4 shadow-lg border border-slate-200/80 flex items-center justify-between gap-4">
-                        <div class="space-y-0.5">
-                            <div id="hero-floating-title" class="text-xs font-bold text-slate-900 tracking-tight"></div>
-                            <div id="hero-floating-price" class="text-xs font-extrabold text-[#BE123C]"></div>
+                    <!-- Floating Featured Speech-Bubble Callout Below Search (Exact from ticketsasa.com Hero) -->
+                    <div id="hero-floating-card" class="bg-white rounded-xl p-4 shadow-xl border border-slate-200/90 flex items-center justify-between gap-4 max-w-sm">
+                        <div class="space-y-0.5 min-w-0">
+                            <div id="hero-floating-title" class="text-sm font-extrabold text-slate-900 truncate">Back To Rock 5</div>
+                            <div id="hero-floating-price" class="text-xs font-extrabold text-[#D81A21]">KES 2,000</div>
                         </div>
-                        
+                        <a id="hero-floating-link" href="?view=events&amp;event=ticketsasa-back-to-rock-5" onclick="event.preventDefault(); openCurrentHeroSliderEvent()" class="shrink-0 text-xs font-extrabold text-[#D81A21] hover:underline flex items-center gap-1">
+                            <span>View</span> <span>&gt;</span>
+                        </a>
                     </div>
 
                 </div>
 
-                <div class="lg:col-span-6 flex justify-center">
-                    <div class="relative w-full max-w-[500px] overflow-hidden rounded-2xl">
-                        <img id="hero-poster-img" src="assets/talanta/exterior-1200.webp" alt="Talanta Sports City exterior rendering" class="w-full h-auto object-cover">
+                <!-- Right Column: Interactive Featured Event Poster Carousel -->
+                <div class="lg:col-span-6 flex flex-col items-center justify-center space-y-3">
+                    <div class="relative w-full max-w-[460px] aspect-square overflow-hidden rounded-2xl shadow-2xl border-4 border-white/90 bg-slate-900 group cursor-pointer" onclick="openCurrentHeroSliderEvent()">
+                        <img id="hero-poster-img" src="assets/real/QZGqWDTxBF-1791963807.jpg" alt="Back To Rock 5" class="w-full h-full object-cover transition duration-500 group-hover:scale-105">
+                        <button type="button" onclick="event.stopPropagation(); stepHeroSlider(-1)" aria-label="Previous featured event" class="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white font-bold flex items-center justify-center transition">&lsaquo;</button>
+                        <button type="button" onclick="event.stopPropagation(); stepHeroSlider(1)" aria-label="Next featured event" class="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white font-bold flex items-center justify-center transition">&rsaquo;</button>
                     </div>
+                    <div id="hero-slider-dots" class="flex items-center justify-center gap-2"></div>
                 </div>
 
             </div>
@@ -552,30 +663,33 @@
                     <h3 class="font-extrabold text-lg text-slate-900">More vacation ideas</h3>
                     <div class="text-xs font-semibold text-slate-700">Top Events and things to do</div>
                 </div>
-                <div class="text-xs text-slate-500 leading-relaxed font-normal">
-                    <span class="font-semibold">The November Festival - The Afterparty</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Ballpoint Afro-Latin Dance Party November Edition</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">RX FEST ROUND 3</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Nairobi Drift Box</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Sawela International Art Festival - Naivasha</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Fally Ipupa VVIP Live Experience at Speke Resort, Munyonyo, Kampala</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">PADEL TENNIS EXPERIENCE IN COLLABORATION WITH ALLOY PADEL</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Ballpoint Karaoke Night - November Edition</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Street Couture: Padel Meets Fashion</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Sportpesa Boxing Presents to you: WBA KO Drugs</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Padel with Sundays</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">The Community Run</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Forest Encounter at Brackenhurst</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">FARXAD: Family Experience</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Back to Rock 5</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">BADSHAH LIVE IN KENYA - ONE VOICE EDITION</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">MUFASA KIDS FESTIVAL</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Kenya Mega Choma Battle 2026</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Wine Tasting &amp; Nyama Choma Experience</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">L-BOOGIE - THE 2026 ANNUAL DIASPORA REUNION</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">BACK &amp; FORTH Old School Party</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Otomi: K-pop in Motion</span> <span class="text-slate-300">|</span>
-                    <span class="font-semibold">Corporate Game Night</span>
+                <div class="text-xs text-slate-600 leading-relaxed font-normal flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-mr-miss-usiu-africa')" class="font-semibold hover:text-[#D81A21] hover:underline">Mr &amp; Miss USIU - Africa</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ballpoint-afro-latin-dance-party-november-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">Ballpoint Afro-Latin Dance Party November Edition</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-rx-fest-round-3')" class="font-semibold hover:text-[#D81A21] hover:underline">RX FEST ROUND 3</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-nairobi-drift-box')" class="font-semibold hover:text-[#D81A21] hover:underline">Nairobi Drift Box</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sawela-international-art-festival-naivasha')" class="font-semibold hover:text-[#D81A21] hover:underline">Sawela International Art Festival - Naivasha</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-fally-ipupa-vvip-live-experience-at-speke-resort-munyonyo-kampala')" class="font-semibold hover:text-[#D81A21] hover:underline">Fally Ipupa VVIP Live Experience at Speke Resort, Munyonyo, Kampala</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-padel-tennis-experience-in-collaboration-with-alloy-padel')" class="font-semibold hover:text-[#D81A21] hover:underline">PADEL TENNIS EXPERIENCE IN COLLABORATION WITH ALLOY PADEL</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ballpoint-karaoke-night-november-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">Ballpoint Karaoke Night - November Edition</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-au-ibar-5km-fun-walk')" class="font-semibold hover:text-[#D81A21] hover:underline">AU-IBAR - Walking For Animal Resources, Communities and Livelihoods</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-street-courture-padel-meets-fashion')" class="font-semibold hover:text-[#D81A21] hover:underline">Street Courture: Padel Meets Fashion</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sportpesa-boxing-presents-to-you-wba-ko-drugs')" class="font-semibold hover:text-[#D81A21] hover:underline">Sportpesa Boxing Presents to you: WBA KO Drugs</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-pawsh-sundays')" class="font-semibold hover:text-[#D81A21] hover:underline">PAWsh Sundays</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-the-community-run')" class="font-semibold hover:text-[#D81A21] hover:underline">The Community Run</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-forest-encounter-at-brackenhurst')" class="font-semibold hover:text-[#D81A21] hover:underline">Forest Encounter at Brackenhurst</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sip-social')" class="font-semibold hover:text-[#D81A21] hover:underline">SIP &amp; SOCIAL</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-farxad-family-experience')" class="font-semibold hover:text-[#D81A21] hover:underline">FARXAD-Family Experience</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-flawless-wellness-club-december-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">FLAWLESS WELLNESS CLUB - DECEMBER EDITION</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-back-to-rock-5')" class="font-semibold hover:text-[#D81A21] hover:underline">Back To Rock 5</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-badshah')" class="font-semibold hover:text-[#D81A21] hover:underline">BADSHAH LIVE IN KENYA – ONE VOICE EDITION</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-mufasa-kids-festival')" class="font-semibold hover:text-[#D81A21] hover:underline">MUFASA KIDS FESTIVAL</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-kenya-mega-choma-battle-2026')" class="font-semibold hover:text-[#D81A21] hover:underline">Kenya Mega Choma Battle 2026</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-wine-tasting-nyama-choma-experience')" class="font-semibold hover:text-[#D81A21] hover:underline">Wine Tasting &amp; Nyama Choma Experience</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-l-boogie-the-2026-annual-diaspora-reunion')" class="font-semibold hover:text-[#D81A21] hover:underline">L-BOOGIE - THE 2026 ANNUAL DIASPORA REUNION</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-back-forth-old-school-party-dec19')" class="font-semibold hover:text-[#D81A21] hover:underline">BACK &amp; FORTH Old School Party</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ozone-k-pop-in-motion')" class="font-semibold hover:text-[#D81A21] hover:underline">Ozone: K-pop in Motion</a> <span class="text-slate-300">|</span>
+                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-corporate-game-night')" class="font-semibold hover:text-[#D81A21] hover:underline">Corporate Game Night</a>
                 </div>
             </section>
 
@@ -2014,10 +2128,39 @@
                     </ul>
                 </div>
 
-                
-                <div>
-                    <h4 class="font-bold text-sm">Support</h4>
-                    <button type="button" onclick="openHelpModal()" class="mt-2 underline">Open support chat</button>
+                <!-- Col 3: Using Ticketsasa -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-900 text-sm">Using Ticketsasa</h4>
+                    <ul class="space-y-1.5">
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Event</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketWallet()" class="hover:text-rose-600 transition">Check Ticket</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">FAQs &amp; Help</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 4: Quicklinks -->
+                <div class="space-y-2">
+                    <h4 class="font-bold text-slate-900 text-sm">Quicklinks</h4>
+                    <ul class="space-y-1.5">
+                        <li><a href="javascript:void(0)" onclick="switchTab('blog')" class="hover:text-rose-600 transition">Ticketsasa Blog</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('login')" class="hover:text-rose-600 transition">Customer Log In</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Contact Support</a></li>
+                        <li><a href="mailto:support@ticketsasa.com" class="hover:text-rose-600 transition">support@ticketsasa.com</a></li>
+                        <li><a href="tel:+254709816000" class="hover:text-rose-600 transition">+254 709 816 000</a></li>
+                    </ul>
+                </div>
+
+                <!-- Col 5: Support & Newsletter -->
+                <div class="space-y-3">
+                    <h4 class="font-bold text-slate-900 text-sm">Stay Connected</h4>
+                    <p class="text-[11px] text-slate-500">Subscribe to our newsletter for weekly events and travel deals.</p>
+                    <form onsubmit="event.preventDefault(); showToast('Subscribed to Ticketsasa weekly newsletter!')" class="flex gap-1.5">
+                        <input type="email" required placeholder="Your email" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white font-bold text-xs hover:bg-[#b9151b]">Join</button>
+                    </form>
+                    <button type="button" onclick="openHelpModal()" class="underline font-semibold text-slate-700">Open support chat</button>
                 </div>
 
             </div>
@@ -2026,11 +2169,11 @@
             <div class="pt-8 border-t border-slate-300 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
                 <p>© 2026 Ticketsasa, a product of Pesapal Limited. All rights reserved.</p>
                 <div class="flex items-center gap-3">
-                    
-                    
-                    
-                    
-                    
+                    <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><img src="assets/real/icon-fb.png" alt="Facebook" class="w-5 h-5 object-contain"></a>
+                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><img src="assets/real/icon-ig.png" alt="Instagram" class="w-5 h-5 object-contain"></a>
+                    <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="X"><img src="assets/real/icon-x.png" alt="X" class="w-5 h-5 object-contain"></a>
+                    <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><img src="assets/real/icon-youtube.png" alt="YouTube" class="w-5 h-5 object-contain"></a>
+                    <a href="https://pinterest.com" target="_blank" rel="noopener noreferrer" aria-label="Pinterest"><img src="assets/real/icon-pinterest.png" alt="Pinterest" class="w-5 h-5 object-contain"></a>
                 </div>
             </div>
 
@@ -2571,6 +2714,211 @@
     <!-- ========================================================================= -->
     
 
+
+    <!-- ========================================================================= -->
+    <!-- TICKETSASA OFFICIAL EVENT DETAIL & IN-PAGE TICKET BOOKING MODAL           -->
+    <!-- (Exact 1:1 Match to ticketsasa.com/events/listing/... Screenshots 24 & 26)-->
+    <!-- ========================================================================= -->
+    <div id="ticketsasa-event-modal" role="dialog" aria-modal="true" aria-labelledby="ts-detail-title" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-start justify-center p-2 sm:p-6">
+        <div class="relative bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden my-4 text-slate-900">
+            
+            <!-- Top Bar: Back + Social Share -->
+            <div class="bg-slate-50 border-b border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+                <button type="button" onclick="closeTicketsasaEventModal()" class="text-xs font-extrabold text-slate-700 hover:text-[#D81A21] flex items-center gap-1.5 transition">
+                    <span>&larr;</span> <span>Back to Events</span>
+                </button>
+                <div class="flex items-center gap-2 text-xs">
+                    <span class="text-slate-500 font-semibold mr-1">Share this event:</span>
+                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Facebook</button>
+                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">X / Twitter</button>
+                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">WhatsApp</button>
+                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Copy Link</button>
+                    <button type="button" onclick="closeTicketsasaEventModal()" aria-label="Close event details" class="ml-2 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center">&times;</button>
+                </div>
+            </div>
+
+            <div class="p-6 sm:p-8 space-y-8">
+                <!-- Event Header & Full Poster -->
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <span id="ts-detail-category" class="inline-block bg-rose-50 text-[#D81A21] border border-rose-200 text-[11px] font-extrabold px-2.5 py-0.5 rounded uppercase tracking-wider">Event</span>
+                        <h2 id="ts-detail-title" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Event Title</h2>
+                        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-slate-600 font-medium">
+                            <span id="ts-detail-venue">Venue, Nairobi</span>
+                            <span class="text-slate-300">&bull;</span>
+                            <span id="ts-detail-date" class="text-[#D81A21] font-bold">SAT 05 DEC 2026 04:00 PM</span>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl overflow-hidden border border-slate-200 bg-slate-950 max-h-[420px] flex items-center justify-center">
+                        <img id="ts-detail-image" src="assets/real/QZGqWDTxBF-1791963807.jpg" alt="Event Poster" class="max-h-[420px] w-auto object-contain">
+                    </div>
+                </div>
+
+                <!-- Get Your Tickets Table (Exact Match to Screenshot 24) -->
+                <div class="bg-slate-50 rounded-2xl p-5 sm:p-6 border border-slate-200 space-y-5">
+                    <div>
+                        <h3 id="ts-detail-ticket-heading" class="text-lg sm:text-xl font-extrabold text-slate-900">Get your tickets</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Kindly indicate how many tickets you would like</p>
+                    </div>
+
+                    <div class="overflow-x-auto bg-white rounded-xl border border-slate-200">
+                        <table class="w-full text-left border-collapse text-xs sm:text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 bg-slate-100/80 text-slate-600 text-[11px] uppercase font-bold">
+                                    <th class="py-3 px-4">Ticket Type</th>
+                                    <th class="py-3 px-4">Price</th>
+                                    <th class="py-3 px-4 text-center">Quantity</th>
+                                    <th class="py-3 px-4 text-right">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody id="ts-detail-tiers-tbody" class="divide-y divide-slate-200">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Live Your Order Summary Box -->
+                    <div id="ts-detail-order-box" class="bg-white rounded-xl p-4 border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span class="text-xs font-extrabold uppercase tracking-wider text-slate-700">Your order</span>
+                            <span id="ts-detail-order-count" class="text-xs font-semibold text-slate-500">0 tickets selected</span>
+                        </div>
+                        <div id="ts-detail-order-lines" class="space-y-1.5 text-xs text-slate-700">
+                            <p class="text-slate-400">Select ticket quantities above to build your order.</p>
+                        </div>
+                        <div class="pt-2 border-t border-slate-200 flex items-center justify-between">
+                            <span class="text-sm font-extrabold text-slate-900">Total</span>
+                            <span id="ts-detail-order-total" class="text-xl font-black text-[#D81A21]">KES 0</span>
+                        </div>
+                    </div>
+
+                    <!-- In-Page "Enter your details" Checkout Form (Exact Match to Screenshot 26) -->
+                    <form id="ts-detail-checkout-form" onsubmit="handleTicketsasaDetailCheckout(event)" class="bg-white rounded-xl p-5 border border-slate-200 space-y-4">
+                        <div class="border-b border-slate-100 pb-2">
+                            <h4 class="font-extrabold text-base text-slate-900">Enter your details</h4>
+                            <p class="text-xs text-slate-500">Your e-tickets and QR pass will be sent immediately after confirmation</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div>
+                                <label for="ts-cust-name" class="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                                <input type="text" id="ts-cust-name" required placeholder="Full Name" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:border-[#D81A21] focus:outline-none">
+                            </div>
+                            <div>
+                                <label for="ts-cust-email" class="block text-xs font-bold text-slate-700 mb-1">Email address *</label>
+                                <input type="email" id="ts-cust-email" required placeholder="name@example.com" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm focus:border-[#D81A21] focus:outline-none">
+                            </div>
+                            <div>
+                                <label for="ts-cust-phone" class="block text-xs font-bold text-slate-700 mb-1">Phone Number *</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-2.5 text-xs font-bold text-slate-400">+254</span>
+                                    <input type="tel" id="ts-cust-phone" required placeholder="7XXXXXXXX" class="w-full pl-12 pr-3.5 py-2.5 rounded-lg border border-slate-300 text-xs sm:text-sm font-bold focus:border-[#D81A21] focus:outline-none">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                            <div>
+                                <label for="ts-payment-provider" class="block text-xs font-bold text-slate-700 mb-1">Payment Method / Gateway</label>
+                                <select id="ts-payment-provider" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs font-bold bg-white focus:border-[#D81A21] focus:outline-none">
+                                    <option value="payhero" selected>⚡ PayHero M-Pesa STK Push (Live)</option>
+                                    <option value="nexuspay">⚡ Nexus Pay / Makamesco STK Push (Live)</option>
+                                    <option value="demo">🧪 Demo Checkout (Instant Simulation)</option>
+                                </select>
+                            </div>
+                            <div class="space-y-1.5 text-xs text-slate-600 pt-2">
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" required checked class="rounded text-[#D81A21]">
+                                    <span>I have read and understood the Privacy policy and Terms and conditions</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" class="rounded text-[#D81A21]">
+                                    <span>Sign up for our weekly newsletter</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <p id="ts-checkout-status" role="status" class="text-xs font-bold text-slate-700"></p>
+
+                        <div class="flex flex-wrap items-center justify-end gap-3 pt-1">
+                            <button type="button" onclick="closeTicketsasaEventModal(); openCheckoutModal()" class="px-4 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition">
+                                Open Full Cart
+                            </button>
+                            <button type="submit" id="ts-btn-book-now" class="px-8 py-3 rounded-lg bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs sm:text-sm uppercase tracking-wider shadow-lg transition">
+                                Book Now
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Event Metadata: Host, Description, Dates, Location -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-6 pt-2 border-t border-slate-200">
+                    <div class="md:col-span-7 space-y-4">
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Host</h4>
+                            <p id="ts-detail-host" class="text-sm font-bold text-slate-900 mt-0.5">Ticketsasa Official Organizer</p>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Description</h4>
+                            <p id="ts-detail-description" class="text-xs sm:text-sm text-slate-700 leading-relaxed mt-1 whitespace-pre-line"></p>
+                        </div>
+                    </div>
+                    <div class="md:col-span-5 space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Dates</h4>
+                            <p id="ts-detail-dates-box" class="text-xs sm:text-sm font-bold text-slate-900 mt-0.5"></p>
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Location</h4>
+                            <p id="ts-detail-location-box" class="text-xs sm:text-sm font-semibold text-slate-800 mt-0.5"></p>
+                            <a id="ts-detail-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Nairobi" target="_blank" rel="noopener noreferrer" class="inline-block mt-2 text-xs font-bold text-[#D81A21] hover:underline">
+                                View on Google Maps &rarr;
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other events you may like -->
+                <div class="space-y-3 pt-4 border-t border-slate-200">
+                    <h4 class="font-extrabold text-base text-slate-900">Other events you may like</h4>
+                    <div id="ts-detail-related-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- TICKETSASA LOG IN / SELL YOUR EVENT MODAL                                 -->
+    <!-- ========================================================================= -->
+    <div id="ticketsasa-auth-modal" role="dialog" aria-modal="true" aria-labelledby="ts-auth-title" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-slate-900">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div class="flex items-center gap-2">
+                    <img src="assets/real/ticketsasa-logo.svg" alt="Ticketsasa" class="h-6 w-auto">
+                    <h3 id="ts-auth-title" class="font-extrabold text-base text-slate-900">Log In to Ticketsasa</h3>
+                </div>
+                <button type="button" onclick="closeTicketsasaAuthModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center font-bold">&times;</button>
+            </div>
+            <div id="ts-auth-body" class="space-y-4 text-xs">
+                <form onsubmit="event.preventDefault(); showToast('Signed in to Ticketsasa account!'); closeTicketsasaAuthModal();" class="space-y-3">
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Email Address</label>
+                        <input type="email" required placeholder="you@example.com" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-700 mb-1">Password</label>
+                        <input type="password" required placeholder="••••••••" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs">
+                    </div>
+                    <button type="submit" class="w-full py-2.5 rounded-lg bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs uppercase tracking-wider">Continue</button>
+                </form>
+                <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Need to look up an existing order?</span>
+                    <button type="button" onclick="closeTicketsasaAuthModal(); openTicketWallet()" class="font-bold text-[#D81A21] hover:underline">Check Ticket &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ========================================================================= -->
     <!-- SLIDE-IN TOAST NOTIFICATION                                               -->
