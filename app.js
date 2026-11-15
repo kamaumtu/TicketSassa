@@ -163,7 +163,7 @@ function updatePriceDisplays() {
     if (typeof calculateTalantaHubPrice === 'function') calculateTalantaHubPrice();
 }
 
-const pageViews = ['events', 'flights', 'holidays', 'talanta', 'hustle', 'blog'];
+const pageViews = ['events', 'flights', 'holidays', 'talanta', 'hustle', 'blog', 'checkticket', 'login'];
 
 function setMenuOpen(open) {
     document.getElementById('mobile-menu-btn').setAttribute('aria-expanded', String(open));
@@ -1620,12 +1620,31 @@ function handleFlightBookingSubmit(event) {
     event.preventDefault();
     const flight = flightSearchState.selectedFlight;
     if (!flight) return;
+    const firstName = document.getElementById('fbm-first-name')?.value?.trim() || '';
+    const lastName = document.getElementById('fbm-last-name')?.value?.trim() || '';
+    const passport = document.getElementById('fbm-passport')?.value?.trim() || '';
+    const email = document.getElementById('fbm-email')?.value?.trim() || '';
+    const phone = document.getElementById('fbm-phone')?.value?.trim() || '';
+    const provider = document.getElementById('fbm-payment-provider')?.value || 'payhero';
+    const totals = calculateFlightTotal() || { totalKes: flight.priceKes };
     saveTravelPlan('flight', 'fbm-status', {
-        airline: flight.airline, origin: flight.origin, destination: flight.dest,
-        departure: document.getElementById('flight-depart-date').value,
-        returnDate: document.getElementById('flight-return-date').disabled ? '' : document.getElementById('flight-return-date').value,
-        cabin: flightSearchState.cabinClass
+        airline: flight.airline,
+        flightNo: flight.flightNo,
+        origin: flight.origin,
+        destination: flight.dest,
+        departure: document.getElementById('flight-depart-date')?.value || '',
+        returnDate: document.getElementById('flight-return-date')?.disabled ? '' : (document.getElementById('flight-return-date')?.value || ''),
+        cabin: flightSearchState.cabinClass,
+        passenger: [firstName, lastName].filter(Boolean).join(' '),
+        passport,
+        email,
+        phone,
+        provider,
+        totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
+    if (typeof showToast === 'function') {
+        showToast(`Flight itinerary (${flight.flightNo}) saved & queued for ${provider.toUpperCase()} confirmation!`);
+    }
 }
 
 function initFlightEngine() {
@@ -1833,6 +1852,111 @@ const holidayDb = {
             { name: 'Standard Garden View', surcharge: 0 },
             { name: 'Sea Facing Palm Room', surcharge: 5000 }
         ]
+    },
+    'neptune-village-3d': {
+        key: 'neptune-village-3d',
+        title: '3 Days 2 Nights At Neptune Village Beach Resort & Spa',
+        resortName: 'Neptune Village Beach Resort & Spa',
+        destination: 'Diani, South Coast, Kenya',
+        duration: '3D / 2N',
+        image: 'assets/holidays/karamu-village.jpg',
+        rate: 37620,
+        originalRate: 66000,
+        discount: '43% OFF',
+        mealPlan: 'All-Inclusive Package (Meals, Drinks & Resort Activities)',
+        inclusions: [
+            '3 Days 2 Nights in a Makuti-thatched superior room',
+            'All meals and selected house beverages included',
+            'Access to freshwater pools, water sports & evening entertainment'
+        ],
+        roomTypes: [
+            { name: 'Superior Garden Room', surcharge: 0 },
+            { name: 'Ocean View Room', surcharge: 4500 }
+        ]
+    },
+    'jambo-mutara-camp': {
+        key: 'jambo-mutara-camp',
+        title: 'Jambo Mutara Camp',
+        resortName: 'Jambo Mutara Camp Laikipia',
+        destination: 'Nanyuki / Ol Pejeta & Mutara Conservancy, Kenya',
+        duration: '2D / 1N',
+        image: 'assets/holidays/safari-holidays.jpg',
+        rate: 21200,
+        originalRate: 32000,
+        discount: '34% OFF',
+        mealPlan: 'Full Board Luxury Safari Dining',
+        inclusions: [
+            'Luxury tented accommodation overlooking Mount Kenya & Aberdares',
+            'Full board gourmet bush dining (Breakfast, Lunch & Dinner)',
+            'Guided nature walks & wildlife viewing in Mutara Conservancy'
+        ],
+        roomTypes: [
+            { name: 'Luxury Panoramic Tent', surcharge: 0 },
+            { name: 'Family Safari Suite Tent', surcharge: 6500 }
+        ]
+    },
+    'medina-palms-3d': {
+        key: 'medina-palms-3d',
+        title: '3 Days 2 Nights At Medina Palms',
+        resortName: 'Medina Palms Luxury Resort',
+        destination: 'Watamu Marine Reserve, Kenya',
+        duration: '3D / 2N',
+        image: 'assets/holidays/medina-palms.jpg',
+        rate: 45000,
+        originalRate: 90000,
+        discount: '50% OFF',
+        mealPlan: 'Half Board Luxury Dining',
+        inclusions: [
+            '3 Days 2 Nights in a Swahili-Moroccan luxury suite',
+            'Daily breakfast & dinner at Amandina Restaurant',
+            'Direct private beach access to Watamu Marine National Park'
+        ],
+        roomTypes: [
+            { name: 'Medina 1-Bedroom Suite', surcharge: 0 },
+            { name: 'Oceanfront Penthouse', surcharge: 7500 }
+        ]
+    },
+    'leopard-beach-3d': {
+        key: 'leopard-beach-3d',
+        title: '3 Days 2 Nights At Leopard Beach Resort and Spa',
+        resortName: 'Leopard Beach Resort & Spa',
+        destination: 'Diani Beach, South Coast, Kenya',
+        duration: '3D / 2N',
+        image: 'assets/holidays/leopard-beach-restaurant.jpg',
+        rate: 33300,
+        originalRate: 70200,
+        discount: '53% OFF',
+        mealPlan: 'Half Board Buffet & Chui Grill Dining',
+        inclusions: [
+            '3 Days 2 Nights accommodation at Diani\'s premier resort',
+            'Daily buffet breakfast and themed dinner',
+            'Access to Uzuri Spa & Fitness Forest Sanctuary'
+        ],
+        roomTypes: [
+            { name: 'Superior Balcony Room', surcharge: 0 },
+            { name: 'Chui Seaview Cottage', surcharge: 6000 }
+        ]
+    },
+    'voyager-beach-resort': {
+        key: 'voyager-beach-resort',
+        title: '3 Days 2 Nights At Voyager Beach Resort Mombasa',
+        resortName: 'Voyager Beach Resort',
+        destination: 'Nyali Beach, Mombasa North Coast, Kenya',
+        duration: '3D / 2N',
+        image: 'assets/holidays/voyager-beach-resort.jpg',
+        rate: 19800,
+        originalRate: 38000,
+        discount: '48% OFF',
+        mealPlan: 'All-Inclusive Cruise-Themed Dining',
+        inclusions: [
+            '3 Days 2 Nights in a cabin-styled garden or sea-view room',
+            'All-inclusive meals, snacks, and local beverages',
+            '3 swimming pools including whirlpool & watersports centre'
+        ],
+        roomTypes: [
+            { name: 'Garden View Cabin', surcharge: 0 },
+            { name: 'Superior Sea View Cabin', surcharge: 4500 }
+        ]
     }
 };
 
@@ -2003,10 +2127,25 @@ function handleHolidayBookingSubmit(event) {
         document.getElementById('hbm-status').textContent = 'Choose a check-out date after check-in.';
         return;
     }
+    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || '';
+    const guestEmail = document.getElementById('hbm-guest-email')?.value?.trim() || '';
+    const guestPhone = document.getElementById('hbm-guest-phone')?.value?.trim() || '';
+    const provider = document.getElementById('hbm-payment-provider')?.value || 'payhero';
+    const totals = calculateHolidayTotal() || { totalKes: currentHolidayBooking.rate };
     saveTravelPlan('holiday', 'hbm-status', {
-        title: currentHolidayBooking.title, checkin, checkout,
-        travellers: document.getElementById('hbm-adults-count').value
+        title: currentHolidayBooking.title,
+        checkin,
+        checkout,
+        travellers: document.getElementById('hbm-adults-count').value + ' Adults',
+        guestName,
+        guestEmail,
+        guestPhone,
+        provider,
+        totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
+    if (typeof showToast === 'function') {
+        showToast(`Holiday package (${currentHolidayBooking.resortName}) saved & queued for ${provider.toUpperCase()}!`);
+    }
 }
 
 function saveTravelPlan(kind, statusId, plan) {
@@ -2279,6 +2418,58 @@ function filterBlog(value) {
     });
     document.getElementById('blog-result-status').textContent = query
         ? count + (count === 1 ? ' article found.' : ' articles found.') : '';
+}
+
+function filterBlogCategory(category) {
+    const cat = String(category || 'all').trim().toLowerCase();
+    let count = 0;
+    document.querySelectorAll('[data-blog-post]').forEach(post => {
+        const postCat = (post.getAttribute('data-blog-cat') || post.textContent || '').toLowerCase();
+        const match = cat === 'all' || postCat.includes(cat);
+        post.classList.toggle('hidden', !match);
+        if (match) count++;
+    });
+    const statusEl = document.getElementById('blog-result-status');
+    if (statusEl) {
+        statusEl.textContent = cat === 'all' ? '' : `${count} article(s) in "${category}".`;
+    }
+}
+
+async function executeCheckTicket() {
+    const refInput = document.getElementById('check-ticket-ref');
+    const emailInput = document.getElementById('check-ticket-email');
+    const resEl = document.getElementById('check-ticket-result');
+    if (!refInput || !emailInput || !resEl) return;
+    const orderReference = refInput.value.trim();
+    const email = emailInput.value.trim();
+    if (!orderReference || !email) return;
+    resEl.textContent = 'Verifying your ticket order on Ticketsasa...';
+    try {
+        const result = await commerceRequest('/orders/lookup', { email, orderReference });
+        rememberOrder(result.data, result.passes);
+        resEl.textContent = `Order ${result.data.orderReference} verified (${result.passes.length} pass(es)). Opening Ticket Wallet...`;
+        openTicketWallet();
+    } catch (err) {
+        resEl.textContent = err.message || 'Could not find a matching ticket order. Check your reference and email.';
+    }
+}
+
+function simulateSocialLogin(provider) {
+    if (typeof showToast === 'function') {
+        showToast(`Signed in to Ticketsasa with ${provider}!`);
+    }
+    closeTicketsasaAuthModal();
+    switchTab('events');
+}
+
+function handleAccountLogin(event) {
+    if (event) event.preventDefault();
+    const emailEl = document.getElementById('login-email-input') || document.getElementById('ts-auth-email');
+    const email = emailEl?.value?.trim() || 'member@ticketsasa.com';
+    if (typeof showToast === 'function') {
+        showToast(`Welcome back to Ticketsasa, ${email}!`);
+    }
+    closeTicketsasaAuthModal();
 }
 
 function renderDemoTicketOptions(tiers, options = document.getElementById('demo-ticket-options')) {

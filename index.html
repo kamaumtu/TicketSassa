@@ -958,10 +958,10 @@
         </section>
 
         <!-- Popular Flight Airlines Showcase -->
-        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8 border-t border-slate-200">
+        <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12 border-t border-slate-200">
             <div>
                 <h3 class="font-extrabold text-2xl text-slate-900">Fly with Partner Airlines</h3>
-                <p class="text-xs text-slate-500 mt-1">Select an airline to filter the sample flight listings.</p>
+                <p class="text-xs text-slate-500 mt-1">Select an airline to filter the flight listings.</p>
                 <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-6 items-center mt-6">
                     <button type="button" onclick="selectPartnerAirline('Kenya Airways')" data-airline="Kenya Airways" aria-pressed="false" class="airline-choice bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center hover:shadow-md hover:border-sky-500 transition h-20 group">
                         <img src="assets/airlines/kenya-airways-brand.png" alt="" width="40" height="40" class="h-10 w-10 object-contain"><span>Kenya Airways</span>
@@ -999,6 +999,133 @@
                     <button type="button" onclick="selectPartnerAirline('Air France')" data-airline="Air France" aria-pressed="false" class="airline-choice bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center hover:shadow-md hover:border-sky-500 transition h-20 group">
                         <img src="assets/airlines/airfrance-brand.png" alt="" width="40" height="40" class="h-10 w-10 object-contain"><span>Air France</span>
                     </button>
+                </div>
+            </div>
+
+            <!-- Popular Flight Destinations (Exact from ticketsasa.com/bookings/flights) -->
+            <div class="space-y-4 pt-6 border-t border-slate-200">
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="font-extrabold text-2xl text-slate-900">Popular Flight Destinations</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Find cheap flights to popular local and international destinations</p>
+                    </div>
+                    <span class="text-xs font-bold text-[#009FE3] bg-sky-50 border border-sky-200 px-3 py-1 rounded-full">Local &amp; International Routes</span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <button type="button" onclick="document.getElementById('flight-dest').value='MBA'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-mombasa.jpg" alt="Flights to Mombasa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-300">Local Destination</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Mombasa (MBA)</div>
+                            <div class="text-xs text-slate-200">From KES 6,900</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='KIS'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-naivasha.jpg" alt="Flights to Kisumu" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-300">Local Destination</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Kisumu (KIS)</div>
+                            <div class="text-xs text-slate-200">From KES 5,950</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='MYD'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-malindi.jpg" alt="Flights to Malindi" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-300">Local Destination</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Malindi (MYD)</div>
+                            <div class="text-xs text-slate-200">From KES 7,400</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='UKA'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-diani.jpg" alt="Flights to Diani" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-sky-300">Local Destination</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Diani (UKA)</div>
+                            <div class="text-xs text-slate-200">From KES 8,200</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='ZNZ'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-watamu.jpg" alt="Flights to Zanzibar" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">International</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Zanzibar (ZNZ)</div>
+                            <div class="text-xs text-slate-200">From KES 24,500</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='EBB'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-amboseli.jpg" alt="Flights to Entebbe" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">International</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Entebbe (EBB)</div>
+                            <div class="text-xs text-slate-200">From KES 22,800</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='DXB'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/city-breaks.jpg" alt="Flights to Dubai" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">International</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Dubai (DXB)</div>
+                            <div class="text-xs text-slate-200">From KES 54,900</div>
+                        </div>
+                    </button>
+                    <button type="button" onclick="document.getElementById('flight-dest').value='JNB'; executeFlightSearch();" class="relative h-44 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/lifestyle-holidays.jpg" alt="Flights to Johannesburg" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
+                        <div class="absolute bottom-3 left-3 right-3 text-white">
+                            <span class="text-[10px] font-bold uppercase tracking-wider text-amber-300">International</span>
+                            <div class="font-extrabold text-base">Nairobi &rarr; Johannesburg (JNB)</div>
+                            <div class="text-xs text-slate-200">From KES 49,500</div>
+                        </div>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Why Book With Ticketsasa (Exact 3-Column Section from ticketsasa.com/bookings/flights) -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 border-t border-slate-200">
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-2">
+                    <div class="w-10 h-10 rounded-xl bg-sky-50 text-[#009FE3] flex items-center justify-center font-extrabold text-lg">1</div>
+                    <h4 class="font-extrabold text-base text-slate-900">Compare Local &amp; International Airlines</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">Search real-time schedules across Kenya Airways, Jambojet, Ethiopian Airlines, Emirates, Qatar Airways, RwandAir, and more in one search.</p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-2">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-extrabold text-lg">2</div>
+                    <h4 class="font-extrabold text-base text-slate-900">Instant M-Pesa &amp; Card Payments</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">Pay seamlessly in KES or USD via PayHero M-Pesa STK Push, Nexus Pay, Visa, or Mastercard with instant e-ticket confirmation.</p>
+                </div>
+                <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-2">
+                    <div class="w-10 h-10 rounded-xl bg-rose-50 text-[#D81A21] flex items-center justify-center font-extrabold text-lg">3</div>
+                    <h4 class="font-extrabold text-base text-slate-900">Dedicated East Africa Travel Desk</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">Need flight changes, group bookings, or baggage assistance? Reach our Nairobi travel support desk on +254 709 816 000.</p>
+                </div>
+            </div>
+
+            <!-- Flight Booking Frequently Asked Questions (Exact from ticketsasa.com/bookings/flights) -->
+            <div class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                <h3 class="font-extrabold text-xl text-slate-900">Frequently Asked Questions (Flights)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-slate-900 text-sm">How do I receive my flight e-ticket after booking?</h4>
+                        <p class="text-slate-600 leading-relaxed">Once your M-Pesa STK Push or card payment is confirmed, your PNR booking reference and electronic ticket are sent immediately to your email and phone.</p>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-slate-900 text-sm">Can I pay for flights using M-Pesa on Ticketsasa?</h4>
+                        <p class="text-slate-600 leading-relaxed">Yes! Select PayHero M-Pesa or Nexus Pay at checkout to receive an instant M-Pesa STK prompt directly on your mobile phone.</p>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-slate-900 text-sm">What documents do I need for domestic vs international flights?</h4>
+                        <p class="text-slate-600 leading-relaxed">Domestic flights within Kenya accept a valid National ID or Passport. International flights require a passport valid for at least 6 months from your travel date.</p>
+                    </div>
+                    <div class="space-y-1">
+                        <h4 class="font-bold text-slate-900 text-sm">What baggage allowance is included?</h4>
+                        <p class="text-slate-600 leading-relaxed">Each flight listing displays the included cabin and checked baggage allowance, and you can add extra 23kg luggage during checkout.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -1180,35 +1307,86 @@
             </div>
         </section>
 
-        <!-- Official Ticketsasa Holiday Packages Grid (Real Images, Real Prices & Descriptions) -->
+        <!-- Official Ticketsasa Holiday Packages Grid (All 13 Packages from bookings.ticketsasa.com/holidays) -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-12">
             
-            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-                <h2 class="text-2xl font-black text-slate-900">Featured Holiday Packages</h2>
-                <div class="text-xs text-slate-500 ">
-                    Showing <span id="holiday-count-badge" class="font-bold text-emerald-700">8</span> packages
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Popular Holiday Packages</h2>
+                    <p class="text-xs text-slate-500">Special holiday offers &amp; travel packages on bookings.ticketsasa.com/holidays</p>
+                </div>
+                <div class="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Showing <span id="holiday-count-badge" class="font-bold text-emerald-700">13</span> packages</span>
+                    <button type="button" class="underline font-bold text-emerald-700" onclick="filterHolidays('all')">Show All Packages</button>
                 </div>
             </div>
 
-            <div class="flex flex-wrap gap-3">
-                <button type="button" class="underline" onclick="filterHolidays('all')">Clear filters</button>
-                
+            <!-- By Country | By City | By Holiday Theme Filter Bar (Exact from bookings.ticketsasa.com/holidays #tkt-bottombar) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-6 text-xs">
+                <div class="space-y-2">
+                    <div class="font-extrabold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-600"></span> By Country
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 hover:bg-emerald-100">Kenya</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Egypt</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Malaysia</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Rwanda</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Singapore</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">South Africa</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Tanzania</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Thailand</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">Uganda</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">United Arab Emirates</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:bg-slate-100">United States of America</button>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="font-extrabold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-sky-600"></span> By City
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="filterHolidays('Mombasa')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Mombasa</button>
+                        <button type="button" onclick="filterHolidays('Masai Mara')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Masai Mara</button>
+                        <button type="button" onclick="filterHolidays('Naivasha')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Naivasha</button>
+                        <button type="button" onclick="filterHolidays('Malindi')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Malindi</button>
+                        <button type="button" onclick="filterHolidays('Diani')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Diani</button>
+                        <button type="button" onclick="filterHolidays('Lamu')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Lamu</button>
+                        <button type="button" onclick="filterHolidays('Watamu')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Watamu</button>
+                        <button type="button" onclick="filterHolidays('Tsavo')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Tsavo</button>
+                        <button type="button" onclick="filterHolidays('Amboseli')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 font-semibold border border-slate-200 hover:border-emerald-500">Amboseli</button>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <div class="font-extrabold text-slate-900 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span> By Holiday Theme
+                    </div>
+                    <div class="flex flex-wrap gap-1.5">
+                        <button type="button" onclick="filterHolidays('Safari')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Camping safari</button>
+                        <button type="button" onclick="filterHolidays('Beach')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">With a flight</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Dinner inclusive</button>
+                        <button type="button" onclick="filterHolidays('Beach')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Swimming pool</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Budget holiday</button>
+                        <button type="button" onclick="filterHolidays('Watamu')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Premium holiday</button>
+                        <button type="button" onclick="filterHolidays('Diani')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Luxury holiday</button>
+                        <button type="button" onclick="filterHolidays('all')" class="px-2.5 py-1 rounded-lg bg-slate-50 text-slate-700 border border-slate-200 hover:border-emerald-500">Inclusive of transport</button>
+                    </div>
+                </div>
             </div>
+
             <p id="holiday-empty" hidden role="status">No packages match. Try another destination or clear the filters.</p>
-                        <div id="holiday-cards-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div id="holiday-cards-container" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
                 <!-- Package 1: Neptune Village Diani 5D/4N -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="neptune-village" data-destination="Diani Beach" data-title="Neptune Village Beach Resort &amp; Spa" data-rate="67760" data-original-rate="240000" data-duration="5D / 4N">
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="neptune-village" data-destination="Diani Beach Kenya" data-title="5 Days 4 Nights At Neptune Village Beach Resort &amp; Spa" data-rate="67760" data-original-rate="240000" data-duration="5D / 4N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/neptune-village.jpg" alt="Neptune Village Beach Resort" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">72% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">5D / 4N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Diani, South Coast, Kenya
-                            </div>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
                             <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Neptune Village Beach Resort &amp; Spa</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ All-Inclusive Meals &amp; Drinks</span>
@@ -1217,37 +1395,29 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 240,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="67760">KES 67,760 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="67760">KES 67,760 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('neptune-village')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('neptune-village')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('neptune-village')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('neptune-village')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
                 <!-- Package 2: Medina Palms Watamu 5D/4N -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="medina-palms" data-destination="Watamu" data-title="Medina Palms Luxury Resort" data-rate="60460" data-original-rate="308000" data-duration="5D / 4N">
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="medina-palms" data-destination="Watamu Kenya" data-title="5 Days 4 Nights At Medina Palms Luxury Resort" data-rate="60460" data-original-rate="308000" data-duration="5D / 4N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/medina-palms.jpg" alt="Medina Palms Luxury Suites" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">80% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">5D / 4N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Watamu Marine Reserve, Kenya
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Medina Palms Luxury Resort</h3>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Watamu, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Medina Palms</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Half Board Luxury Dining</span>
                                 <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Sakina Spa Access</span>
@@ -1255,37 +1425,89 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 308,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="60460">KES 60,460 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="60460">KES 60,460 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('medina-palms')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('medina-palms')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('medina-palms')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('medina-palms')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 3: Baobab Beach Resort Season Special -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="baobab-beach" data-destination="Diani Beach" data-title="Baobab Beach Resort &amp; Spa" data-rate="40220" data-original-rate="145000" data-duration="5D / 4N">
+                <!-- Package 3: 3 Days 2 Nights At Neptune Village Beach Resort & Spa (from bookings.ticketsasa.com/holidays) -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="neptune-village-3d" data-destination="Diani Beach Kenya" data-title="3 Days 2 Nights At Neptune Village Beach Resort &amp; Spa" data-rate="37620" data-original-rate="66000" data-duration="3D / 2N">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="assets/holidays/karamu-village.jpg" alt="3 Days 2 Nights At Neptune Village Beach Resort &amp; Spa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">43% OFF</span>
+                            <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Neptune Village Beach Resort &amp; Spa</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ All-Inclusive Package</span>
+                                <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Beachfront Access</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                                <div>
+                                    <div class="text-xs text-slate-400 line-through">KES 66,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="37620">KES 37,620 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0 flex gap-2">
+                        <button type="button" onclick="openHolidayBookingModal('neptune-village-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('neptune-village-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
+                    </div>
+                </div>
+
+                <!-- Package 4: Jambo Mutara Camp Nanyuki (from bookings.ticketsasa.com/holidays) -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="jambo-mutara-camp" data-destination="Nanyuki Laikipia Safari Kenya" data-title="Jambo Mutara Camp" data-rate="21200" data-original-rate="32000" data-duration="2D / 1N">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="assets/holidays/safari-holidays.jpg" alt="Jambo Mutara Camp Nanyuki" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">LUXURY CAMP</span>
+                            <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">2D / 1N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Nanyuki, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">Jambo Mutara Camp</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">✓ Ol Pejeta &amp; Mutara Conservancy</span>
+                                <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Full Board Luxury Tents</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                                <div>
+                                    <div class="text-xs text-slate-400 line-through">KES 32,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="21200">KES 21,200 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0 flex gap-2">
+                        <button type="button" onclick="openHolidayBookingModal('jambo-mutara-camp')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('jambo-mutara-camp')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
+                    </div>
+                </div>
+
+                <!-- Package 5: Baobab Beach Resort Season Special -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="baobab-beach" data-destination="Diani Beach Kenya" data-title="Baobab Beach Resort Season Special" data-rate="40220" data-original-rate="145000" data-duration="5D / 4N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/baobab-beach-resort.jpg" alt="Baobab Beach Resort Season Special" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">72% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">5D / 4N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Diani Beach, South Coast
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Baobab Beach Resort &amp; Spa</h3>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">Baobab Beach Resort Season Special</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ 3 Cascading Pools</span>
                                 <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ All-Inclusive Dining</span>
@@ -1293,75 +1515,59 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 145,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="40220">KES 40,220 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="40220">KES 40,220 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('baobab-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('baobab-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('baobab-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('baobab-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 4: Leopard Beach Resort & Spa -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="leopard-beach" data-destination="Diani Beach" data-title="Leopard Beach Resort &amp; Spa" data-rate="59600" data-original-rate="190000" data-duration="5D / 4N">
+                <!-- Package 6: 5 Days 4 Nights At Leopard Beach Resort and Spa -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="leopard-beach" data-destination="Diani Beach Kenya" data-title="5 Days 4 Nights At Leopard Beach Resort and Spa" data-rate="59600" data-original-rate="135000" data-duration="5D / 4N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/leopard-beach-resort.jpg" alt="Leopard Beach Resort and Spa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">68% OFF</span>
+                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">56% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">5D / 4N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Diani Beach, South Coast
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Leopard Beach Resort &amp; Spa</h3>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">5 Days 4 Nights At Leopard Beach Resort and Spa</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Half Board Buffet Dining</span>
                                 <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Uzuri Spa Access</span>
                             </div>
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
-                                    <div class="text-xs text-slate-400 line-through">KES 190,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="59600">KES 59,600 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-xs text-slate-400 line-through">KES 135,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="59600">KES 59,600 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('leopard-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('leopard-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('leopard-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('leopard-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 5: Serena Beach Resort & Spa Mombasa -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="serena-beach" data-destination="Mombasa" data-title="Serena Beach Resort &amp; Spa" data-rate="18475" data-original-rate="48000" data-duration="3D / 2N">
+                <!-- Package 7: Serena Beach Resort & Spa Mombasa -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="serena-beach" data-destination="Mombasa Kenya" data-title="Serena Beach Resort &amp; Spa" data-rate="18475" data-original-rate="48000" data-duration="3D / 2N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/serena-beach-resort.jpg" alt="Serena Beach Resort &amp; Spa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">61% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Shanzu Beach, Mombasa North Coast
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Serena Beach Resort &amp; Spa</h3>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Mombasa, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">Serena Beach Resort &amp; Spa</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Swahili Luxury Suite</span>
                                 <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Half Board Dining</span>
@@ -1369,37 +1575,59 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 48,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="18475">KES 18,475 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="18475">KES 18,475 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('serena-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('serena-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('serena-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('serena-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 6: Swahili Beach Resort Diani -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="swahili-beach" data-destination="Diani Beach" data-title="Swahili Beach Resort Diani" data-rate="40100" data-original-rate="85000" data-duration="3D / 2N">
+                <!-- Package 8: 3 Days 2 Nights At Medina Palms (from bookings.ticketsasa.com/holidays) -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="medina-palms-3d" data-destination="Watamu Kenya" data-title="3 Days 2 Nights At Medina Palms" data-rate="45000" data-original-rate="90000" data-duration="3D / 2N">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="assets/holidays/medina-palms.jpg" alt="3 Days 2 Nights At Medina Palms" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">50% OFF</span>
+                            <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Watamu, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Medina Palms</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Luxury Ocean Suite</span>
+                                <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Watamu Marine Park</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                                <div>
+                                    <div class="text-xs text-slate-400 line-through">KES 90,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="45000">KES 45,000 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0 flex gap-2">
+                        <button type="button" onclick="openHolidayBookingModal('medina-palms-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('medina-palms-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
+                    </div>
+                </div>
+
+                <!-- Package 9: Swahili Beach Resort Diani -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="swahili-beach" data-destination="Diani Beach Kenya" data-title="Swahili Beach Resort" data-rate="40100" data-original-rate="85000" data-duration="3D / 2N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/swahili-beach-resort.jpg" alt="Swahili Beach Resort" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">53% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Diani Beach, South Coast
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Swahili Beach Resort Diani</h3>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">Swahili Beach Resort</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ 8-Tier Cascading Pool</span>
                                 <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Half Board Dining</span>
@@ -1407,74 +1635,88 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 85,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="40100">KES 40,100 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="40100">KES 40,100 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('swahili-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('swahili-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('swahili-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('swahili-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 7: Masai Mara Sopa Lodge -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="masai-mara" data-destination="Masai Mara" data-title="Masai Mara Sopa Lodge Safari" data-rate="32000" data-original-rate="75000" data-duration="3D / 2N">
+                <!-- Package 10: Masai Mara Sopa Lodge -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="masai-mara" data-destination="Masai Mara Safari Kenya" data-title="Masai Mara Sopa Lodge" data-rate="13350" data-original-rate="32000" data-duration="3D / 2N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/masai-mara-sopa-lodge.jpg" alt="Masai Mara Sopa Lodge" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
-                            <span class="absolute top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">57% OFF</span>
+                            <span class="absolute top-3 left-3 bg-amber-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">58% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Masai Mara Game Reserve, Kenya
-                            </div>
-                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights Mara Sopa Migration Safari Package</h3>
+                            <div class="text-[11px] font-semibold text-amber-700 uppercase tracking-wider">Masai Mara, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">Masai Mara Sopa Lodge</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">✓ 4x4 Game Drives Included</span>
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Full Board Bush Dining</span>
                             </div>
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
-                                    <div class="text-xs text-slate-400 line-through">KES 75,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="32000">KES 32,000 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-xs text-slate-400 line-through">KES 32,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="13350">KES 13,350 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('masai-mara')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('masai-mara')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('masai-mara')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('masai-mara')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
 
-                <!-- Package 8: Sarova Whitesands Beach Resort -->
-                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="sarova-whitesands" data-destination="Mombasa" data-title="Sarova Whitesands Beach Resort" data-rate="52800" data-original-rate="110000" data-duration="4D / 3N">
+                <!-- Package 11: 3 Days 2 Nights At Leopard Beach Resort and Spa (from bookings.ticketsasa.com/holidays) -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="leopard-beach-3d" data-destination="Diani Beach Kenya" data-title="3 Days 2 Nights At Leopard Beach Resort and Spa" data-rate="33300" data-original-rate="70200" data-duration="3D / 2N">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="assets/holidays/leopard-beach-restaurant.jpg" alt="3 Days 2 Nights At Leopard Beach Resort and Spa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">53% OFF</span>
+                            <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2.5 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Diani, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Leopard Beach Resort and Spa</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ Chui Grill &amp; Horizon Dining</span>
+                                <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Uzuri Forest Spa</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                                <div>
+                                    <div class="text-xs text-slate-400 line-through">KES 70,200</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="33300">KES 33,300 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0 flex gap-2">
+                        <button type="button" onclick="openHolidayBookingModal('leopard-beach-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('leopard-beach-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
+                    </div>
+                </div>
+
+                <!-- Package 12: Sarova Whitesands Beach Resort -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="sarova-whitesands" data-destination="Mombasa Kenya" data-title="4 Days 3 Nights At Sarova Whitesands Beach Resort" data-rate="52800" data-original-rate="110000" data-duration="4D / 3N">
                     <div>
                         <div class="h-48 overflow-hidden relative">
                             <img src="assets/holidays/sarova-whitesands.jpg" alt="Sarova Whitesands Beach Resort" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
                             <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">52% OFF</span>
                             <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">4D / 3N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
                         </div>
                         <div class="p-5 space-y-3">
-                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/></svg>
-                                Bamburi Beach, Mombasa North Coast
-                            </div>
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Mombasa, Kenya</div>
                             <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">4 Days 3 Nights At Sarova Whitesands Beach Resort</h3>
                             <div class="flex flex-wrap gap-1.5">
                                 <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ 5 Swimming Pools</span>
@@ -1483,25 +1725,104 @@
                             <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
                                 <div>
                                     <div class="text-xs text-slate-400 line-through">KES 110,000</div>
-                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="52800">KES 52,800 <span class="text-xs text-slate-500 font-normal">/ Sharing</span></div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="52800">KES 52,800 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
                                 </div>
-                                <span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Instant M-Pesa</span>
                             </div>
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('sarova-whitesands')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition flex items-center justify-center gap-1.5">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                            Plan this trip
-                        </button>
-                        <button type="button" onclick="openHolidayDetails('sarova-whitesands')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">
-                            Details
-                        </button>
+                        <button type="button" onclick="openHolidayBookingModal('sarova-whitesands')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('sarova-whitesands')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
+                    </div>
+                </div>
+
+                <!-- Package 13: Voyager Beach Resort Mombasa -->
+                <div class="holiday-card bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-xl transition group flex flex-col justify-between" data-key="voyager-beach-resort" data-destination="Mombasa Nyali Beach Kenya" data-title="3 Days 2 Nights At Voyager Beach Resort Mombasa" data-rate="19800" data-original-rate="38000" data-duration="3D / 2N">
+                    <div>
+                        <div class="h-48 overflow-hidden relative">
+                            <img src="assets/holidays/voyager-beach-resort.jpg" alt="Voyager Beach Resort Mombasa" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                            <span class="absolute top-3 left-3 bg-rose-600 text-white text-[11px] font-black px-2.5 py-0.5 rounded shadow">48% OFF</span>
+                            <span class="absolute top-3 right-3 bg-black/60 text-white text-[10px] font-bold px-2.5 py-0.5 rounded backdrop-blur-sm">3D / 2N</span>
+                            <span class="absolute bottom-2 left-2 bg-amber-400/95 text-slate-950 text-[10px] font-extrabold px-2 py-0.5 rounded flex items-center gap-1 shadow"><img src="assets/images/stamp-jajaza.svg" alt="" class="w-3.5 h-3.5"> JazaJaza Package</span>
+                        </div>
+                        <div class="p-5 space-y-3">
+                            <div class="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider">Mombasa, Kenya</div>
+                            <h3 class="font-bold text-base text-slate-900 leading-snug group-hover:text-emerald-700 transition">3 Days 2 Nights At Voyager Beach Resort Mombasa</h3>
+                            <div class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">✓ All-Inclusive Family Cruise Theme</span>
+                                <span class="text-[10px] font-semibold text-sky-800 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-full">✓ Watersports &amp; Pools</span>
+                            </div>
+                            <div class="pt-2 border-t border-slate-100 flex items-baseline justify-between">
+                                <div>
+                                    <div class="text-xs text-slate-400 line-through">KES 38,000</div>
+                                    <div class="text-rose-600 text-xl font-black holiday-price" data-kes="19800">KES 19,800 <span class="text-xs text-slate-500 font-normal">Per Person Sharing</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-5 pt-0 flex gap-2">
+                        <button type="button" onclick="openHolidayBookingModal('voyager-beach-resort')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Book Now</button>
+                        <button type="button" onclick="openHolidayDetails('voyager-beach-resort')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
             </div>
 
-                        <!-- On The Travel Blog Section (Direct Copy from bookings.ticketsasa.com) -->
+            <!-- Popular Cities 3x3 Large Landscape Grid (Exact from bookings.ticketsasa.com/holidays .tkt-cities) -->
+            <div class="space-y-4 pt-4">
+                <div>
+                    <h2 class="text-2xl font-black text-slate-900">Popular Cities</h2>
+                    <p class="text-xs text-slate-500">Find holiday packages &amp; offers to enjoy while visiting popular cities</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                    <button type="button" onclick="filterHolidays('Mombasa')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-mombasa.jpg" alt="Mombasa, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Mombasa, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Masai Mara')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-mara.jpg" alt="Masai Mara, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Masai Mara, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Naivasha')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-naivasha.jpg" alt="Naivasha, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Naivasha, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Malindi')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-malindi.jpg" alt="Malindi, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Malindi, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Diani')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-diani.jpg" alt="Diani, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Diani, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Lamu')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-lamu.jpg" alt="Lamu, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Lamu, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Watamu')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-watamu.jpg" alt="Watamu, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Watamu, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Tsavo')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-tsavo.jpg" alt="Tsavo, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Tsavo, Kenya</span>
+                    </button>
+                    <button type="button" onclick="filterHolidays('Amboseli')" class="relative h-52 rounded-2xl overflow-hidden group text-left shadow-sm border border-slate-200">
+                        <img src="assets/holidays/dest-amboseli.jpg" alt="Amboseli, Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent"></div>
+                        <span class="absolute bottom-4 left-4 text-white font-extrabold text-lg">Amboseli, Kenya</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- On The Travel Blog Section (All 4 Articles from bookings.ticketsasa.com/holidays) -->
             <div class="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 space-y-6 shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                     <div>
@@ -1513,19 +1834,28 @@
                     </a>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
                         <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img src="assets/holidays/karamu-village.jpg" alt="Kenyan Road Trip" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <img src="assets/holidays/karamu-village.jpg" alt="5 Types of Friends Who Make Every Kenyan Road Trip Memorable" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
-                        <span class="text-[11px] text-slate-400">29 June 2026 &bull; Travel Tips</span>
+                        <span class="text-[11px] text-slate-400">29 June 2026 &bull; Travel</span>
                         <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">5 Types of Friends Who Make Every Kenyan Road Trip Memorable</h4>
-                        <p class="text-xs text-slate-500 line-clamp-2">Whether you are heading to a music festival, a horse racing event, or down to Diani beach, having the right squad makes all the difference.</p>
+                        <p class="text-xs text-slate-500 line-clamp-2">When it comes to road trips in Kenya, the destination is only half the fun. Your travel squad makes every stop unforgettable.</p>
+                    </div>
+
+                    <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
+                        <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
+                            <img src="assets/holidays/lifestyle-holidays.jpg" alt="Why Flexible Payment Options Are Changing Travel" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        </div>
+                        <span class="text-[11px] text-slate-400">04 June 2026 &bull; Travel</span>
+                        <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">Why Flexible Payment Options Are Changing Travel</h4>
+                        <p class="text-xs text-slate-500 line-clamp-2">Let's face it, travel is exciting, but paying for it all at once? Not always easy. Flexible JazaJaza installments make dream getaways possible.</p>
                     </div>
 
                     <div class="group cursor-pointer space-y-3" onclick="openJazaInfo()">
                         <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img src="assets/holidays/jaza-holiday.jpg" alt="Jaza Jaza Holiday" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <img src="assets/holidays/jaza-holiday.jpg" alt="How to Use Jaza Jaza Holiday to Book Your Next Trip" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
                         <span class="text-[11px] text-slate-400">13 August 2025 &bull; Booking Guide</span>
                         <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">How to Use "Jaza Jaza Holiday" to Book Your Next Trip</h4>
@@ -1534,7 +1864,7 @@
 
                     <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
                         <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img src="assets/holidays/voyager-beach-resort.jpg" alt="Places To Visit in Kenya" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                            <img src="assets/holidays/voyager-beach-resort.jpg" alt="10 Breathtaking Places To Visit in Kenya Right Now" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                         </div>
                         <span class="text-[11px] text-slate-400">07 August 2025 &bull; Destination Spotlight</span>
                         <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">10 Breathtaking Places To Visit in Kenya Right Now</h4>
@@ -1551,10 +1881,12 @@
                     </span>
                     <h3 class="font-extrabold text-2xl sm:text-3xl">What is "Jaza Jaza Holiday"?</h3>
                     <p class="text-slate-200 text-sm leading-relaxed">
-                        Use the trip planner to save your itinerary on this device. A travel provider must confirm the final price and availability.
+                        JazaJaza Holiday lets you lock in special holiday offers on Ticketsasa with a 20% deposit and pay the balance in flexible M-Pesa installments before your check-in date.
                     </p>
                     <div class="pt-2 flex flex-wrap gap-4">
-                        
+                        <button type="button" onclick="openHolidayBookingModal('neptune-village')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold px-6 py-3 rounded-xl text-xs uppercase tracking-wider transition">
+                            Start JazaJaza Booking
+                        </button>
                         <button onclick="openChatWithContext('Jaza Jaza Holiday inquiry')" class="bg-white/10 hover:bg-white/20 text-white font-bold px-6 py-3 rounded-xl text-xs uppercase tracking-wider border border-white/20 transition">
                             Speak to Travel Specialist
                         </button>
@@ -1960,12 +2292,11 @@
                     </div>
 
                     <!-- Official Race Wars ICD Road Poster (Exact from Screenshot 5) -->
-                    
+                    <div class="rounded-xl overflow-hidden border border-slate-200 shadow-sm max-w-md">
+                        <img src="assets/images/racewars-poster.svg" alt="Race Wars Ultimate Drag Race ICD Road" class="w-full h-auto object-cover">
+                    </div>
 
                     <div class="space-y-4">
-                        <!-- Featured Poster from Image 5 (Racewars Ultimate Drag Race) -->
-                        
-
                         <div class="text-xs font-bold text-[#BE123C] flex items-center gap-1">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#BE123C]"></span> Events
                         </div>
@@ -2040,7 +2371,7 @@
                     </div>
 
                     <!-- POST 2: Your Ultimate August Event Guide -->
-                    <div data-blog-post class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+                    <div data-blog-post data-blog-cat="Events" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
                         <div class="flex items-start gap-4">
                             <div class="bg-[#BE123C] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
                                 <span class="font-extrabold text-base leading-none">06</span>
@@ -2082,6 +2413,44 @@
                         </div>
                     </div>
 
+                    <!-- POST 3: 5 Types of Friends Who Make Every Kenyan Road Trip Memorable (Travel Blog) -->
+                    <div data-blog-post data-blog-cat="Travel" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-[#15803D] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
+                                <span class="font-extrabold text-base leading-none">29</span>
+                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">JUN</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <h2 class="font-extrabold text-xl text-slate-900 leading-snug">5 Types of Friends Who Make Every Kenyan Road Trip Memorable</h2>
+                                <div class="text-xs font-bold text-[#15803D] flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#15803D]"></span> Travel &amp; Things to do
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                            When it comes to road trips in Kenya, the destination is only half the fun. From the designated DJ curating Arbantone and Rhumba mixes past Viewpoint, to the treasurer splitting nyama choma bills in Naivasha, every great Kenyan road trip relies on the right squad.
+                        </p>
+                    </div>
+
+                    <!-- POST 4: Why Flexible Payment Options Are Changing Travel (Travel Blog) -->
+                    <div data-blog-post data-blog-cat="Travel" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex items-start gap-4">
+                            <div class="bg-[#15803D] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
+                                <span class="font-extrabold text-base leading-none">04</span>
+                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">JUN</span>
+                            </div>
+                            <div class="space-y-0.5">
+                                <h2 class="font-extrabold text-xl text-slate-900 leading-snug">Why Flexible Payment Options Are Changing Travel</h2>
+                                <div class="text-xs font-bold text-[#15803D] flex items-center gap-1">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-[#15803D]"></span> Travel &amp; Flights
+                                </div>
+                            </div>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
+                            Let's face it, travel is exciting, but paying for it all at once? Not always easy. With Ticketsasa JazaJaza Holiday plans, travellers across East Africa can lock in discounted Diani, Watamu, and Masai Mara packages and pay in convenient M-Pesa installments before departure.
+                        </p>
+                    </div>
+
                 </div>
 
                 <!-- Right Sidebar (Exact from Screenshot 5) -->
@@ -2096,10 +2465,98 @@
                     </div>
 
                     <p id="blog-result-status" role="status" class="text-sm"></p>
+
+                    <!-- Follow Ticketsasa Widget -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <h3 class="font-extrabold text-sm text-slate-900">Follow Ticketsasa</h3>
+                        <div class="flex items-center gap-3">
+                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img src="assets/real/icon-fb.png" alt="Facebook" class="w-5 h-5 object-contain"></a>
+                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img src="assets/real/icon-ig.png" alt="Instagram" class="w-5 h-5 object-contain"></a>
+                            <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="X" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img src="assets/real/icon-x.png" alt="X" class="w-5 h-5 object-contain"></a>
+                            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img src="assets/real/icon-youtube.png" alt="YouTube" class="w-5 h-5 object-contain"></a>
+                        </div>
+                    </div>
+
+                    <!-- Subscribe to Mailing List Widget -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <h3 class="font-extrabold text-sm text-slate-900">Subscribe to our mailing list</h3>
+                        <p class="text-xs text-slate-500">Get the latest event radar, travel deals, and flash sales directly in your inbox.</p>
+                        <form onsubmit="event.preventDefault(); showToast('Subscribed to Ticketsasa Blog updates!')" class="space-y-2">
+                            <input type="email" required placeholder="Email Address" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
+                            <button type="submit" class="w-full py-2 rounded-lg bg-[#BE123C] hover:bg-[#9F1239] text-white font-bold text-xs">Subscribe</button>
+                        </form>
+                    </div>
+
+                    <!-- Blog Categories Widget -->
+                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
+                        <h3 class="font-extrabold text-sm text-slate-900">Blog Categories</h3>
+                        <div class="flex flex-col gap-1.5 text-xs">
+                            <button type="button" onclick="filterBlogCategory('all')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">All Categories</button>
+                            <button type="button" onclick="filterBlogCategory('Travel')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Travel</button>
+                            <button type="button" onclick="filterBlogCategory('Events')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Events</button>
+                            <button type="button" onclick="filterBlogCategory('Flights')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Flights</button>
+                            <button type="button" onclick="filterBlogCategory('Things to do')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Things to do</button>
+                        </div>
+                    </div>
                 </div>
 
             </div>
 
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 7: CHECK TICKET TAB VIEW (Exact Match to Screenshot 6)               -->
+    <!-- ========================================================================= -->
+    <div id="view-checkticket" tabindex="-1" class="tab-view hidden bg-slate-50 min-h-[70vh] py-12 px-4">
+        <div class="max-w-xl mx-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10 space-y-6">
+            <div class="space-y-1">
+                <span class="text-xs font-extrabold uppercase tracking-wider text-[#D81A21]">Ticketsasa Verification Portal</span>
+                <h1 class="text-2xl font-black text-slate-900">Check Your Ticket</h1>
+                <p class="text-xs text-slate-500">Enter your Ticket Order Reference or M-Pesa Confirmation Code and checkout email to verify and download your QR pass.</p>
+            </div>
+            <form onsubmit="event.preventDefault(); executeCheckTicket();" class="space-y-4">
+                <div>
+                    <label for="check-ticket-ref" class="block text-xs font-bold text-slate-700 mb-1">Order Reference / Ticket ID *</label>
+                    <input id="check-ticket-ref" type="text" required placeholder="e.g. TS-98124 or QKH8291LP" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold">
+                </div>
+                <div>
+                    <label for="check-ticket-email" class="block text-xs font-bold text-slate-700 mb-1">Email Address Used at Checkout *</label>
+                    <input id="check-ticket-email" type="email" required placeholder="you@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs uppercase tracking-wider transition">
+                    Verify &amp; Retrieve Ticket
+                </button>
+            </form>
+            <div id="check-ticket-result" role="status" class="text-xs text-slate-700"></div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- VIEW 8: LOG IN / REGISTER TAB VIEW (Exact Match to Screenshot 7)          -->
+    <!-- ========================================================================= -->
+    <div id="view-login" tabindex="-1" class="tab-view hidden bg-slate-50 min-h-[70vh] py-12 px-4">
+        <div class="max-w-md mx-auto bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+            <div class="text-center space-y-1">
+                <img src="assets/real/ticketsasa-logo.svg" alt="Ticketsasa" class="h-8 mx-auto">
+                <h1 class="text-xl font-black text-slate-900 pt-2">Sign in to Ticketsasa</h1>
+                <p class="text-xs text-slate-500">Manage your event tickets, JazaJaza holidays, and flight bookings</p>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button type="button" onclick="simulateSocialLogin('Google')" class="py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700">Continue with Google</button>
+                <button type="button" onclick="simulateSocialLogin('Facebook')" class="py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700">Continue with Facebook</button>
+            </div>
+            <form onsubmit="handleAccountLogin(event)" class="space-y-4 pt-2 border-t border-slate-100">
+                <div>
+                    <label for="login-email-input" class="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                    <input id="login-email-input" type="email" required placeholder="you@example.com" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs">
+                </div>
+                <div>
+                    <label for="login-pass-input" class="block text-xs font-bold text-slate-700 mb-1">Password</label>
+                    <input id="login-pass-input" type="password" required placeholder="••••••••" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs">
+                </div>
+                <button type="submit" class="w-full py-3 rounded-xl bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs uppercase tracking-wider transition">Log In</button>
+            </form>
         </div>
     </div>
 
@@ -2120,9 +2577,11 @@
                 <div class="space-y-2">
                     <h4 class="font-bold text-slate-900 text-sm">Services</h4>
                     <ul class="space-y-1.5">
-                        <li><a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-rose-600 transition">Events</a></li>
-                        <li><a href="javascript:void(0)" onclick="switchTab('holidays')" class="hover:text-rose-600 transition">Holiday Packages</a></li>
-                        <li><a href="javascript:void(0)" onclick="switchTab('flights')" class="hover:text-rose-600 transition">Flights</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-rose-600 transition">Buy a Ticket</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('holidays')" class="hover:text-rose-600 transition">Buy a Package</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('flights')" class="hover:text-rose-600 transition">Book a Flight</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Tickets</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Packages</a></li>
                         <li><a href="javascript:void(0)" onclick="switchTab('talanta')" class="hover:text-rose-600 transition">Talanta Sports City</a></li>
                         <li><a href="javascript:void(0)" onclick="switchTab('hustle')" class="hover:text-rose-600 transition">HustleSasa Merch</a></li>
                     </ul>
@@ -2132,11 +2591,12 @@
                 <div class="space-y-2">
                     <h4 class="font-bold text-slate-900 text-sm">Using Ticketsasa</h4>
                     <ul class="space-y-1.5">
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Event</a></li>
+                        <li><a href="javascript:void(0)" onclick="openJazaInfo()" class="hover:text-rose-600 transition">How to Buy a Package</a></li>
                         <li><a href="javascript:void(0)" onclick="openTicketWallet()" class="hover:text-rose-600 transition">Check Ticket</a></li>
-                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">FAQs &amp; Help</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Write a Review</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Pricing</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">FAQs</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-rose-600 transition">Sitemap</a></li>
                     </ul>
                 </div>
 
@@ -2146,19 +2606,24 @@
                     <ul class="space-y-1.5">
                         <li><a href="javascript:void(0)" onclick="switchTab('blog')" class="hover:text-rose-600 transition">Ticketsasa Blog</a></li>
                         <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('login')" class="hover:text-rose-600 transition">Customer Log In</a></li>
-                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Contact Support</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
+                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
                         <li><a href="mailto:support@ticketsasa.com" class="hover:text-rose-600 transition">support@ticketsasa.com</a></li>
                         <li><a href="tel:+254709816000" class="hover:text-rose-600 transition">+254 709 816 000</a></li>
                     </ul>
                 </div>
 
-                <!-- Col 5: Support & Newsletter -->
+                <!-- Col 5: Newsletter & Get the Ticketsasa App (Exact from downloaded_flights.html) -->
                 <div class="space-y-3">
-                    <h4 class="font-bold text-slate-900 text-sm">Stay Connected</h4>
-                    <p class="text-[11px] text-slate-500">Subscribe to our newsletter for weekly events and travel deals.</p>
+                    <h4 class="font-bold text-slate-900 text-sm">Get our newsletter and stay current on deals and specials</h4>
                     <form onsubmit="event.preventDefault(); showToast('Subscribed to Ticketsasa weekly newsletter!')" class="flex gap-1.5">
-                        <input type="email" required placeholder="Your email" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
-                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white font-bold text-xs hover:bg-[#b9151b]">Join</button>
+                        <input type="email" required placeholder="Email" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white font-bold text-xs hover:bg-[#b9151b]">Subscribe</button>
+                    </form>
+                    <h4 class="font-bold text-slate-900 text-sm pt-2">Get the Ticketsasa app</h4>
+                    <form onsubmit="event.preventDefault(); showToast('Ticketsasa app download link sent via SMS!')" class="flex gap-1.5">
+                        <input type="tel" required placeholder="Your phone number" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
+                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-slate-800">Get App</button>
                     </form>
                     <button type="button" onclick="openHelpModal()" class="underline font-semibold text-slate-700">Open support chat</button>
                 </div>
@@ -2461,14 +2926,24 @@
                             <option value="Dr">Dr.</option>
                         </select>
                     </div>
-                    
+                    <div class="sm:col-span-5 space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">First Name (as on Passport/ID) *</label>
+                        <input type="text" id="fbm-first-name" required placeholder="e.g. Alex" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="sm:col-span-4 space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Last Name / Surname *</label>
+                        <input type="text" id="fbm-last-name" required placeholder="e.g. Kamau" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Passport or National ID Number *</label>
+                        <input type="text" id="fbm-passport" required placeholder="e.g. AK1294810 / 34819201" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-600">Seat Preference</label>
-                        <select id="fbm-seat-pref" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                        <select id="fbm-seat-pref" onchange="calculateFlightTotal()" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
                             <option value="window">Window Seat (Complimentary)</option>
                             <option value="aisle">Aisle Seat (Complimentary)</option>
                             <option value="extra-leg">Extra Legroom Exit Row (+KES 1,200)</option>
@@ -2476,9 +2951,23 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">E-Ticket Email *</label>
+                        <input type="email" id="fbm-email" required placeholder="passenger@email.com" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">M-Pesa Phone Number *</label>
+                        <input type="tel" id="fbm-phone" required placeholder="07XX XXX XXX" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Payment Gateway</label>
+                        <select id="fbm-payment-provider" class="w-full h-11 px-3 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="payhero" selected>⚡ PayHero M-Pesa STK</option>
+                            <option value="nexuspay">⚡ Nexus Pay STK</option>
+                            <option value="demo">🧪 Demo Save</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Ancillaries & Add-ons -->
@@ -2611,8 +3100,26 @@
 
                 <div class="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2 pt-2">Lead Guest Information</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    
-                    
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Lead Guest Full Name *</label>
+                        <input type="text" id="hbm-guest-name" required placeholder="e.g. Alex Kamau" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Voucher Email Address *</label>
+                        <input type="email" id="hbm-guest-email" required placeholder="guest@email.com" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">M-Pesa Phone Number *</label>
+                        <input type="tel" id="hbm-guest-phone" required placeholder="07XX XXX XXX" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Payment Gateway</label>
+                        <select id="hbm-payment-provider" class="w-full h-11 px-3 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="payhero" selected>⚡ PayHero M-Pesa STK</option>
+                            <option value="nexuspay">⚡ Nexus Pay STK</option>
+                            <option value="demo">🧪 Demo Save</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Add-on Excursions -->
