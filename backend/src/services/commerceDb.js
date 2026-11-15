@@ -93,12 +93,35 @@ function availability(product, totalStock) {
     return Math.max(0, totalStock - soldQuantity(product) - heldQuantity(product));
 }
 
+async function createIndexes() {
+    return true;
+}
+
+function collection(name) {
+    const mongoose = require('mongoose');
+    if (isConnected() && mongoose.connection?.db) {
+        return mongoose.connection.db.collection(name);
+    }
+    const emptyCursor = {
+        sort() { return this; },
+        limit() { return this; },
+         async toArray() { return []; }
+    };
+    return {
+        find() { return emptyCursor; },
+        async insertOne() { return { acknowledged: true }; },
+        async updateOne() { return { matchedCount: 0 }; }
+    };
+}
+
 module.exports = {
     commerceDb,
     transaction,
     soldQuantity,
     heldQuantity,
     availability,
+    createIndexes,
+    collection,
     demoEnabled,
     checkoutMode,
     stockKey

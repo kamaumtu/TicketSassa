@@ -117,7 +117,7 @@ app.get('/organizer', adminOnly, (req, res) => {
 app.get('/staff/check-in', privateTool('PASS_SCANNER_KEY', 'Ticket check-in'), (req, res) => {
     res.sendFile('staff-check-in.html', { root: publicRoot });
 });
-app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/styles.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
 app.use('/assets', express.static(resolve(publicRoot, 'assets'), { index: false }));

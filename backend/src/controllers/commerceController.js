@@ -342,6 +342,11 @@ exports.getPaymentStatus = handler(async (req, res) => {
     });
 });
 
+exports.adminCheckPayment = handler(async (req, res) => {
+    req.params.orderReference = req.params.reference;
+    return exports.getPaymentStatus(req, res, () => {});
+});
+
 exports.mpesaCallback = handler(async (req, res) => {
     res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 });

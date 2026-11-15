@@ -1,5 +1,6 @@
 const express = require('express');
-const { collection, transaction } = require('../services/commerceDb');
+const { commerceDb, collection, transaction } = require('../services/commerceDb');
+const { isConnected } = require('../config/db');
 const router = express.Router();
 const { route } = require('../services/http');
 
@@ -14,11 +15,15 @@ router.post('/orders/:reference/check-payment', require('../controllers/commerce
 
 router.get('/overview', async (req, res, next) => {
     try {
-        const events = await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray();
-        const liveOrders = await collection('commerce_orders').find({ mode: 'live' }).sort({ _id: -1 }).toArray();
+        const events = isConnected()
+            ? await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray()
+            : commerceDb().prepare('SELECT data FROM published_events ORDER BY starts_at DESC').all().map(r => JSON.parse(r.data));
+        const sqliteOrders = commerceDb().prepare('SELECT data FROM orders ORDER BY rowid DESC').all().map(r => JSON.parse(r.data));
+        const mongoOrders = isConnected() ? await collection('commerce_orders').find({ mode: 'live' }).sort({ _id: -1 }).toArray() : [];
+        const liveOrders = sqliteOrders.length ? sqliteOrders : mongoOrders;
         const orders = liveOrders
-            .map(({ orderReference, customer, items, totalTickets, totalKes, paymentStatus }) => ({
-                orderReference, customer: { name: customer.name, email: customer.email }, items, totalTickets, totalKes, paymentStatus
+            .map(({ orderReference, customer, items, totalTickets, totalKes, paymentStatus, provider, receipt }) => ({
+                orderReference, customer: { name: customer?.name, email: customer?.email }, items, totalTickets, totalKes, paymentStatus, provider, receipt
             }));
 
         const sold = new Map();
