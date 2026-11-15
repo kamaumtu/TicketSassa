@@ -40,7 +40,7 @@ form.addEventListener('submit', async event => {
         const localTime = field => data.get(field) + ':00+03:00';
         const response = await fetch('/api/published-events', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + data.get('key') },
+            headers: { 'Content-Type': 'application/json', 'X-Admin-Action': 'dashboard' },
             body: JSON.stringify({
                 title: data.get('title'), venue: data.get('venue'), description: data.get('description'),
                 startsAt: localTime('startsAt'), salesOpen: localTime('salesOpen'), salesClose: localTime('salesClose'), image,

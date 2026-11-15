@@ -46,6 +46,7 @@ const DigitalPassSchema = new mongoose.Schema({
         enum: ['VALID', 'USED', 'CANCELLED'],
         default: 'VALID'
     },
+    scannedBy: String,
     scannedAt: {
         type: Date,
         default: null

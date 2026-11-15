@@ -18,7 +18,8 @@ const connectDB = async () => {
     try {
         console.log('[*] Connecting to MongoDB...');
         const conn = await mongoose.connect(uri, {
-            serverSelectionTimeoutMS: 5000, // Timeout after 5s if Atlas credentials / IP whitelist are invalid
+            serverSelectionTimeoutMS: 5000,
+            bufferCommands: false
         });
 
         console.log(`[+] MongoDB Connected Successfully: ${conn.connection.host}`);

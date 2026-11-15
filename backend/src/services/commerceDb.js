@@ -1,6 +1,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const { mkdirSync } = require('node:fs');
 const { dirname, resolve } = require('node:path');
+const { isConnected } = require('../config/db');
 
 let database;
 
@@ -66,19 +67,39 @@ function transaction(work) {
 }
 
 function demoEnabled() {
-    return process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE === 'demo';
+    return process.env.PAYMENT_MODE !== 'live';
 }
 
 function soldQuantity(product) {
-    if (!demoEnabled()) return 0;
     return commerceDb().prepare('SELECT quantity FROM sales WHERE product = ?').get(product)?.quantity ?? 0;
 }
 
 function heldQuantity(product, exceptOrder = '') {
-    if (!demoEnabled()) return 0;
     return commerceDb().prepare(
         'SELECT COALESCE(SUM(quantity), 0) AS quantity FROM holds WHERE product = ? AND expires_at > ? AND order_reference != ?'
-    ).get(product, Date.now(), exceptOrder).quantity;
+    ).get(product, Date.now(), exceptOrder)?.quantity ?? 0;
 }
 
-module.exports = { commerceDb, transaction, soldQuantity, heldQuantity, demoEnabled };
+function stockKey(product, mode = demoEnabled() ? 'demo' : 'live') {
+    return mode + ':' + product;
+}
+
+function checkoutMode() {
+    if (process.env.PAYMENT_MODE === 'demo') return 'demo';
+    return 'live';
+}
+
+function availability(product, totalStock) {
+    return Math.max(0, totalStock - soldQuantity(product) - heldQuantity(product));
+}
+
+module.exports = {
+    commerceDb,
+    transaction,
+    soldQuantity,
+    heldQuantity,
+    availability,
+    demoEnabled,
+    checkoutMode,
+    stockKey
+};

@@ -1,6 +1,6 @@
 const TicketTier = require('../models/TicketTier');
 const { isConnected } = require('../config/db');
-const { soldQuantity, heldQuantity } = require('../services/commerceDb');
+const { availability, demoEnabled } = require('../services/commerceDb');
 
 const defaultTiers = [
     {
@@ -85,8 +85,10 @@ const demoEvent = {
 
 async function getTicketCatalog() {
     const tiers = isConnected() ? await TicketTier.find({ isActive: true }).lean() : defaultTiers;
+    const baseTiers = tiers.length ? tiers : defaultTiers;
     const { publishedTiers } = require('../routes/publishedEvents');
-    return [...tiers, ...publishedTiers()].map(tier => ({
+    const pub = await publishedTiers().catch(() => []);
+    return [...baseTiers, ...pub].map(tier => ({
         ...tier,
         eventId: tier.eventId || demoEvent.id,
         eventTitle: tier.eventTitle || demoEvent.title
@@ -98,10 +100,10 @@ exports.demoEvent = demoEvent;
 
 exports.getAllTiers = async (req, res, next) => {
     try {
-        const data = (await getTicketCatalog()).map(item => ({
+        const data = await Promise.all((await getTicketCatalog()).map(async item => ({
             ...item,
-            remainingAllocation: Math.max(0, item.remainingAllocation - soldQuantity('ticket:' + item.tierKey) - heldQuantity('ticket:' + item.tierKey))
-        }));
+            remainingAllocation: await availability('ticket:' + item.tierKey, item.remainingAllocation)
+        })));
         res.json({ success: true, count: data.length, data });
     } catch (error) {
         next(error);

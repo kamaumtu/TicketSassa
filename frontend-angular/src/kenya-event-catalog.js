@@ -30,6 +30,7 @@ class KenyaEventCatalog extends HTMLElement {
             img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
             .details { padding: .9rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }
             h3 { font-size: 1rem; overflow-wrap: anywhere; }
+            summary { color: #9f1239; cursor: pointer; padding: .5rem 0; }
             time, .venue { color: #475569; font-size: .875rem; }
             button { min-height: 44px; margin-top: 1rem; border: 1px solid #64748b; padding: .45rem .75rem; border-radius: .5rem; background: white; font: inherit; cursor: pointer; }
         `;
@@ -85,6 +86,7 @@ class KenyaEventCatalog extends HTMLElement {
                 ...event,
                 imageUrl: event.imageUrl?.startsWith('/assets/') ? new URL(event.imageUrl, new URL(endpoint, location.href)).href : event.imageUrl
             }));
+            this.storefront = new URL('/', new URL(endpoint, location.href));
             this.feedStatus = data.status;
         } catch {
             if (request.signal.aborted) return;
@@ -102,7 +104,7 @@ class KenyaEventCatalog extends HTMLElement {
             [event.title, event.venue, event.city].some(value => value?.toLowerCase().includes(query))
         );
         const status = this.feedStatus === 'local' && events.length ? 'Saved listings. Prices and availability may have changed.'
-            : this.feedStatus === 'unconfigured' ? 'The event feed has not been configured.'
+            : this.feedStatus === 'unavailable' ? 'The event feed is temporarily unavailable.'
             : this.feedStatus === 'stale' ? (this.events.length ? 'Showing the last available listings. Prices may have changed.' : 'The event feed is temporarily unavailable.')
             : ['live', 'local'].includes(this.feedStatus) ? (events.length ? '' : query ? 'No events match your search.' : 'No upcoming events are currently listed.')
             : 'Loading events…';
@@ -135,7 +137,17 @@ class KenyaEventCatalog extends HTMLElement {
             element('p', [event.venue, event.city].filter(Boolean).join(', '), { class: 'venue' }),
             element('p', event.status === 'offsale' ? 'Currently off sale' : price ? 'From ' + price : 'Price unavailable')
         );
-        if (event.source) details.append(element('p', 'Source: ' + event.source, { class: 'venue' }));
+        const listing = element('details');
+        listing.append(
+            element('summary', 'View listing details'),
+            element('p', 'Tickets for this event are currently unavailable on this site.')
+        );
+        if (event.source) listing.append(element('p', 'Listed by ' + event.source, { class: 'venue' }));
+        if (event.checkout) {
+            const url = new URL(this.storefront ?? location.href);
+            url.search = new URLSearchParams({ view: 'events', event: event.id }).toString();
+            details.append(element('a', 'View tickets', { href: url.href }));
+        } else details.append(listing);
         card.append(details);
         return card;
     }

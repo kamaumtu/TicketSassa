@@ -510,6 +510,14 @@
         <input type="email" [(ngModel)]="customerEmail" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
       </div>
       <div>
+        <label class="text-xs font-bold text-slate-400 block mb-1">Payment Gateway</label>
+        <select [(ngModel)]="selectedGateway" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-white outline-none">
+          <option value="payhero">⚡ PayHero M-Pesa STK Push (Live)</option>
+          <option value="nexuspay">⚡ Nexus Pay / Makamesco STK Push (Live)</option>
+          <option value="demo">🧪 Demo Checkout (Simulation - No Real Charge)</option>
+        </select>
+      </div>
+      <div>
         <label class="text-xs font-bold text-slate-400 block mb-1">M-Pesa Phone Number</label>
         <input type="tel" [(ngModel)]="customerPhone" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none">
       </div>

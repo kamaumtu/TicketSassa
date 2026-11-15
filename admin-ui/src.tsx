@@ -154,7 +154,13 @@ function App() {
                     <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td>{order.paymentStatus}</td>
                     <td>{money(order.totalKes)}</td><td><button onClick={() => setSelected(order)}>View order</button></td></tr>)}</tbody></table></div>
                 {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.email}</p>
-                    <ul>{selected.items.map((item, index) => <li key={index}>{item.quantity} × {item.title}</li>)}</ul><button onClick={() => setSelected(undefined)}>Close details</button></section>}
+                    <ul>{selected.items.map((item, index) => <li key={index}>{item.quantity} × {item.title}</li>)}</ul>{selected.paymentStatus === 'PROCESSING' && <button disabled={busy} onClick={() => void run(async () => {
+                        const result = await request<{ paymentStatus: string }>(
+                            '/orders/' + encodeURIComponent(selected.orderReference) + '/check-payment', 'POST');
+                        setSelected({ ...selected, paymentStatus: result.paymentStatus });
+                        setNotice('Payment status: ' + result.paymentStatus);
+                        await load();
+                    })}>Check M-Pesa status</button>}<button onClick={() => setSelected(undefined)}>Close details</button></section>}
             </section>}
             {data && section === 'Audit log' && <section className="panel">{audit.length ? <div className="scroll"><table><thead><tr><th>Action</th><th>Event ID</th><th>Time</th></tr></thead><tbody>{audit.map((entry, index) =>
                 <tr key={index}><td>{entry.action}</td><td>{entry.target}</td><td>{date(entry.timestamp)}</td></tr>)}</tbody></table></div> : <p>No event status changes recorded.</p>}</section>}

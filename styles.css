@@ -402,3 +402,97 @@ body {
 .airline-choice[aria-pressed="true"] { outline: 2px solid #be123c; outline-offset: -2px; background: #fff1f2; }
 
 #flight-plan-form { scroll-margin-top: 10rem; }
+
+.venue-page { background: #101923; color: #f8fafc; }
+.venue-back { display:inline-block; color:#cbd5e1; margin: 0 0 1rem; text-decoration:underline; text-underline-offset:.25em; }
+.venue-hero, .merch-hero { display:grid; grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); overflow:hidden; border-radius:1.25rem; }
+.venue-hero { background:#192632; border:1px solid #344659; }
+.venue-hero-copy, .merch-hero-copy { padding:clamp(1.5rem, 5vw, 4rem); align-self:center; }
+.venue-kicker { margin:0 0 .65rem; font-size:.8rem; font-weight:750; letter-spacing:.065em; text-transform:uppercase; }
+.venue-hero .venue-kicker { color:#fecdd3; }
+.venue-hero h1, .merch-hero h1 { margin:0 0 1rem; font-size:clamp(2.35rem, 5.2vw, 5rem); font-weight:800; letter-spacing:-.055em; line-height:1.02; }
+.venue-hero h1 span { display:block; color:#fecdd3; }
+.venue-meta { margin:.25rem 0; color:#e2e8f0; }
+.venue-actions { display:flex; flex-wrap:wrap; gap:.7rem; align-items:center; margin-top:1.4rem; }
+.venue-primary, .venue-secondary, .merch-cart-button { display:inline-flex; min-height:44px; align-items:center; border-radius:.6rem; padding:.65rem 1rem; font-weight:700; }
+.venue-primary { background:#a91640; color:#fff; }
+.venue-primary:hover { background:#861137; }
+.venue-secondary { border:1px solid #8292a4; color:#fff; }
+.venue-hero-photo { position:relative; min-height:18rem; margin:0; }
+.venue-hero-photo img { display:block; width:100%; height:100%; object-fit:cover; }
+.venue-hero-photo figcaption { position:absolute; bottom:.65rem; right:.65rem; background:#111827; color:#fff; border-radius:.3rem; padding:.25rem .5rem; font-size:.75rem; }
+.venue-section-nav { display:flex; flex-wrap:wrap; gap:.5rem 1.35rem; border-bottom:1px solid #344659; padding:1rem 0; margin-bottom:1.75rem; }
+.venue-section-nav a { display:inline-flex; align-items:center; min-height:44px; color:#f8fafc; text-decoration:underline; text-underline-offset:.25em; }
+.venue-content { display:grid; gap:2.25rem; }
+.venue-content > section, #hustle-merch-store { scroll-margin-top:9rem; }
+.merch-hero { background:#f1e8e1; color:#2d2120; }
+.merch-hero .venue-kicker { color:#851135; }
+.merch-hero img { width:100%; height:100%; max-height:28rem; display:block; object-fit:cover; object-position:center 38%; }
+.merch-cart-button { background:#fff; border:1px solid #9d7d78; }
+.merch-collection-heading { display:flex; align-items:baseline; flex-wrap:wrap; justify-content:space-between; gap:.35rem 1rem; margin-bottom:1rem; }
+.merch-collection-heading h2 { font-size:1.35rem; font-weight:750; }
+.merch-collection-heading p { font-size:.875rem; color:#475569; }
+.merch-product > img { display:block; }
+.merch-product [role="group"] { border-top:1px solid #e2e8f0; padding-top:.75rem; }
+.merch-product button:hover { background:#fff1f2; color:#9f1239; }
+@media (max-width: 700px) {
+    .venue-hero, .merch-hero { grid-template-columns:minmax(0,1fr); }
+    .venue-hero-photo { min-height:0; }
+    .venue-hero-photo img, .merch-hero img { aspect-ratio:16/9; height:auto; }
+}
+
+#published-events {
+    scroll-margin-top: 10rem;
+}
+
+#support-launcher {
+    position: fixed;
+    z-index: 45;
+    right: 1rem;
+    bottom: calc(1rem + env(safe-area-inset-bottom));
+    min-width: 4rem;
+    min-height: 2.75rem;
+    border-radius: .75rem;
+    background: #be123c;
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 4px 16px #0f172a26;
+}
+
+#chat-support-modal {
+    right: 1rem;
+    bottom: calc(4.25rem + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 2rem);
+    max-height: 70dvh;
+}
+#chat-support-modal input { min-width: 0; }
+
+.cart-line {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: .5rem;
+    align-items: start;
+    border-bottom: 1px solid #e2e8f0;
+    padding: .6rem 0;
+}
+.cart-line time {
+    display: block;
+    color: #475569;
+    font-weight: normal;
+}
+.cart-line > div {
+    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .5rem;
+}
+.cart-line button {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0 .5rem;
+    border: 1px solid #cbd5e1;
+    border-radius: .5rem;
+    background: white;
+}
+.cart-line button:disabled { opacity: .5; cursor: default; }

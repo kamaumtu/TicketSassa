@@ -3,6 +3,7 @@ const express = require('express');
 const { timingSafeEqual } = require('node:crypto');
 const { resolve } = require('node:path');
 const cors = require('cors');
+const { checkoutMode, createIndexes } = require('./services/commerceDb');
 const { connectDB, isConnected } = require('./config/db');
 
 // Import Route Handlers
@@ -19,7 +20,12 @@ app.locals.eventCatalog = eventRoutes.catalog;
 const PORT = process.env.PORT || 8000;
 
 // Connect to MongoDB Atlas (with graceful fallback)
-connectDB();
+connectDB().then(async () => {
+    if (isConnected()) await createIndexes();
+    await app.locals.eventCatalog.start();
+}).catch(error => {
+    console.error('Could not initialize booking storage:', error.message);
+});
 
 // Middleware
 app.use(cors({
@@ -45,11 +51,11 @@ app.get('/api/health', (req, res) => {
         service: 'Talanta × Ticketsasa × HustleSasa Unified Backend API',
         environment: process.env.NODE_ENV || 'development',
         database: isConnected() ? 'connected' : 'disconnected',
+        checkout: { mode: checkoutMode(), livePayments: checkoutMode() === 'live' },
         capabilities: [
             'Ticketsasa Event & Pass Ticketing',
-            'Talanta Sports City Seating Telemetry',
+            'Talanta seating previews',
             'HustleSasa Creator Storefront & Merch Bundles',
-            'Safaricom Daraja M-Pesa & Pesapal Live Checkout',
             'Turnstile Gate Scanner Verification'
         ],
         timestamp: new Date().toISOString()
@@ -72,20 +78,34 @@ function privateTool(keyName, realm) {
     return (req, res, next) => {
         res.set('Cache-Control', 'private, no-store');
         const key = process.env[keyName];
-        if (!key) return res.sendStatus(404);
+        const scanner = keyName === 'PASS_SCANNER_KEY' && process.env.PASS_SCANNER_ACCOUNTS;
+        if (!key && !scanner) return res.sendStatus(404);
 
         const credentials = /^Basic ([A-Za-z0-9+/]+={0,2})$/i.exec(req.get('Authorization') || '');
         if (credentials) {
             const decoded = Buffer.from(credentials[1], 'base64');
+            if (scanner) {
+                const text = decoded.toString('utf8');
+                if (text.startsWith('admin:') &&
+                    require('./services/scannerAccess').authenticateScanner('Bearer ' + text.slice(6))) return next();
+            }
             const expected = Buffer.from('admin:' + key);
-            if (decoded.length === expected.length && timingSafeEqual(decoded, expected)) return next();
+            if (!scanner && decoded.length === expected.length && timingSafeEqual(decoded, expected)) return next();
         }
         res.set('WWW-Authenticate', 'Basic realm="' + realm + '", charset="UTF-8"');
         res.sendStatus(401);
     };
 }
 
-const adminOnly = privateTool('ORGANIZER_KEY', 'Event publishing');
+const { organizerIdentity } = require('./services/organizerAccess');
+function adminOnly(req, res, next) {
+    res.set('Cache-Control', 'private, no-store');
+    if (!process.env.ORGANIZER_ACCOUNTS && !process.env.ORGANIZER_KEY) return res.sendStatus(404);
+    req.organizerId = organizerIdentity(req.get('Authorization'));
+    if (req.organizerId) return next();
+    res.set('WWW-Authenticate', 'Basic realm="Event publishing", charset="UTF-8"');
+    return res.sendStatus(401);
+}
 app.use('/api/admin', adminOnly, require('./routes/admin'));
 app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), { index: false }));
 app.get('/admin', adminOnly, (req, res) => {
@@ -112,6 +132,7 @@ app.use((req, res) => {
 
 // Global Error Handler
 app.use((err, req, res, next) => {
+    if (err.status === 503) return res.status(503).json({ success: false, message: err.message });
     if (err.status >= 400 && err.status < 500) {
         return res.status(err.status).json({ success: false, message: 'Invalid request.' });
     }

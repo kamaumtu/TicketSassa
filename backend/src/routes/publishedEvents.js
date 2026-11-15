@@ -1,11 +1,14 @@
 const express = require('express');
 const { randomUUID, timingSafeEqual } = require('node:crypto');
-const { commerceDb } = require('../services/commerceDb');
+const { organizerIdentity } = require('../services/organizerAccess');
+const { collection, transaction } = require('../services/commerceDb');
 const router = express.Router();
+const { isConnected } = require('../config/db');
+const { route } = require('../services/http');
 
-function events() {
-    return commerceDb().prepare('SELECT data FROM published_events ORDER BY starts_at').all()
-        .map(row => JSON.parse(row.data));
+async function events() {
+    if (!isConnected()) return [];
+    return collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray();
 }
 
 function visible(event) {
@@ -13,26 +16,29 @@ function visible(event) {
 }
 
 function onSale(event, now = Date.now()) {
-    return visible(event) && withinSalesWindow(event, now);
+    return visible(event) && withinSalesWindow(event, now) &&
+        (!event.source || Date.parse(event.allocationExpiresAt) > now);
 }
 
 function withinSalesWindow(event, now) {
     return Date.parse(event.salesOpen) <= now && now < Date.parse(event.salesClose);
 }
 
-router.get('/', (req, res) => {
-    res.json({ data: events().filter(event => visible(event) && Date.parse(event.startsAt) > Date.now())
+router.get('/', route(async (req, res) => {
+    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > Date.now())
         .map(event => ({ ...event, onSale: onSale(event) })) });
-});
+}));
 
-router.post('/', express.json({ limit: '2mb' }), (req, res) => {
+router.post('/', express.json({ limit: '2mb' }), route(async (req, res) => {
+    const authorization = req.get('Authorization') || '';
     const secret = process.env.ORGANIZER_KEY;
-    if (!secret) return res.status(503).json({ message: 'Organizer access is unconfigured.' });
     const expected = Buffer.from('Bearer ' + secret);
-    const supplied = Buffer.from(req.get('Authorization') || '');
-    if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
-        return res.status(403).json({ message: 'Organizer authorization required.' });
-    }
+    const supplied = Buffer.from(authorization);
+    const legacy = !process.env.ORGANIZER_ACCOUNTS && secret &&
+        expected.length === supplied.length && timingSafeEqual(expected, supplied);
+    const actor = req.get('X-Admin-Action') === 'dashboard'
+        ? organizerIdentity(authorization) : null;
+    if (!legacy && !actor) return res.status(403).json({ message: 'Organizer authorization required.' });
     const { title, venue, description, startsAt, salesOpen, salesClose, tiers, image } = req.body;
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
     const dates = [salesOpen, salesClose, startsAt].map(value => Date.parse(value));
@@ -59,17 +65,21 @@ router.post('/', express.json({ limit: '2mb' }), (req, res) => {
             published: true, remainingAllocation: tier.capacity, designatedGate: tier.gate, features: []
         }))
     };
-    commerceDb().prepare('INSERT INTO published_events (id, starts_at, data) VALUES (?, ?, ?)')
-        .run(id, dates[2], JSON.stringify(event));
+    await transaction(async session => {
+        await collection('commerce_events').insertOne({ ...event, _id: id }, { session });
+        await collection('commerce_audit').insertOne({
+            action: 'publish', target: id, timestamp: new Date().toISOString(), actor: actor || 'shared-admin'
+        }, { session });
+    });
     res.status(201).json({ data: event });
-});
+}));
 
-function publishedTiers() {
-    return events().filter(event => onSale(event)).flatMap(event => event.tiers);
+async function publishedTiers() {
+    return (await events()).filter(event => onSale(event)).flatMap(event => event.tiers);
 }
 
-function reservedTiers() {
-    return events().flatMap(event => event.tiers);
+async function reservedTiers() {
+    return (await events()).flatMap(event => event.tiers);
 }
 
-module.exports = { router, publishedTiers, reservedTiers };
+module.exports = { router, publishedTiers, reservedTiers, events, visible, onSale };

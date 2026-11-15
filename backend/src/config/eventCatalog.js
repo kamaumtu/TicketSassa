@@ -1,4 +1,6 @@
-const localEvents = require('./localEvents.json');
+const { collection } = require('../services/commerceDb');
+const { isConnected } = require('./db');
+const { syncAllocations } = require('../services/eventAllocations');
 
 const SOURCE = 'https://soldoutafrica.com/events';
 const REFRESH_MS = 15 * 60 * 1000;
@@ -51,6 +53,7 @@ function parseListings(html, now = Date.now()) {
                 city: address.addressLocality?.trim(),
                 price: prices.length ? { amount: Math.min(...prices), currency: 'KES' } : null,
                 imageUrl: image?.href ?? null,
+                sourceUrl: url.href,
                 source: 'SoldOut Africa'
             });
         }
@@ -60,38 +63,58 @@ function parseListings(html, now = Date.now()) {
 }
 
 function createEventCatalog({ fetchPage = fetch } = {}) {
-    let events = localEvents;
-    let updatedAt = null;
-    let stale = false;
     let pending;
 
     function refresh() {
+        if (!isConnected()) return Promise.resolve();
         pending ??= (async () => {
-            const response = await fetchPage(SOURCE, {
-                headers: { Accept: 'text/html' },
-                signal: AbortSignal.timeout(15000)
-            });
-            if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
-            events = parseListings(await response.text());
-            updatedAt = new Date().toISOString();
-            stale = false;
-        })().catch(error => {
-            stale = true;
-            console.warn('SoldOut Africa refresh failed:', error.message);
-        }).finally(() => { pending = null; });
+            try {
+                const response = await fetchPage(SOURCE, {
+                    headers: { Accept: 'text/html' },
+                    signal: AbortSignal.timeout(15000)
+                });
+                if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
+                const events = parseListings(await response.text());
+                await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
+                    events, updatedAt: new Date().toISOString(), stale: false
+                }, { upsert: true });
+                try {
+                    await syncAllocations(events, fetchPage);
+                } catch (error) {
+                    console.warn('Ticket allocation sync failed:', error.message);
+                }
+            } catch (error) {
+                if (isConnected()) {
+                    await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
+                }
+                console.warn('SoldOut Africa refresh failed:', error.message);
+            }
+        })().finally(() => { pending = null; });
         return pending;
     }
 
     return {
         start() {
-            void refresh();
             setInterval(refresh, REFRESH_MS).unref();
+            return refresh();
         },
-        get() {
+        async get() {
+            const snapshot = isConnected() ? await collection('event_catalogs').findOne({ _id: SOURCE }) : null;
+            const now = new Date().toISOString();
+            const allocated = snapshot ? await collection('commerce_events').find({
+                source: 'SoldOut Africa', startsAt: { $gt: now }, allocationExpiresAt: { $gt: now },
+                salesOpen: { $lte: now }, salesClose: { $gt: now },
+                $or: [{ status: { $exists: false } }, { status: 'published' }]
+            }, { projection: { _id: 1, tiers: 1 } }).toArray() : [];
+            const sales = new Map(allocated.map(event => [event._id,
+                Math.min(...event.tiers.map(tier => tier.priceKes))]));
             return {
-                events: events.filter(event => Date.parse(event.startsAt) > Date.now()),
-                updatedAt,
-                status: !updatedAt ? 'local' : stale ? 'stale' : 'live'
+                events: (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
+                    ...event, checkout: sales.has(event.id),
+                    price: sales.has(event.id) ? { amount: sales.get(event.id), currency: 'KES' } : event.price
+                })),
+                updatedAt: snapshot?.updatedAt ?? null,
+                status: !snapshot ? 'unavailable' : snapshot.stale ? 'stale' : 'live'
             };
         },
         refresh

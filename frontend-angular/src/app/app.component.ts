@@ -60,6 +60,9 @@ export class AppComponent implements OnInit {
   // Active Tab
   activeTab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet' = 'events';
 
+  // Gateway Selector
+  selectedGateway: 'payhero' | 'nexuspay' | 'demo' = 'payhero';
+
   // Application State
   currency: 'KES' | 'USD' = 'KES';
   event: EventData | null = null;
@@ -393,7 +396,7 @@ export class AppComponent implements OnInit {
   async triggerMpesaCheckout() {
     if (this.isProcessingPayment) return;
     this.isProcessingPayment = true;
-    this.paymentStatusMessage = 'Creating your demo order...';
+    this.paymentStatusMessage = 'Preparing your order…';
 
     const payload: OrderPayload = {
       customer: { name: this.customerName, email: this.customerEmail, phone: this.customerPhone },
@@ -403,22 +406,52 @@ export class AppComponent implements OnInit {
       currency: this.currency,
       paymentMethod: 'MPESA'
     };
-    const fingerprint = JSON.stringify(payload);
-
     try {
+      const { mode } = await firstValueFrom(this.api.checkoutMode().pipe(timeout(15000)));
+      if (mode === 'unavailable') throw new Error('Online checkout is currently unavailable.');
+      if (mode === 'live') payload.currency = 'KES';
+      const fingerprint = JSON.stringify(payload);
       if (this.pendingOrder?.fingerprint !== fingerprint) {
         const order = await firstValueFrom(this.api.createOrder(payload).pipe(timeout(15000)));
         this.pendingOrder = { fingerprint, reference: order.data.orderReference };
       }
       const reference = this.pendingOrder.reference;
-      this.paymentStatusMessage = 'Completing your demo payment via Safaricom Daraja...';
-      const payment = await firstValueFrom(this.api.initiateMpesaStkPush(reference, this.customerPhone).pipe(timeout(15000)));
-      const result = await firstValueFrom(this.api.confirmDemo(reference, payment.CheckoutRequestID).pipe(timeout(15000)));
+      this.orderReference = reference;
+      this.orderEmail = this.customerEmail;
+      const payment = await firstValueFrom(this.api.initiateMpesaStkPush(reference, this.customerPhone, this.selectedGateway).pipe(timeout(30000)));
+      let result!: BookingResult;
+      if (payment.mode === 'demo') {
+        result = await firstValueFrom(this.api.confirmDemo(reference, payment.CheckoutRequestID || payment.checkoutRequestId || '').pipe(timeout(15000)));
+      } else {
+        this.paymentStatusMessage = payment.CustomerMessage || 'Approve the prompt on your phone.';
+        let confirmed = false;
+        for (let attempt = 0; attempt < 15; attempt++) {
+          await new Promise(resolve => setTimeout(resolve, 3500));
+          const check = await firstValueFrom(this.api.checkPaymentStatus(reference).pipe(timeout(10000))).catch(() => null);
+          if (check?.status === 'COMPLETED') {
+            result = { data: check.order, passes: check.passes || [] };
+            confirmed = true;
+            break;
+          }
+          if (check?.status === 'FAILED') {
+            this.pendingOrder = undefined;
+            throw new Error(check.reason || 'Payment was declined or cancelled on your mobile phone.');
+          }
+          this.paymentStatusMessage = `Awaiting payment confirmation (${attempt + 1}/15)...`;
+        }
+        if (!confirmed) {
+          result = await firstValueFrom(this.api.lookupOrder(reference, this.customerEmail).pipe(timeout(12000)));
+          if (result.data.paymentStatus !== 'COMPLETED') {
+            throw new Error(`Payment processing. Check order ${reference} in My tickets.`);
+          }
+        }
+      }
       this.pendingOrder = undefined;
       this.orderEmail = this.customerEmail;
       this.setBooking(result);
     } catch (err: any) {
-      this.paymentStatusMessage = err?.error?.message || err?.message || 'Payment simulation failed.';
+      if ([410, 422].includes(err?.status)) this.pendingOrder = undefined;
+      this.paymentStatusMessage = err?.error?.message || err?.message || 'The payment request failed.';
     } finally {
       this.isProcessingPayment = false;
     }
@@ -442,9 +475,9 @@ export class AppComponent implements OnInit {
     this.isLookingUp = true;
     this.orderStatus = 'Looking up order passes...';
     try {
-      const res = await firstValueFrom(this.api.lookupOrder(this.orderReference, this.orderEmail).pipe(timeout(12000)));
+      const res = await firstValueFrom(this.api.lookupOrder(this.orderReference, this.orderEmail).pipe(timeout(30000)));
       this.savedPasses = res.passes;
-      this.orderStatus = `Order ${res.data.orderReference} - ${res.passes.length} passes recovered.`;
+      this.orderStatus = `Order ${res.data.orderReference} - ${res.data.paymentStatus} · ${res.passes.length} passes.`;
     } catch (err: any) {
       this.orderStatus = err?.error?.message || 'Could not find order. Please verify reference and email.';
     } finally {

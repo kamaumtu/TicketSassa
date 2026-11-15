@@ -1,11 +1,18 @@
 const { randomBytes } = require('node:crypto');
-const { commerceDb, transaction, soldQuantity, heldQuantity, demoEnabled } = require('../services/commerceDb');
+const { commerceDb, transaction, soldQuantity, heldQuantity, demoEnabled, checkoutMode, stockKey } = require('../services/commerceDb');
 const { getPromo } = require('../services/promos');
 const { getTicketCatalog } = require('./ticketController');
 const { getMerchCatalog } = require('./merchController');
 const Order = require('../models/Order');
 const DigitalPass = require('../models/DigitalPass');
 const { isConnected } = require('../config/db');
+
+// PayHero and NexusPay Payment Gateway Integration
+const { createPaymentGateways, phoneNumber: validateGatewayPhone } = require('../services/payment-gateways');
+const { createPayHeroBalanceFetcher } = require('../services/payhero-balance');
+
+const paymentGateways = createPaymentGateways({ env: process.env });
+const fetchPayHeroBalance = createPayHeroBalanceFetcher({ env: process.env });
 
 function reject(status, message) {
     throw Object.assign(new Error(message), { status });
@@ -40,7 +47,8 @@ function inventoryKey(kind, key) {
 
 async function getInventory(includeClosed = false) {
     const [tickets, merch] = await Promise.all([getTicketCatalog(), getMerchCatalog()]);
-    const sellable = includeClosed ? [...tickets, ...require('../routes/publishedEvents').reservedTiers()] : tickets;
+    const reserved = includeClosed ? await require('../routes/publishedEvents').reservedTiers().catch(() => []) : [];
+    const sellable = includeClosed ? [...tickets, ...reserved] : tickets;
     return new Map([
         ...sellable.map(tier => [inventoryKey('ticket', tier.tierKey), { ...tier, stock: tier.remainingAllocation }]),
         ...merch.map(product => [inventoryKey('merch', product.productKey), product])
@@ -57,8 +65,8 @@ function getOrder(reference) {
 }
 
 function saveOrder(order) {
-    commerceDb().prepare('UPDATE orders SET data = ? WHERE reference = ?')
-        .run(JSON.stringify(order), order.orderReference);
+    commerceDb().prepare('INSERT INTO orders (reference, email, data) VALUES (?, ?, ?) ON CONFLICT(reference) DO UPDATE SET data = excluded.data, email = excluded.email')
+        .run(order.orderReference, order.customer.email, JSON.stringify(order));
 }
 
 function getPasses(reference) {
@@ -67,14 +75,52 @@ function getPasses(reference) {
 }
 
 function orderSummary(order) {
-    const { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt } = order;
-    return { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt };
+    const { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt } = order;
+    return { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt };
 }
 
-exports.getCheckoutMode = (req, res) => res.json({ mode: demoEnabled() ? 'demo' : 'unavailable' });
+function completeOrder(db, order, receipt) {
+    const { orderReference } = order;
+    const addSale = db.prepare('INSERT INTO sales (product, quantity) VALUES (?, ?) ON CONFLICT(product) DO UPDATE SET quantity = quantity + excluded.quantity');
+    const addPass = db.prepare('INSERT INTO passes (token, reference, order_reference, data) VALUES (?, ?, ?, ?)');
+    for (const item of order.items) {
+        addSale.run(item.key, item.quantity);
+        if (item.kind !== 'ticket') continue;
+        for (let n = 0; n < item.quantity; n++) {
+            const pass = {
+                passReference: token('TSASA-'), qrCodeToken: token('PASS-'), orderReference,
+                attendeeName: order.customer.name, tierName: item.title, designatedGate: item.designatedGate,
+                eventTitle: item.eventTitle || 'Talanta Sports City Live', status: 'VALID', mode: order.mode || 'live'
+            };
+            addPass.run(pass.qrCodeToken, pass.passReference, orderReference, JSON.stringify(pass));
+        }
+    }
+    db.prepare('DELETE FROM holds WHERE order_reference = ?').run(orderReference);
+    order.paymentStatus = 'COMPLETED';
+    order.receipt = receipt;
+    saveOrder(order);
+    return { order, passes: getPasses(orderReference) };
+}
+
+exports.getCheckoutMode = (req, res) => res.json({ mode: checkoutMode() });
+
+exports.getPaymentGateways = handler(async (req, res) => {
+    const list = paymentGateways.available();
+    res.json({
+        success: true,
+        gateways: [
+            ...list,
+            { id: 'demo', name: 'Demo STK Push (Simulation)', configured: true }
+        ]
+    });
+});
+
+exports.getPayHeroBalance = handler(async (req, res) => {
+    const balance = await fetchPayHeroBalance();
+    res.json({ success: true, data: balance });
+});
 
 exports.createOrder = handler(async (req, res) => {
-    if (!demoEnabled()) reject(503, 'Checkout is unavailable until a payment provider is configured.');
     const { customer, items, currency = 'KES', paymentMethod = 'MPESA', promoCode, tipKes = 0 } = req.body;
     const name = typeof customer?.name === 'string' ? customer.name.trim() : '';
     const email = normalizeEmail(customer?.email);
@@ -121,7 +167,7 @@ exports.createOrder = handler(async (req, res) => {
     const order = {
         orderReference: token('ORD-'), customer: { name, email, phone }, items: lines,
         totalTickets, totalKes: round(subtotalKes * factor + tipKes), totalUsd: round(subtotalUsd * factor + tipKes / 125),
-        currency, paymentMethod, paymentStatus: 'PENDING', promoCode: promo?.code, tipKes, mode: 'demo', expiresAt: Date.now() + 10 * 60 * 1000
+        currency, paymentMethod, paymentStatus: 'PENDING', promoCode: promo?.code, tipKes, mode: 'live', expiresAt: Date.now() + 10 * 60 * 1000
     };
     transaction(db => {
         db.prepare('DELETE FROM holds WHERE expires_at <= ?').run(Date.now());
@@ -160,28 +206,245 @@ exports.lookupOrder = handler(async (req, res) => {
 });
 
 exports.initiateMpesaStkPush = handler(async (req, res) => {
-    if (!demoEnabled()) reject(503, 'Checkout is unavailable until a payment provider is configured.');
-    const { orderReference, phone } = req.body;
+    const { orderReference, phone, provider = 'payhero' } = req.body;
     if (typeof orderReference !== 'string') reject(400, 'Order reference is required.');
     const phoneNormalized = phoneNumber(phone);
-    const order = transaction(() => {
+
+    const isLiveGateway = ['payhero', 'nexuspay'].includes(provider);
+    let shouldInitiate = false;
+
+    const order = transaction(db => {
         const stored = getOrder(orderReference);
         if (!stored || stored.customer.phone !== phoneNormalized) reject(404, 'Order not found for this mobile number.');
         if (stored.paymentStatus !== 'COMPLETED' && stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
         if (stored.paymentStatus === 'FAILED') reject(409, 'This order is no longer payable.');
-        if (stored.paymentStatus === 'PENDING') {
-            stored.paymentStatus = 'PROCESSING';
+        if (stored.paymentStatus === 'COMPLETED') reject(409, 'This order has already been paid.');
+
+        stored.paymentStatus = 'PROCESSING';
+        stored.provider = provider;
+
+        if (isLiveGateway) {
+            db.prepare('UPDATE holds SET expires_at = ? WHERE order_reference = ?')
+                .run(Number.MAX_SAFE_INTEGER, orderReference);
+            shouldInitiate = true;
+        } else {
             stored.checkoutRequestId = token('DEMO-');
-            saveOrder(stored);
         }
+        saveOrder(stored);
         return stored;
     });
-    res.json({ success: true, mode: 'demo', CheckoutRequestID: order.checkoutRequestId, ResponseCode: '0',
-        CustomerMessage: 'Demo payment ready. No money will be charged.' });
+
+    if (shouldInitiate) {
+        try {
+            const deposit = {
+                amount: order.totalKes,
+                payer_phone: phoneNormalized,
+                external_reference: orderReference
+            };
+            const result = await paymentGateways.initiate(provider, deposit, order.customer.name);
+            order.checkoutRequestId = result.checkoutRequestId;
+            order.providerReference = result.providerReference;
+            saveOrder(order);
+
+            return res.json({
+                success: true,
+                mode: 'live',
+                provider,
+                checkoutRequestId: result.checkoutRequestId,
+                providerReference: result.providerReference,
+                orderReference,
+                CustomerMessage: `M-Pesa STK prompt sent to ${phoneNormalized} via ${provider === 'nexuspay' ? 'Nexus Pay' : 'PayHero'}. Enter your PIN on your phone.`
+            });
+        } catch (err) {
+            console.error(`[-] ${provider} initiation failed for order ${orderReference}:`, err.message);
+            transaction(db => {
+                order.paymentStatus = 'FAILED';
+                saveOrder(order);
+                db.prepare('DELETE FROM holds WHERE order_reference = ?').run(orderReference);
+            });
+            reject(err.status || 502, err.message || `Failed to initiate payment via ${provider}.`);
+        }
+    }
+
+    res.json({
+        success: true,
+        mode: 'demo',
+        provider: 'demo',
+        CheckoutRequestID: order.checkoutRequestId,
+        ResponseCode: '0',
+        CustomerMessage: 'Demo payment ready. No money will be charged.'
+    });
+});
+
+exports.getPaymentStatus = handler(async (req, res) => {
+    const reference = req.params.orderReference?.trim().toUpperCase();
+    if (!reference) reject(400, 'Order reference is required.');
+
+    let order = getOrder(reference);
+    if (!order) reject(404, 'Order not found.');
+
+    if (order.paymentStatus === 'COMPLETED') {
+        const passes = getPasses(reference);
+        return res.json({
+            success: true,
+            status: 'COMPLETED',
+            order: orderSummary(order),
+            receipt: order.receipt,
+            passes
+        });
+    }
+
+    if (order.paymentStatus === 'PROCESSING' && ['payhero', 'nexuspay'].includes(order.provider)) {
+        try {
+            const deposit = {
+                amount: order.totalKes,
+                payer_phone: order.customer.phone,
+                external_reference: order.orderReference,
+                mpesa_checkout_request_id: order.checkoutRequestId,
+                provider_reference: order.providerReference
+            };
+            const result = await paymentGateways.check(order.provider, deposit);
+            if (result.status === 'completed') {
+                const completed = transaction(db => {
+                    const current = getOrder(reference);
+                    if (current.paymentStatus === 'COMPLETED') return { order: current, passes: getPasses(reference) };
+                    return completeOrder(db, current, result.receipt || token('REC-'));
+                });
+                return res.json({
+                    success: true,
+                    status: 'COMPLETED',
+                    order: orderSummary(completed.order),
+                    receipt: completed.order.receipt,
+                    passes: completed.passes
+                });
+            } else if (result.status === 'failed' || result.status === 'cancelled') {
+                transaction(db => {
+                    order.paymentStatus = 'FAILED';
+                    saveOrder(order);
+                    db.prepare('DELETE FROM holds WHERE order_reference = ?').run(reference);
+                });
+                return res.json({
+                    success: true,
+                    status: 'FAILED',
+                    reason: result.reason || 'Payment failed or was cancelled.',
+                    order: orderSummary(order)
+                });
+            }
+        } catch (err) {
+            console.warn(`[!] Status check warning for order ${reference}:`, err.message);
+        }
+    }
+
+    res.json({
+        success: true,
+        status: order.paymentStatus,
+        order: orderSummary(order)
+    });
+});
+
+exports.mpesaCallback = handler(async (req, res) => {
+    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+});
+
+exports.payheroCallback = handler(async (req, res) => {
+    const tokenHeader = req.query.token || req.headers.authorization?.replace(/^Bearer\s+/i, '');
+    const expectedToken = process.env.PAYHERO_CALLBACK_TOKEN;
+    if (expectedToken && tokenHeader && tokenHeader !== expectedToken) {
+        reject(403, 'Invalid PayHero callback token.');
+    }
+
+    const raw = req.body?.response || req.body;
+    if (!raw) reject(400, 'Payload missing.');
+
+    const externalRef = raw.ExternalReference || raw.external_reference;
+    const checkoutId = raw.CheckoutRequestID || raw.checkout_request_id;
+    const reference = externalRef || checkoutId;
+
+    if (!reference) reject(400, 'Missing reference in callback payload.');
+
+    let order = getOrder(reference);
+    if (!order && checkoutId) {
+        const row = commerceDb().prepare(`SELECT data FROM orders WHERE json_extract(data, '$.checkoutRequestId') = ?`).get(checkoutId);
+        if (row) order = JSON.parse(row.data);
+    }
+
+    if (!order) {
+        return res.json({ ResultCode: 0, ResultDesc: 'Order not found, ignored.' });
+    }
+
+    try {
+        const deposit = {
+            amount: order.totalKes,
+            payer_phone: order.customer.phone,
+            external_reference: order.orderReference,
+            mpesa_checkout_request_id: order.checkoutRequestId,
+            provider_reference: order.providerReference
+        };
+        const parsed = paymentGateways.parsePayHero(deposit, raw);
+        if (parsed.status === 'completed') {
+            transaction(db => {
+                const current = getOrder(order.orderReference);
+                if (current.paymentStatus !== 'COMPLETED') {
+                    completeOrder(db, current, parsed.receipt || token('PH-'));
+                }
+            });
+        } else if (parsed.status === 'failed') {
+            transaction(db => {
+                const current = getOrder(order.orderReference);
+                if (current.paymentStatus === 'PROCESSING') {
+                    current.paymentStatus = 'FAILED';
+                    saveOrder(current);
+                    db.prepare('DELETE FROM holds WHERE order_reference = ?').run(order.orderReference);
+                }
+            });
+        }
+    } catch (err) {
+        console.error('[-] PayHero verification error:', err.message);
+    }
+
+    res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
+});
+
+exports.nexuspayCallback = handler(async (req, res) => {
+    const raw = req.body;
+    if (!raw) reject(400, 'Payload missing.');
+
+    const reference = raw.reference || raw.external_reference;
+    const checkoutId = raw.checkoutRequestId;
+
+    let order = reference ? getOrder(reference) : null;
+    if (!order && checkoutId) {
+        const row = commerceDb().prepare(`SELECT data FROM orders WHERE json_extract(data, '$.checkoutRequestId') = ?`).get(checkoutId);
+        if (row) order = JSON.parse(row.data);
+    }
+
+    if (!order) {
+        return res.json({ success: true, message: 'Order ignored.' });
+    }
+
+    const status = String(raw.status || '').toLowerCase();
+    if (status === 'completed' || status === 'success') {
+        transaction(db => {
+            const current = getOrder(order.orderReference);
+            if (current.paymentStatus !== 'COMPLETED') {
+                completeOrder(db, current, raw.mpesaReceiptNumber || raw.receipt || token('NX-'));
+            }
+        });
+    } else if (['failed', 'cancelled'].includes(status)) {
+        transaction(db => {
+            const current = getOrder(order.orderReference);
+            if (current.paymentStatus === 'PROCESSING') {
+                current.paymentStatus = 'FAILED';
+                saveOrder(current);
+                db.prepare('DELETE FROM holds WHERE order_reference = ?').run(order.orderReference);
+            }
+        });
+    }
+
+    res.json({ success: true, message: 'Nexus Pay callback accepted.' });
 });
 
 exports.confirmDemo = handler(async (req, res) => {
-    if (!demoEnabled()) reject(503, 'Demo checkout is unavailable.');
     const { orderReference, checkoutRequestId } = req.body;
     if (typeof orderReference !== 'string' || typeof checkoutRequestId !== 'string') reject(400, 'Order and checkout references are required.');
     const inventory = await getInventory(true);
@@ -196,25 +459,7 @@ exports.confirmDemo = handler(async (req, res) => {
             const current = inventory.get(item.key);
             if (!current || item.quantity > available(item.key, current, orderReference)) reject(409, 'Insufficient stock for ' + item.title + '.');
         }
-        const addSale = db.prepare('INSERT INTO sales (product, quantity) VALUES (?, ?) ON CONFLICT(product) DO UPDATE SET quantity = quantity + excluded.quantity');
-        const addPass = db.prepare('INSERT INTO passes (token, reference, order_reference, data) VALUES (?, ?, ?, ?)');
-        for (const item of order.items) {
-            addSale.run(item.key, item.quantity);
-            if (item.kind !== 'ticket') continue;
-            for (let n = 0; n < item.quantity; n++) {
-                const pass = {
-                    passReference: token('TSASA-'), qrCodeToken: token('PASS-'), orderReference,
-                    attendeeName: order.customer.name, tierName: item.title, designatedGate: item.designatedGate,
-                    eventTitle: item.eventTitle || 'Talanta Sports City demo event', status: 'VALID', mode: 'demo'
-                };
-                addPass.run(pass.qrCodeToken, pass.passReference, orderReference, JSON.stringify(pass));
-            }
-        }
-        db.prepare('DELETE FROM holds WHERE order_reference = ?').run(orderReference);
-        order.paymentStatus = 'COMPLETED';
-        order.receipt = token('DEMO-');
-        saveOrder(order);
-        return { order, passes: getPasses(orderReference) };
+        return completeOrder(db, order, token('DEMO-'));
     });
     res.json({ success: true, mode: 'demo', data: orderSummary(result.order),
         receiptNumber: result.order.receipt, passes: result.passes, digitalPass: result.passes[0] ?? null });
@@ -226,7 +471,7 @@ exports.verifyPass = handler(async (req, res) => {
     const pass = row ? JSON.parse(row.data) : isConnected() ? await DigitalPass.findOne({
         $or: [{ qrCodeToken: req.params.qrToken }, { passReference: code }]
     }).lean() : null;
-    if (!pass || pass.status !== 'VALID' || (pass.mode === 'demo' && !demoEnabled())) reject(404, 'No valid ticket matches this code.');
+    if (!pass || pass.status !== 'VALID') reject(404, 'No valid ticket matches this code.');
     res.json({ success: true, status: 'VALID', pass: { passReference: pass.passReference, tierName: pass.tierName,
         designatedGate: pass.designatedGate, eventTitle: pass.eventTitle, mode: pass.mode } });
 });
@@ -250,7 +495,6 @@ exports.redeemPass = handler(async (req, res) => {
         const row = db.prepare('SELECT data FROM passes WHERE token = ? OR reference = ?').get(code, code);
         if (!row) return null;
         const entry = JSON.parse(row.data);
-        if (!demoEnabled()) reject(409, 'Demo tickets are unavailable in this environment.');
         consume(entry);
         entry.status = 'USED';
         entry.scannedGate = gate;
@@ -272,10 +516,11 @@ exports.redeemPass = handler(async (req, res) => {
 
 exports.passQr = handler(async (req, res) => {
     const code = req.params.qrToken.trim().toUpperCase();
-    const row = demoEnabled() ? commerceDb().prepare('SELECT token FROM passes WHERE token = ?').get(code) : null;
+    const row = commerceDb().prepare('SELECT data FROM passes WHERE token = ? OR reference = ?').get(code, code);
     const legacy = !row && isConnected() ? await DigitalPass.findOne({ qrCodeToken: req.params.qrToken, status: 'VALID' }).lean() : null;
-    const qrToken = row?.token ?? legacy?.qrCodeToken;
-    if (!qrToken) reject(404, 'Ticket not found.');
+    const pass = row ? JSON.parse(row.data) : legacy;
+    if (!pass) reject(404, 'Ticket not found.');
+    const qrToken = pass.qrCodeToken;
     const svg = await require('qrcode').toString(qrToken, { type: 'svg', errorCorrectionLevel: 'M', width: 200 });
     res.type('svg').set('Cache-Control', 'private, no-store').send(svg);
 });

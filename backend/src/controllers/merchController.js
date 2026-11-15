@@ -1,7 +1,7 @@
 const { getPromo } = require('../services/promos');
 const MerchProduct = require('../models/MerchProduct');
 const { isConnected } = require('../config/db');
-const { soldQuantity, heldQuantity } = require('../services/commerceDb');
+const { availability, demoEnabled } = require('../services/commerceDb');
 
 const defaultMerch = [
     {
@@ -51,17 +51,18 @@ const defaultMerch = [
 ];
 
 async function getMerchCatalog() {
-    return isConnected() ? MerchProduct.find().lean() : defaultMerch;
+    const products = isConnected() ? await MerchProduct.find().lean() : defaultMerch;
+    return products.length ? products : defaultMerch;
 }
 
 exports.getMerchCatalog = getMerchCatalog;
 
 exports.getAllMerch = async (req, res, next) => {
     try {
-        const data = (await getMerchCatalog()).map(item => ({
+        const data = await Promise.all((await getMerchCatalog()).map(async item => ({
             ...item,
-            stock: Math.max(0, item.stock - soldQuantity('merch:' + item.productKey) - heldQuantity('merch:' + item.productKey))
-        }));
+            stock: await availability('merch:' + item.productKey, item.stock)
+        })));
         res.json({ success: true, count: data.length, data });
     } catch (error) {
         next(error);
@@ -69,6 +70,9 @@ exports.getAllMerch = async (req, res, next) => {
 };
 
 exports.validatePromo = (req, res) => {
+    if (!demoEnabled()) {
+        return res.status(400).json({ success: false, message: 'Promo codes are currently unavailable.' });
+    }
     const promo = getPromo(req.body.code);
     if (!promo) return res.status(400).json({ success: false, valid: false, message: 'Invalid promo code.' });
     res.json({ success: true, valid: true, ...promo });

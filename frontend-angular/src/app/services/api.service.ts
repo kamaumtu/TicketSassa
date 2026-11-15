@@ -3,16 +3,13 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
 export interface EventData {
+  id: string;
   title: string;
-  slug: string;
-  subtitle: string;
-  description: string;
-  venue: { name: string; complex: string; location: string };
+  description?: string;
+  venue?: string;
   eventDate: string;
-  gatesOpenTime: string;
-  headliner: { name: string; genre: string; bio: string };
-  motorsportSeries: { name: string; organizer: string; seasonRound: string };
-  bannerImageUrl: string;
+  bannerImageUrl?: string | null;
+  checkout: boolean;
 }
 
 export interface StadiumZone {
@@ -53,7 +50,7 @@ export interface OrderPayload {
 export interface BookingOrder {
   orderReference: string;
   paymentStatus: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-  mode?: 'demo';
+  mode?: 'demo' | 'live';
 }
 
 export interface BookingPass {
@@ -64,7 +61,7 @@ export interface BookingPass {
   tierName: string;
   designatedGate: string;
   status: 'VALID' | 'USED' | 'CANCELLED';
-  mode?: 'demo';
+  mode?: 'demo' | 'live';
 }
 
 export interface BookingResult {
@@ -86,8 +83,8 @@ export class ApiService {
   }
 
   // Events API
-  getFeaturedEvent(): Observable<{ success: boolean; data: EventData }> {
-    return this.http.get<{ success: boolean; data: EventData }>(`${this.baseUrl}/events/featured`);
+  getFeaturedEvent(): Observable<{ success: boolean; data: EventData | null }> {
+    return this.http.get<{ success: boolean; data: EventData | null }>(`${this.baseUrl}/events/featured`);
   }
 
   // Talanta Stadium Zones API
@@ -100,14 +97,26 @@ export class ApiService {
     return this.http.get<{ success: boolean; count: number; data: TicketTier[] }>(`${this.baseUrl}/tickets`);
   }
 
+  checkoutMode() {
+    return this.http.get<{ mode: 'live' | 'demo' | 'unavailable' }>(`${this.baseUrl}/payments/mode`);
+  }
+
+  getPaymentGateways() {
+    return this.http.get<{ success: boolean; gateways: Array<{ id: string; name: string; configured: boolean }> }>(`${this.baseUrl}/payments/gateways`);
+  }
+
+  checkPaymentStatus(orderReference: string) {
+    return this.http.get<{ success: boolean; status: string; order: any; receipt?: string; passes?: BookingPass[]; reason?: string }>(`${this.baseUrl}/payments/status/${encodeURIComponent(orderReference)}`);
+  }
+
   // Orders API
   createOrder(payload: OrderPayload) {
     return this.http.post<{ data: BookingOrder }>(`${this.baseUrl}/orders`, payload);
   }
 
-  // Safaricom Daraja M-Pesa STK Push
-  initiateMpesaStkPush(orderReference: string, phone: string) {
-    return this.http.post<{ CheckoutRequestID: string }>(`${this.baseUrl}/payments/mpesa/stkpush`, { orderReference, phone });
+  // Gateway M-Pesa STK Push (PayHero / NexusPay / Demo)
+  initiateMpesaStkPush(orderReference: string, phone: string, provider: string = 'payhero') {
+    return this.http.post<{ mode: 'demo' | 'live'; CheckoutRequestID?: string; checkoutRequestId?: string; CustomerMessage?: string; provider?: string }>(`${this.baseUrl}/payments/mpesa/stkpush`, { orderReference, phone, provider });
   }
 
   confirmDemo(orderReference: string, checkoutRequestId: string) {

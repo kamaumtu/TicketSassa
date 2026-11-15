@@ -110,10 +110,10 @@ document.addEventListener('DOMContentLoaded', () => {
     updatePriceDisplays();
     loadCommerceCatalog();
     loadPublishedEvents();
+    loadFeaturedEvent();
     document.getElementById('btn-my-tickets')?.addEventListener('click', openTicketWallet);
     setupNavigation();
     initFlightEngine();
-    setupCountdownTimer();
     selectZone('pitlane');
     updateCartDisplay();
 });
@@ -200,12 +200,6 @@ function setupNavigation() {
     restoreView();
 }
 
-function setupCountdownTimer() {
-    if (typeof initTalantaCountdown === 'function') {
-        initTalantaCountdown();
-    }
-}
-
 // Stadium Blueprint Zone Selection
 function selectZone(zoneKey) {
     if (!zoneData[zoneKey]) return;
@@ -270,14 +264,19 @@ function updateQty(tier, change) {
     const current = state.quantities[tier] || 0;
     state.quantities[tier] = Math.min(state.tierPrices[tier]?.stock ?? 100, 100, Math.max(0, current + change));
 
+    for (const output of document.querySelectorAll('[data-ticket-quantity]')) {
+        if (output.dataset.ticketQuantity === tier) output.textContent = state.quantities[tier];
+    }
     const el = document.getElementById(`qty-${tier}`);
     if (el) el.textContent = state.quantities[tier];
     updateCartDisplay();
 }
 
 function updateMerchQty(merchKey, change) {
+    const stock = state.merchPrices[merchKey]?.stock;
+    if (!Number.isSafeInteger(stock)) return;
     const current = state.merchQuantities[merchKey] || 0;
-    state.merchQuantities[merchKey] = Math.min(state.merchPrices[merchKey]?.stock ?? 100, 100, Math.max(0, current + change));
+    state.merchQuantities[merchKey] = Math.min(stock, 100, Math.max(0, current + change));
 
     const el = document.getElementById(`merch-qty-${merchKey}`);
     if (el) el.textContent = state.merchQuantities[merchKey];
@@ -421,13 +420,8 @@ function updateCartDisplay() {
 }
 
 // Checkout Modal
-function openCheckoutModal(options = {}) {
+function openCheckoutModal() {
     const isDirectCheckout = Boolean(state.checkout && state.checkout.itemKey);
-    const { totalItems } = calculateTotals();
-    if (totalItems === 0 && !isDirectCheckout && !options.force) {
-        showToast('Select a ticket or merchandise item before opening checkout.');
-        return;
-    }
 
     if (!isDirectCheckout) {
         populateOrderItems();
@@ -435,64 +429,85 @@ function openCheckoutModal(options = {}) {
     const statusEl = document.getElementById('checkout-status');
     if (statusEl) statusEl.textContent = '';
     const modalEl = document.getElementById('checkout-modal');
-    if (modalEl) modalEl.classList.remove('hidden');
+    if (modalEl) {
+        checkoutReturnFocus = document.activeElement;
+        modalEl.classList.remove('hidden');
+        modalEl.querySelector('button')?.focus();
+    }
 }
+
+let checkoutReturnFocus;
 
 function closeCheckoutModal() {
     document.getElementById('checkout-modal').classList.add('hidden');
+    checkoutReturnFocus?.focus();
 }
 
-function populateOrderItems() {
+function populateOrderItems(focusKey, focusAction) {
     const container = document.getElementById('modal-order-items');
-    container.innerHTML = '';
-    const isKes = state.currency === 'KES';
+    container.replaceChildren();
+    let focusTarget;
 
-    // Passes
-    for (const [tier, qty] of Object.entries(state.quantities)) {
-        if (qty > 0) {
-            const meta = state.tierPrices[tier];
-            const cost = isKes ? (qty * meta.kes).toLocaleString() : (qty * meta.usd);
-            const line = document.createElement('div');
-            line.className = 'flex justify-between items-center text-xs';
-            const label = document.createElement('span');
-            label.textContent = `${qty}x [PASS] ${meta.name}`;
-            const amount = document.createElement('strong');
-            amount.textContent = isKes ? 'KES ' + cost : '$' + cost;
-            line.append(label, amount);
-            container.appendChild(line);
+    for (const [quantities, prices, adjust] of [
+        [state.quantities, state.tierPrices, updateQty],
+        [state.merchQuantities, state.merchPrices, updateMerchQty]
+    ]) {
+        for (const [key, quantity] of Object.entries(quantities)) {
+            if (!quantity || !prices[key]) continue;
+            const meta = prices[key];
+            const row = document.createElement('div');
+            row.className = 'cart-line';
+            const label = document.createElement('strong');
+            label.textContent = meta.eventTitle ? meta.eventTitle + ' · ' + meta.name : meta.name;
+            if (meta.eventId && publishedEventDates.has(meta.eventId)) {
+                const time = document.createElement('time');
+                time.dateTime = publishedEventDates.get(meta.eventId);
+                time.textContent = eventDateFormatter.format(new Date(time.dateTime));
+                label.append(time);
+            }
+            const amount = document.createElement('span');
+            amount.textContent = formatMoney(quantity * (state.currency === 'KES' ? meta.kes : meta.usd), state.currency);
+            const controls = document.createElement('div');
+            const count = document.createElement('span');
+            count.textContent = 'Quantity ' + quantity;
+            for (const [action, change] of [['Decrease', -1], ['Increase', 1], ['Remove', -quantity]]) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = action === 'Decrease' ? '−' : action === 'Increase' ? '+' : 'Remove';
+                button.setAttribute('aria-label', action + ' ' + meta.name);
+                button.disabled = change > 0 && quantity >= Math.min(100, meta.stock ?? 100);
+                button.addEventListener('click', () => {
+                    adjust(key, change);
+                    populateOrderItems(key, action);
+                });
+                controls.append(button);
+                if (key === focusKey && action === focusAction && !button.disabled) focusTarget = button;
+            }
+            controls.prepend(count);
+            row.append(label, amount, controls);
+            container.append(row);
         }
     }
 
-    // Merch
-    for (const [m, qty] of Object.entries(state.merchQuantities)) {
-        if (qty > 0) {
-            const meta = state.merchPrices[m];
-            const cost = isKes ? (qty * meta.kes).toLocaleString() : (qty * meta.usd);
-            const line = document.createElement('div');
-            line.className = 'flex justify-between items-center text-xs text-purple-300';
-            const label = document.createElement('span');
-            label.textContent = `${qty}x [MERCH] ${meta.name}`;
-            const amount = document.createElement('strong');
-            amount.textContent = isKes ? 'KES ' + cost : '$' + cost;
-            line.append(label, amount);
-            container.appendChild(line);
-        }
-    }
-
-    // Tip
-    if (state.tipAmount > 0) {
-        const line = document.createElement('div');
-        line.className = 'flex justify-between items-center text-xs text-rose-400';
-        line.innerHTML = `<span>[TIP JAR] Sound & Track Marshals</span><span class="font-bold text-white">KES ${state.tipAmount}</span>`;
-        container.appendChild(line);
-    }
-
+    const totals = calculateTotals();
+    if (!totals.totalItems) container.textContent = 'Your cart is empty.';
+    const summary = document.createElement('p');
+    summary.id = 'cart-adjustments';
+    container.append(summary);
+    document.getElementById('btn-submit-pay').disabled = checkoutSubmitting || !totals.totalItems;
     calculateModalTotals();
+    if (focusKey) (focusTarget || container.querySelector('button:not(:disabled)') ||
+        document.querySelector('#checkout-modal button[onclick="closeCheckoutModal()"]'))?.focus();
 }
 
 function calculateModalTotals() {
     const { finalKes, finalUsd } = calculateTotals();
     const isKes = state.currency === 'KES';
+    const adjustments = document.getElementById('cart-adjustments');
+    if (adjustments) {
+        adjustments.textContent = 'Tip ' + formatMoney(isKes ? state.tipAmount : state.tipAmount / 125, state.currency)
+            + ' · Discount ' + state.discountPercent + '%';
+    }
     const totalEl = document.getElementById('modal-order-total');
     if (totalEl) {
         totalEl.textContent = isKes ? `KES ${finalKes.toLocaleString()}` : `$${finalUsd.toLocaleString()}`;
@@ -612,72 +627,61 @@ function switchTab(tabName, { updateHistory = true } = {}) {
 }
 
 function filterEvents(category) {
-    const section = document.getElementById('trending-events');
-    let visible = 0;
-    for (const card of section.querySelectorAll('.event-card')) {
-        const match = category === 'all' || card.dataset.category === category;
-        card.style.display = match ? '' : 'none';
-        if (match) visible++;
-    }
-    document.getElementById('event-filter-status').textContent = visible ? '' : 'No featured events in this category.';
-    section.scrollIntoView({ block: 'start' });
+    document.getElementById('event-search-input').value = category === 'all' ? '' : category;
+    executeEventSearch();
 }
-
-
 
 function executeEventSearch() {
     const query = document.getElementById('event-search-input').value.trim();
     const catalog = document.getElementById('upcoming-events');
+    const term = query.toLowerCase();
+    let matches = 0;
+    for (const card of document.querySelectorAll('[data-published-search]')) {
+        card.hidden = !card.dataset.publishedSearch.includes(term);
+        if (!card.hidden) matches++;
+    }
+    const publishedStatus = document.getElementById('published-status');
+    if (publishedStatus && document.querySelector('[data-published-search]')) {
+        publishedStatus.textContent = matches ? '' : 'No ticketed events match your search.';
+    }
     catalog.setQuery?.(query);
-    catalog.focus({ preventScroll: true });
-    catalog.scrollIntoView({ block: 'start' });
+    const results = matches ? document.getElementById('published-events') : catalog;
+    results.setAttribute('tabindex', '-1');
+    results.focus({ preventScroll: true });
+    results.scrollIntoView({ block: 'start' });
 }
 
 // =========================================================================
 // NEW ENHANCEMENTS FROM LATEST 7 SCREENSHOTS
 // =========================================================================
 
-// Hero Toggle between RX FEST (Image 1) and L-BOOGIE (Image 2)
-function setHeroPoster(mode) {
-    const imgEl = document.getElementById('hero-poster-img');
-    const titleEl = document.getElementById('hero-floating-title');
-    const priceEl = document.getElementById('hero-floating-price');
-    const dotRx = document.getElementById('dot-hero-rx');
-    const dotBoogie = document.getElementById('dot-hero-lboogie');
-
-    if (mode === 'rx') {
-        if (imgEl) {
-            imgEl.src = 'assets/real/SzYy0XWlBI-1792688119.png';
-            imgEl.alt = 'RX Fest Round 3 poster';
+async function loadFeaturedEvent() {
+    try {
+        const { data: event } = await commerceRequest('/events/featured');
+        if (!event) return;
+        const card = document.getElementById('hero-floating-card');
+        document.getElementById('hero-floating-title').textContent = event.title;
+        document.getElementById('hero-floating-price').textContent = event.price
+            ? 'From ' + formatMoney(event.price.amount, event.price.currency) : '';
+        if (event.bannerImageUrl) {
+            const poster = document.getElementById('hero-poster-img');
+            poster.src = event.bannerImageUrl;
+            poster.alt = event.title;
         }
-        if (titleEl) titleEl.textContent = 'RX FEST ROUND 3';
-        if (priceEl) priceEl.textContent = 'KES 500';
-        if (dotRx) dotRx.className = 'w-2.5 h-2.5 rounded-full bg-rose-600';
-        if (dotBoogie) dotBoogie.className = 'w-2.5 h-2.5 rounded-full bg-slate-300 hover:bg-slate-500';
-    } else {
-        if (imgEl) {
-            imgEl.src = 'assets/real/l-boogie-reunion.jpg';
-            imgEl.alt = 'L-Boogie reunion poster';
+        if (event.checkout) {
+            const link = document.createElement('a');
+            link.href = '?view=events&event=' + encodeURIComponent(event.id);
+            link.textContent = 'View tickets';
+            card.append(link);
         }
-        if (titleEl) titleEl.textContent = 'L-BOOGIE - THE 2026 ANNUAL DIASPORA REUNION';
-        if (priceEl) priceEl.textContent = 'KES 2,000';
-        if (dotRx) dotRx.className = 'w-2.5 h-2.5 rounded-full bg-slate-300 hover:bg-slate-500';
-        if (dotBoogie) dotBoogie.className = 'w-2.5 h-2.5 rounded-full bg-rose-600';
+        card.hidden = false;
+    } catch {
+        // Event discovery carries its own status.
     }
 }
 
-// Live Chat Support Drawer (Images 1, 2, 3, 6)
 function toggleLiveChat() {
-    const modal = document.getElementById('live-chat-modal');
-    if (!modal) return;
-    const isHidden = modal.classList.contains('hidden');
-    if (isHidden) {
-        modal.classList.remove('hidden');
-        const input = modal.querySelector('input');
-        if (input) input.focus();
-    } else {
-        modal.classList.add('hidden');
-    }
+    toggleChatSupport();
 }
 
 function handleChatKey(e) {
@@ -698,15 +702,12 @@ function handleChatKey(e) {
 // =========================================================================
 // CUSTOMER CHAT SUPPORT (Screenshots 1, 2, 3, 6)
 // =========================================================================
-function toggleChatSupport() {
+function toggleChatSupport(opening = document.getElementById('chat-support-modal').classList.contains('hidden')) {
     const modal = document.getElementById('chat-support-modal');
-    if (modal) {
-        modal.classList.toggle('hidden');
-        if (!modal.classList.contains('hidden')) {
-            const input = modal.querySelector('input');
-            if (input) input.focus();
-        }
-    }
+    const launcher = document.getElementById('support-launcher');
+    modal.classList.toggle('hidden', !opening);
+    launcher.setAttribute('aria-expanded', String(opening));
+    (opening ? modal.querySelector('input') : launcher).focus();
 }
 
 
@@ -723,10 +724,12 @@ function openHelpModal() {
 // =========================================================================
 // M-PESA STK PUSH & DIGITAL PASS FLOW (Full End-to-End Interactivity)
 // =========================================================================
+let checkoutSubmitting = false;
+
 async function handleMpesaSubmit(event) {
     event.preventDefault();
     const button = document.getElementById('btn-submit-pay');
-    if (button.disabled) return;
+    if (button.disabled || checkoutSubmitting) return;
     const status = document.getElementById('checkout-status');
     const value = id => document.getElementById(id).value.trim();
     const customer = { name: value('cust-name'), email: value('cust-email'), phone: value('cust-phone') };
@@ -737,9 +740,18 @@ async function handleMpesaSubmit(event) {
             .map(([key, quantity]) => ({ kind: 'merch', productKey: merchKeys[key], quantity }))
     ];
     const payload = { customer, items, currency: state.currency, promoCode: state.promoCode, tipKes: state.tipAmount };
-    const fingerprint = JSON.stringify(payload);
+    checkoutSubmitting = true;
     button.disabled = true;
-    status.textContent = 'Initiating Safaricom Daraja STK Push...';
+    const { mode } = await commerceRequest('/payments/mode').catch(() => ({ mode: 'unavailable' }));
+    if (mode === 'unavailable') {
+        checkoutSubmitting = false;
+        status.textContent = 'Online checkout is currently unavailable.';
+        button.disabled = false;
+        return;
+    }
+    if (mode === 'live') payload.currency = 'KES';
+    const fingerprint = JSON.stringify(payload);
+    status.textContent = 'Preparing your order…';
     try {
         if (state.checkout?.fingerprint !== fingerprint) {
             const { data } = await commerceRequest('/orders', payload);
@@ -748,9 +760,38 @@ async function handleMpesaSubmit(event) {
             document.getElementById('modal-order-total').textContent = formatMoney(amount, data.currency);
         }
         const orderReference = state.checkout.reference;
-        status.textContent = 'Prompt sent to your phone. Confirming payment...';
-        const payment = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: customer.phone });
-        const result = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payment.CheckoutRequestID });
+        document.getElementById('wallet-reference').value = orderReference;
+        document.getElementById('wallet-email').value = customer.email;
+        const provider = document.getElementById('payment-provider')?.value || 'payhero';
+        status.textContent = 'Contacting ' + (provider === 'nexuspay' ? 'Nexus Pay' : provider === 'payhero' ? 'PayHero' : 'Demo') + ' gateway. Order reference: ' + orderReference + '…';
+        const payment = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: customer.phone, provider });
+        let result;
+        if (payment.mode === 'demo') {
+            result = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payment.CheckoutRequestID });
+        } else {
+            status.textContent = payment.CustomerMessage || ('Approve the prompt on your phone via ' + (provider === 'nexuspay' ? 'Nexus Pay' : 'PayHero') + '. Order: ' + orderReference + '.');
+            for (let attempt = 0; attempt < 15; attempt++) {
+                await new Promise(resolve => setTimeout(resolve, 3500));
+                const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference)).catch(() => null);
+                if (check?.status === 'COMPLETED') {
+                    result = { data: check.order, passes: check.passes };
+                    break;
+                }
+                if (check?.status === 'FAILED') {
+                    state.checkout = null;
+                    throw new Error(check.reason || 'Payment was declined or cancelled on your mobile phone.');
+                }
+                status.textContent = `Awaiting payment confirmation (${attempt + 1}/15)... Order ${orderReference}`;
+            }
+            if (!result || result.data?.paymentStatus !== 'COMPLETED') {
+                const lookup = await commerceRequest('/orders/lookup', { orderReference, email: customer.email }).catch(() => null);
+                if (lookup?.data?.paymentStatus === 'COMPLETED') {
+                    result = lookup;
+                } else {
+                    throw new Error('Payment processing in progress. Once confirmed, your passes will appear in My tickets (Order: ' + orderReference + ').');
+                }
+            }
+        }
         state.checkout = null;
         for (const quantities of [state.quantities, state.merchQuantities]) {
             for (const key of Object.keys(quantities)) quantities[key] = 0;
@@ -770,9 +811,10 @@ async function handleMpesaSubmit(event) {
         openTicketWallet();
         loadCommerceCatalog();
     } catch (error) {
-        if (error.status === 410) state.checkout = null;
+        if ([410, 422].includes(error.status)) state.checkout = null;
         status.textContent = error.message;
     } finally {
+        checkoutSubmitting = false;
         button.disabled = false;
     }
 }
@@ -1871,57 +1913,13 @@ function openJazaInfo() {
 }
 
 function openChatWithContext(topic) {
-    const chatModal = document.getElementById('chat-support-modal');
-    if (chatModal) {
-        chatModal.classList.remove('hidden');
-        const input = chatModal.querySelector('input');
-        if (input) {
-            input.value = `Hello Ticketsasa team, I have an inquiry regarding: ${topic}`;
-            input.focus();
-        }
-    } else {
-        showToast(`Connecting to agent for: ${topic}...`);
-    }
+    toggleChatSupport(true);
+    document.querySelector('#chat-support-modal input').value = topic;
 }
-
 
 // ============================================================================
 // TALANTA SPORTS CITY ARENA ENGINE (talantasportscity.com)
 // ============================================================================
-
-let currentTalantaSlide = 1;
-const totalTalantaSlides = 3;
-
-function setTalantaSlide(n) {
-    currentTalantaSlide = n;
-    for (let i = 1; i <= totalTalantaSlides; i++) {
-        const slide = document.getElementById(`tsc-slide-${i}`);
-        const dot = document.getElementById(`tsc-dot-${i}`);
-        if (slide) {
-            if (i === n) {
-                slide.classList.remove('opacity-0', 'pointer-events-none');
-                slide.classList.add('opacity-100');
-            } else {
-                slide.classList.remove('opacity-100');
-                slide.classList.add('opacity-0', 'pointer-events-none');
-            }
-        }
-        if (dot) {
-            dot.className = i === n 
-                ? 'w-2.5 h-2.5 rounded-full bg-white transition' 
-                : 'w-2.5 h-2.5 rounded-full bg-white/40 transition';
-        }
-    }
-    const indicator = document.getElementById('stadium-slide-indicator');
-    if (indicator) indicator.textContent = `Photo ${n} of ${totalTalantaSlides}`;
-}
-
-function changeTalantaSlide(dir) {
-    let next = currentTalantaSlide + dir;
-    if (next > totalTalantaSlides) next = 1;
-    if (next < 1) next = totalTalantaSlides;
-    setTalantaSlide(next);
-}
 
 function scrollToTalantaSection(id) {
     const el = document.getElementById(id);
@@ -1949,53 +1947,8 @@ function showTalantaSeatPreview(area) {
 }
 
 function inquireSkybox() {
-    const chatModal = document.getElementById('chat-support-modal');
-    if (chatModal) {
-        chatModal.classList.remove('hidden');
-        const input = chatModal.querySelector('input');
-        if (input) {
-            input.value = "Hello Talanta Sports City team, I would like to inquire about reserving a full 12-person private Skybox Suite for Bayern Munich vs Ajax on 5 January 2027.";
-            input.focus();
-        }
-    } else {
-        showToast("Opening Skybox reservation concierge...");
-    }
+    openChatWithContext('How can I check Talanta skybox availability?');
 }
-
-// Live Countdown to Jan 5, 2027 11:00 EAT
-function initTalantaCountdown() {
-    const matchDate = new Date('2027-01-05T11:00:00+03:00').getTime();
-    
-    function update() {
-        const now = new Date().getTime();
-        const diff = matchDate - now;
-
-        if (diff <= 0) return;
-
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const secs = Math.floor((diff % (1000 * 60)) / 1000);
-
-        const dEl = document.getElementById('tsc-countdown-days');
-        const hEl = document.getElementById('tsc-countdown-hours');
-        const mEl = document.getElementById('tsc-countdown-mins');
-        const sEl = document.getElementById('tsc-countdown-secs');
-
-        if (dEl) dEl.textContent = days;
-        if (hEl) hEl.textContent = String(hours).padStart(2, '0');
-        if (mEl) mEl.textContent = String(mins).padStart(2, '0');
-        if (sEl) sEl.textContent = String(secs).padStart(2, '0');
-    }
-
-    update();
-    setInterval(update, 1000);
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    initTalantaCountdown();
-});
-
 
 // ============================================================================
 // HUSTLESASA PLATFORM LOGIC & CALCULATOR (hustlesasa.com)
@@ -2043,7 +1996,7 @@ async function commerceRequest(path, body) {
         method: body === undefined ? 'GET' : 'POST',
         headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body),
-        signal: AbortSignal.timeout(15000)
+        signal: AbortSignal.timeout(30000)
     }).catch(() => { throw new Error('Could not reach the booking service. Try again.'); });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw Object.assign(new Error(result.message || 'The booking request failed.'), { status: response.status });
@@ -2056,7 +2009,7 @@ async function loadCommerceCatalog() {
         for (const tier of tickets.data) {
             state.quantities[tier.tierKey] ??= 0;
             state.tierPrices[tier.tierKey] = {
-                name: tier.title, kes: tier.priceKes, usd: tier.priceUsd,
+                name: tier.title, eventId: tier.eventId, eventTitle: tier.eventTitle, kes: tier.priceKes, usd: tier.priceUsd,
                 gate: tier.designatedGate, stock: tier.remainingAllocation
             };
         }
@@ -2066,6 +2019,13 @@ async function loadCommerceCatalog() {
             state.merchPrices[key] = { name: product.title, kes: product.priceKes, usd: product.priceUsd, stock: product.stock };
             const display = document.querySelector('.merch-price-' + key);
             if (display) {
+                const availability = document.createElement('p');
+                availability.className = 'text-sm text-slate-600';
+                availability.textContent = product.stock ? product.stock + ' in stock' : 'Sold out';
+                const existing = display.nextElementSibling;
+                if (existing?.dataset.merchAvailability !== undefined) existing.replaceWith(availability);
+                else display.after(availability);
+                availability.dataset.merchAvailability = '';
                 display.dataset.kes = product.priceKes;
                 display.dataset.usd = product.priceUsd;
             }
@@ -2088,7 +2048,10 @@ async function loadCommerceCatalog() {
     }
 }
 
+let walletReturnFocus;
+
 function openTicketWallet() {
+    walletReturnFocus = document.activeElement;
     const wallet = document.getElementById('ticket-wallet');
     wallet.classList.remove('hidden');
     document.getElementById('wallet-reference').focus();
@@ -2096,6 +2059,7 @@ function openTicketWallet() {
 
 function closeTicketWallet() {
     document.getElementById('ticket-wallet').classList.add('hidden');
+    walletReturnFocus?.focus();
 }
 
 function rememberOrder(order, passes) {
@@ -2145,12 +2109,12 @@ function submitSupportQuestion(trigger) {
     const answers = [
         [/refund|cancel/i, 'Demo orders do not charge money. Refund requests for purchases made elsewhere are handled by the original seller.'],
         [/qr|gate|ticket|order|pass/i, 'Open Tickets in the header. Enter your order reference and checkout email, then select a pass to view its QR code.'],
-        [/pay|mpesa|checkout|cart/i, 'Add a demo pass or merch item, then open Cart. Demo checkout does not charge money.'],
+        [/pay|mpesa|checkout|cart/i, 'Choose tickets for an event on sale, then review your order to pay by M-Pesa.'],
         [/flight|holiday|hotel/i, 'You can browse the travel pages here. Flight and holiday booking are unavailable in the app.'],
         [/seat|stadium|skybox/i, 'Open Talanta Arena to compare seating and hospitality. The seating selector previews prices and does not reserve a seat.']
     ];
     const answer = answers.find(([pattern]) => pattern.test(message))?.[1] ??
-        'I can help with ticket lookup, demo checkout, seating, and travel availability. Which one do you need?';
+        'I can help with ticket lookup, M-Pesa checkout, seating, and travel availability. Which one do you need?';
     const log = modal.querySelector('[data-support-messages]');
     for (const [label, text] of [['You', message], ['Help', answer]]) {
         const entry = document.createElement('p');
@@ -2179,7 +2143,7 @@ function renderDemoTicketOptions(tiers, options = document.getElementById('demo-
     if (!options) return;
     const status = document.getElementById('demo-ticket-status');
     if (options.id === 'demo-ticket-options' && status) {
-        status.textContent = tiers.length ? '' : 'No demo passes are available.';
+        status.textContent = tiers.length ? '' : '';
     }
     options.replaceChildren();
     for (const tier of tiers) {
@@ -2199,7 +2163,8 @@ function renderDemoTicketOptions(tiers, options = document.getElementById('demo-
         const controls = document.createElement('div');
         controls.className = 'flex items-center gap-3';
         const quantity = document.createElement('output');
-        quantity.id = 'qty-' + tier.tierKey;
+        quantity.id = options.id === 'talanta-inline-tiers' ? 'talanta-qty-' + tier.tierKey : 'qty-' + tier.tierKey;
+        quantity.dataset.ticketQuantity = tier.tierKey;
         quantity.textContent = state.quantities[tier.tierKey];
         const adjust = (label, change) => {
             const button = document.createElement('button');
@@ -2499,40 +2464,63 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 const publishedOptions = new Map();
+const publishedEventDates = new Map();
+const eventDateFormatter = new Intl.DateTimeFormat('en-KE', {
+    dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi'
+});
 let currentTicketTiers = [];
+let talantaEvents = [];
+
+function updateTalantaTickets() {
+    const picker = document.getElementById('talanta-event-picker');
+    const event = talantaEvents.find(item => item.id === picker.value);
+    const status = document.getElementById('talanta-ticket-status');
+    const link = document.getElementById('talanta-ticket-link');
+    status.textContent = event
+        ? event.onSale ? 'Select a ticket tier below.' : 'Tickets for this event are currently off sale.'
+        : 'No upcoming Talanta events are published.';
+    link.hidden = !event;
+    if (event) link.href = '/?view=events&event=' + encodeURIComponent(event.id);
+    renderPublishedTiers(currentTicketTiers);
+}
 
 async function loadPublishedEvents() {
     const section = document.getElementById('published-events');
     try {
         const { data } = await commerceRequest('/published-events');
-        const match = data.find(event =>
-            /\bbayern\b/i.test(event.title) && /\bajax\b/i.test(event.title) &&
-            /talanta|raila odinga/i.test(event.venue));
-        const ticketStatus = document.getElementById('talanta-ticket-status');
-        const ticketLink = document.getElementById('talanta-ticket-link');
-        ticketStatus.textContent = match?.onSale
-            ? 'View available seats and the position diagram for each ticket tier.'
-            : 'Match tickets are not on sale through this site.';
-        ticketLink.hidden = !match?.onSale;
-        if (match?.onSale) {
-            ticketLink.href = '/?view=events&event=' + encodeURIComponent(match.id);
-        }
+        talantaEvents = data.filter(event => /talanta|raila odinga/i.test(event.venue));
+        const picker = document.getElementById('talanta-event-picker');
+        const previous = picker.value;
+        picker.replaceChildren(...talantaEvents.map(event => new Option(
+            event.title + ' · ' + eventDateFormatter.format(new Date(event.startsAt)), event.id)));
+        picker.parentElement.hidden = !talantaEvents.length;
+        picker.value = talantaEvents.find(event => event.id === previous)?.id
+            ?? (talantaEvents.find(event => event.onSale) || talantaEvents[0])?.id ?? '';
+        picker.onchange = updateTalantaTickets;
+        updateTalantaTickets();
+        section.querySelectorAll('[data-published-search]').forEach(card => card.remove());
+        publishedOptions.clear();
+        document.getElementById('published-status').textContent = data.length ? '' : 'No events currently have tickets on this site.';
         const focused = new URLSearchParams(location.search).get('event');
         for (const event of data) {
+            publishedEventDates.set(event.id, event.startsAt);
             const card = document.createElement('details');
             card.className = 'rounded-xl border border-slate-200 bg-white p-4';
             card.open = event.id === focused;
+            card.dataset.publishedSearch = [event.title, event.venue, event.description].join(' ').toLowerCase();
             const title = document.createElement('summary');
             title.className = 'cursor-pointer text-lg font-semibold';
             title.textContent = event.title;
             const info = document.createElement('p');
-            info.textContent = event.venue + ' · ' + new Intl.DateTimeFormat('en-KE', {
-                dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi'
-            }).format(new Date(event.startsAt));
+            info.textContent = event.venue + ' · ' + eventDateFormatter.format(new Date(event.startsAt));
             const description = document.createElement('p');
             description.className = 'my-3 whitespace-pre-line';
             description.textContent = event.description;
-            card.append(title, info, description);
+            const permalink = document.createElement('a');
+            permalink.href = '?view=events&event=' + encodeURIComponent(event.id);
+            permalink.textContent = 'Event details';
+            permalink.className = 'underline text-rose-700';
+            card.append(title, info, description, permalink);
             if (event.image) {
                 const image = new Image();
                 image.src = event.image;
@@ -2543,33 +2531,60 @@ async function loadPublishedEvents() {
             }
             const options = document.createElement('div');
             options.className = 'grid gap-3 sm:grid-cols-2';
-            if (event.id === match?.id) options.dataset.talanta = 'true';
+            if (talantaEvents.includes(event)) options.dataset.talanta = 'true';
             if (event.onSale) {
                 publishedOptions.set(event.id, options);
                 const checkout = document.createElement('button');
                 checkout.type = 'button';
                 checkout.className = 'my-3 rounded-lg bg-rose-700 px-4 py-2 font-semibold text-white';
-                checkout.textContent = 'Open cart';
+                checkout.textContent = 'Review ticket order';
                 checkout.addEventListener('click', openCheckoutModal);
-                card.append(checkout);
+                checkout.hidden = true;
+                card.append(options, checkout);
             }
             else options.textContent = 'Tickets are currently off sale.';
-            card.append(options);
+            if (!options.parentNode) card.append(options);
             section.append(card);
             if (card.open) card.scrollIntoView({ block: 'start' });
+        }
+        if (document.getElementById('event-search-input').value.trim()) {
+            const term = document.getElementById('event-search-input').value.trim().toLowerCase();
+            for (const card of section.querySelectorAll('[data-published-search]')) {
+                card.hidden = !card.dataset.publishedSearch.includes(term);
+            }
+            if (data.length && !section.querySelector('[data-published-search]:not([hidden])')) {
+                document.getElementById('published-status').textContent = 'No ticketed events match your search.';
+            }
         }
         renderDemoTicketOptions(currentTicketTiers.filter(tier => !tier.published));
         renderPublishedTiers(currentTicketTiers);
     } catch {
-        section.textContent = 'Organizer events could not be loaded.';
+        document.getElementById('published-status').textContent = 'Ticketed events could not be loaded.';
         document.getElementById('talanta-ticket-status').textContent = 'Ticket availability could not be checked.';
     }
 }
 
 function renderPublishedTiers(tiers) {
     currentTicketTiers = tiers;
+    const inline = document.getElementById('talanta-inline-tiers');
+    if (inline) {
+        inline.dataset.talanta = 'true';
+        const eventId = document.getElementById('talanta-event-picker').value;
+        const matchTiers = tiers.filter(tier => tier.eventId === eventId);
+        renderDemoTicketOptions(matchTiers, inline);
+        if (matchTiers.some(tier => tier.remainingAllocation > 0)) {
+            const checkout = document.createElement('button');
+            checkout.type = 'button';
+            checkout.className = 'min-h-11 rounded-lg bg-rose-700 px-4 text-white';
+            checkout.textContent = 'Review ticket order';
+            checkout.addEventListener('click', openCheckoutModal);
+            inline.append(checkout);
+        }
+    }
     for (const [id, options] of publishedOptions) {
-        renderDemoTicketOptions(tiers.filter(tier => tier.eventId === id), options);
+        const eventTiers = tiers.filter(tier => tier.eventId === id);
+        renderDemoTicketOptions(eventTiers, options);
+        options.nextElementSibling.hidden = !eventTiers.some(tier => tier.remainingAllocation > 0);
         if (!options.children.length) options.textContent = 'Tickets are off sale or availability is unavailable.';
     }
 }
@@ -2599,3 +2614,22 @@ function talantaPositionPreview(tier) {
     return figure;
 }
 
+
+
+document.addEventListener('keydown', event => {
+    const dialog = Array.from(document.querySelectorAll('[role="dialog"]:not(.hidden)')).at(-1);
+    if (event.key === 'Escape') {
+        if (dialog?.id === 'checkout-modal') closeCheckoutModal();
+        else if (dialog?.id === 'ticket-wallet') closeTicketWallet();
+        else if (!document.getElementById('chat-support-modal').classList.contains('hidden')) toggleChatSupport();
+    }
+    if (event.key !== 'Tab' || !dialog) return;
+    const focusable = Array.from(dialog.querySelectorAll('button, input, select, textarea, a[href]'))
+        .filter(element => !element.disabled && element.getClientRects().length);
+    const edge = event.shiftKey ? focusable.at(-1) : focusable[0];
+    const opposite = event.shiftKey ? focusable[0] : focusable.at(-1);
+    if (edge && (document.activeElement === opposite || !dialog.contains(document.activeElement))) {
+        event.preventDefault();
+        edge.focus();
+    }
+});

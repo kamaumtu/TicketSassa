@@ -1,17 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const eventController = require('../controllers/eventController');
+const { events, visible, onSale } = require('./publishedEvents');
 
 const { createEventCatalog } = require('../config/eventCatalog');
+const { route } = require('../services/http');
 const catalog = createEventCatalog();
-catalog.start();
 
 router.catalog = catalog;
-router.get('/kenya', async (req, res) => {
+router.get('/kenya', route(async (req, res) => {
     res.set('Cache-Control', 'no-store').json(await catalog.get());
-});
+}));
 
-router.get('/featured', eventController.getFeaturedEvent);
-router.get('/', eventController.getEventsList);
+async function upcomingEvents() {
+    const [catalogData, managed] = await Promise.all([catalog.get(), events()]);
+    const entries = new Map(catalogData.events.map(event => [event.id,
+        { ...event, eventDate: event.startsAt, bannerImageUrl: event.imageUrl }]));
+    for (const event of managed) {
+        if (!visible(event) || Date.parse(event.startsAt) <= Date.now()) continue;
+        entries.set(event.id, { ...entries.get(event.id), id: event.id, title: event.title,
+            description: event.description, venue: event.venue, eventDate: event.startsAt,
+            startsAt: event.startsAt, bannerImageUrl: event.image, checkout: onSale(event) });
+    }
+    return [...entries.values()].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+router.get('/featured', route(async (req, res) => {
+    const data = await upcomingEvents();
+    res.json({ success: true, data: data.find(event => event.checkout) ?? data[0] ?? null });
+}));
+router.get('/', route(async (req, res) => {
+    const data = await upcomingEvents();
+    res.json({ success: true, count: data.length, data });
+}));
 
 module.exports = router;
