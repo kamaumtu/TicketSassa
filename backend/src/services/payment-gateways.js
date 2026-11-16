@@ -66,12 +66,23 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       reason: raw.status_reason || raw.ResultDesc || 'Payment failed or was cancelled on the phone.', raw });
   }
   async function initiateNexusPay(baseURL, deposit) {
-    const response = await http.post(`${baseURL}/payments/stkpush`, {
-      phoneNumber: phoneNumber(deposit.payer_phone), amount: money(deposit.amount),
-      accountReference: deposit.account_reference, transactionDesc: 'M-Pesa deposit',
-      ...(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID ? { settlementAccountId: Number(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID) } : {}),
-      ...(env.NEXUSPAY_TENANT_CODE?.trim() ? { tenantCode: env.NEXUSPAY_TENANT_CODE.trim() } : {})
-    }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 15000 });
+    let response;
+    try {
+      response = await http.post(`${baseURL}/payments/stkpush`, {
+        phoneNumber: phoneNumber(deposit.payer_phone), amount: money(deposit.amount),
+        accountReference: deposit.account_reference, transactionDesc: 'M-Pesa deposit',
+        ...(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID ? { settlementAccountId: Number(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID) } : {}),
+        ...(env.NEXUSPAY_TENANT_CODE?.trim() ? { tenantCode: env.NEXUSPAY_TENANT_CODE.trim() } : {})
+      }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 25000 });
+    } catch (firstErr) {
+      if (firstErr.response?.status >= 400 && firstErr.response.status < 500 && firstErr.response.status !== 408) throw firstErr;
+      response = await http.post(`${baseURL}/payments/stkpush`, {
+        phoneNumber: phoneNumber(deposit.payer_phone), amount: money(deposit.amount),
+        accountReference: deposit.account_reference, transactionDesc: 'M-Pesa deposit',
+        ...(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID ? { settlementAccountId: Number(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID) } : {}),
+        ...(env.NEXUSPAY_TENANT_CODE?.trim() ? { tenantCode: env.NEXUSPAY_TENANT_CODE.trim() } : {})
+      }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 25000 });
+    }
     const data = response.data;
     if (data?.responseCode !== undefined && String(data.responseCode) !== '0') throw error('The payment prompt was rejected. Please try again later.', 502, true);
     if (typeof data?.checkoutRequestId !== 'string' || !data.checkoutRequestId.trim()) throw error('The payment request could not be confirmed. Check with support before retrying.');
