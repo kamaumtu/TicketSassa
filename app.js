@@ -1,36 +1,13 @@
-// TALANTA × TICKETSASA × HUSTLESASA UNIFIED ENGINE
+// Ticketsasa storefront
 
 const state = {
     currency: 'KES',
     usdRate: 125, // 1 USD = 125 KES
-    quantities: {
-        regular: 0,
-        paddock: 0,
-        vip: 0,
-        vvip: 0
-    },
-    merchQuantities: {
-        hoodie: 0,
-        tee: 0,
-        cap: 0,
-        lanyard: 0
-    },
+    quantities: {},
     tipAmount: 0, // In KES
     promoCode: null,
     discountPercent: 0,
-    tierPrices: {
-        regular: { kes: 1500, usd: 12, name: 'Regular Arena Stand', gate: 'Gate C & D' },
-        paddock: { kes: 3000, usd: 24, name: 'Speed Paddock Stand', gate: 'Gate B' },
-        vip: { kes: 5000, usd: 40, name: 'VIP Pit & Hype Pass', gate: 'Gate B / VIP' },
-        vvip: { kes: 15000, usd: 120, name: 'VVIP Royal Box Suite', gate: 'Gate A (VIP Jamhuri)' }
-    },
-    merchPrices: {
-        hoodie: { kes: 3500, usd: 28, name: 'Konshens "The Hype" Tour Hoodie' },
-        tee: { kes: 2000, usd: 16, name: 'DMSC "The Last Lap" Trackside Tee' },
-        cap: { kes: 1500, usd: 12, name: 'Talanta Aero Snapback Cap' },
-        lanyard: { kes: 800, usd: 6.5, name: 'VIP Pit Lanyard & Pin' }
-    },
-    selectedZone: 'pitlane',
+    tierPrices: {},
     passes: [],
     checkout: null,
     isPlayingAudio: false,
@@ -38,74 +15,12 @@ const state = {
     audioCtx: null
 };
 
-// Zone Metadata for Talanta Sports City Blueprint
-const zoneData = {
-    pitlane: {
-        name: 'VIP Pit Lane & Paddock',
-        desc: 'Direct trackside access adjacent to the race car preparation paddock, live telemetry screens, and Konshens soundcheck access.',
-        capacity: '2,500 Guests',
-        avail: '18% Left',
-        perk: 'Pit Walk + VIP Bar',
-        priceTier: 'vip',
-
-        gate: 'Gate B (Ngong Rd)'
-    },
-    vvip: {
-        name: 'VVIP Royal Box & Presidential Suite',
-        desc: 'Panoramic air-conditioned private suite directly above the start/finish straight with 5-star catering and luxury balcony seating.',
-        capacity: '450 Guests',
-        avail: 'Only 12 Suites',
-        perk: '5-Course Gourmet + Open Bar',
-        priceTier: 'vvip',
-
-        gate: 'Gate A (Presidential VIP)'
-    },
-    stage: {
-        name: 'South Stand & Dancehall Fan Pit',
-        desc: 'Front-row energetic soundstage area directly facing the hydraulic concert stage where Konshens and guest DJs headline.',
-        capacity: '15,000 Fans',
-        avail: 'Filling Fast (72%)',
-        perk: 'Stage Fireworks View',
-        priceTier: 'vip',
-
-        gate: 'Gate C & D'
-    },
-    north: {
-        name: 'North Stand (Speed Hairpin Curve)',
-        desc: 'Prime braking zone where Time Attack racers decelerate from 210 km/h into the tight technical hairpin chicane.',
-        capacity: '14,000 Fans',
-        avail: '45% Available',
-        perk: 'Braking G-Force View',
-        priceTier: 'paddock',
-
-        gate: 'Gate B'
-    },
-    west: {
-        name: 'West Grandstand (Main Straight)',
-        desc: 'Covered stadium tier with complete panoramic view of the entire 4.2 km Jamhuri circuit and high-speed drag strip.',
-        capacity: '18,000 Seats',
-        avail: 'Good Availability',
-        perk: 'Shaded Stadium Seating',
-        priceTier: 'regular',
-
-        gate: 'Gate C (West)'
-    },
-    east: {
-        name: 'East Grandstand (Drift Apex)',
-        desc: 'Overlooks the high-angle smoke drift exhibition zone where drivers perform synchronized twin tandem runs.',
-        capacity: '12,000 Seats',
-        avail: '30% Left',
-        perk: 'Tire Smoke & Engine Audio',
-        priceTier: 'regular',
-
-        gate: 'Gate D (East)'
-    }
-};
-
 // Initialize Application
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof window.lucide?.createIcons === 'function') window.lucide.createIcons();
     restoreCart();
+    void restoreAccount();
+    void loadAccountProviders();
     setupCurrencyToggle();
     updatePriceDisplays();
     loadCommerceCatalog();
@@ -114,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('btn-my-tickets')?.addEventListener('click', openTicketWallet);
     setupNavigation();
     initFlightEngine();
-    selectZone('pitlane');
     updateCartDisplay();
 });
 
@@ -151,19 +65,9 @@ function updatePriceDisplays() {
         el.textContent = isKes ? `KES ${Number(kes).toLocaleString()}` : `$${usd}`;
     });
 
-    // Merch Cards
-    document.querySelectorAll('.merch-price').forEach(el => {
-        const kes = el.getAttribute('data-kes');
-        const usd = el.getAttribute('data-usd');
-        el.textContent = isKes ? `KES ${Number(kes).toLocaleString()}` : `$${usd}`;
-    });
-
-    // Zone Price
-    updateZoneMetricPrice();
-    if (typeof calculateTalantaHubPrice === 'function') calculateTalantaHubPrice();
 }
 
-const pageViews = ['events', 'flights', 'holidays', 'talanta', 'hustle', 'blog', 'checkticket', 'login'];
+const pageViews = ['events', 'flights', 'holidays', 'blog', 'checkticket', 'login', 'sell'];
 
 function setMenuOpen(open) {
     document.getElementById('mobile-menu-btn').setAttribute('aria-expanded', String(open));
@@ -200,66 +104,6 @@ function setupNavigation() {
     restoreView();
 }
 
-// Stadium Blueprint Zone Selection
-function selectZone(zoneKey) {
-    if (!zoneData[zoneKey]) return;
-    state.selectedZone = zoneKey;
-    const data = zoneData[zoneKey];
-
-    document.querySelectorAll('.stadium-zone').forEach(el => el.classList.remove('active-zone'));
-
-    const mapIds = {
-        north: 'zone-north',
-        south: 'zone-south',
-        west: 'zone-west',
-        east: 'zone-east',
-        vvip: 'zone-vip-suite',
-        pitlane: 'zone-pitlane',
-        stage: 'zone-stage'
-    };
-
-    const targetEl = document.getElementById(mapIds[zoneKey]);
-    if (targetEl) targetEl.classList.add('active-zone');
-
-    const nameEl = document.getElementById('zone-display-name');
-    const descEl = document.getElementById('zone-display-desc');
-    const capEl = document.getElementById('zone-metric-capacity');
-    const availEl = document.getElementById('zone-metric-avail');
-    const perkEl = document.getElementById('zone-metric-perk');
-    const btnTextEl = document.getElementById('btn-add-from-zone-text');
-
-    if (nameEl) nameEl.textContent = data.name;
-    if (descEl) descEl.textContent = data.desc;
-    if (capEl) capEl.textContent = data.capacity;
-    if (availEl) availEl.textContent = data.avail;
-    if (perkEl) perkEl.textContent = data.perk;
-    if (btnTextEl) btnTextEl.textContent = `Book This Zone (${data.name.split(' ')[0]})`;
-    
-    updateZoneMetricPrice();
-}
-
-function updateZoneMetricPrice() {
-    const data = zoneData[state.selectedZone];
-    if (!data) return;
-    const tierMeta = state.tierPrices[data.priceTier];
-    const isKes = state.currency === 'KES';
-    const priceEl = document.getElementById('zone-metric-price');
-    if (priceEl) {
-        priceEl.textContent = isKes ? `KES ${tierMeta.kes.toLocaleString()}` : `$${tierMeta.usd}`;
-    }
-}
-
-function addSelectedZoneToCart() {
-    const data = zoneData[state.selectedZone];
-    if (!data) return;
-    updateQty(data.priceTier, 1);
-    showToast(`Added 1x ${data.name} to Cart`);
-    
-    const portal = document.getElementById('cart-summary-bar');
-    if (portal) portal.scrollIntoView({ behavior: 'smooth', block: 'center' });
-}
-
-// Quantity Updates (Passes & HustleSasa Merch)
 function updateQty(tier, change) {
     const current = state.quantities[tier] || 0;
     state.quantities[tier] = Math.min(state.tierPrices[tier]?.stock ?? 100, 100, Math.max(0, current + change));
@@ -270,18 +114,6 @@ function updateQty(tier, change) {
     const el = document.getElementById(`qty-${tier}`);
     if (el) el.textContent = state.quantities[tier];
     updateCartDisplay();
-}
-
-function updateMerchQty(merchKey, change) {
-    const stock = state.merchPrices[merchKey]?.stock;
-    if (!Number.isSafeInteger(stock)) return;
-    const current = state.merchQuantities[merchKey] || 0;
-    state.merchQuantities[merchKey] = Math.min(stock, 100, Math.max(0, current + change));
-
-    const el = document.getElementById(`merch-qty-${merchKey}`);
-    if (el) el.textContent = state.merchQuantities[merchKey];
-    updateCartDisplay();
-    showToast(`Updated HustleSasa Merch: ${state.merchPrices[merchKey].name}`);
 }
 
 // Tip Jar
@@ -310,7 +142,7 @@ async function applyPromoCode() {
     if (!code) return;
 
     try {
-        const promo = await commerceRequest('/merch/validate-promo', { code });
+        const promo = await commerceRequest('/tickets/validate-promo', { code });
         if (state.promoRequest !== request) return;
         state.promoCode = promo.code;
         state.discountPercent = promo.discountPercent;
@@ -324,6 +156,10 @@ async function applyPromoCode() {
 }
 
 // Unified Cart Calculations
+function roundMoney(value) {
+    return Math.round((Number(value) || 0) * 100) / 100;
+}
+
 function calculateTotals() {
     let subtotalKes = 0;
     let subtotalUsd = 0;
@@ -335,15 +171,6 @@ function calculateTotals() {
             totalItems += qty;
             subtotalKes += qty * state.tierPrices[tier].kes;
             subtotalUsd += qty * state.tierPrices[tier].usd;
-        }
-    }
-
-    // Merch
-    for (const [m, qty] of Object.entries(state.merchQuantities)) {
-        if (qty > 0) {
-            totalItems += qty;
-            subtotalKes += qty * state.merchPrices[m].kes;
-            subtotalUsd += qty * state.merchPrices[m].usd;
         }
     }
 
@@ -364,19 +191,13 @@ function calculateTotals() {
     return { totalItems, subtotalKes, subtotalUsd, finalKes, finalUsd };
 }
 
+let savedTicketQuantities = {};
+
 function restoreCart() {
     try {
         const saved = JSON.parse(localStorage.getItem('ticketsasa-cart-v1'));
-        if (!saved) return;
-        if (saved.currency === 'USD') state.currency = 'USD';
-        for (const key of ['quantities', 'merchQuantities']) {
-            for (const id of Object.keys(state[key])) {
-                const quantity = saved[key]?.[id];
-                if (Number.isSafeInteger(quantity) && quantity >= 0 && quantity <= 100) {
-                    state[key][id] = quantity;
-                }
-            }
-        }
+        if (saved?.currency === 'USD') state.currency = 'USD';
+        savedTicketQuantities = saved?.quantities ?? {};
     } catch {
         // Storage may be unavailable in a private or restricted browser.
     }
@@ -384,14 +205,10 @@ function restoreCart() {
 
 function updateCartDisplay() {
     try {
-        const { currency, quantities, merchQuantities } = state;
-        localStorage.setItem('ticketsasa-cart-v1', JSON.stringify({ currency, quantities, merchQuantities }));
+        const { currency, quantities } = state;
+        localStorage.setItem('ticketsasa-cart-v1', JSON.stringify({ currency, quantities }));
     } catch {
         // The current cart still works for this page.
-    }
-    for (const [key, quantity] of Object.entries(state.merchQuantities)) {
-        const label = document.getElementById('merch-qty-' + key);
-        if (label) label.textContent = quantity;
     }
     const { totalItems, finalKes, finalUsd } = calculateTotals();
     const isKes = state.currency === 'KES';
@@ -470,8 +287,7 @@ function populateOrderItems(focusKey, focusAction) {
     let focusTarget;
 
     for (const [quantities, prices, adjust] of [
-        [state.quantities, state.tierPrices, updateQty],
-        [state.merchQuantities, state.merchPrices, updateMerchQty]
+        [state.quantities, state.tierPrices, updateQty]
     ]) {
         for (const [key, quantity] of Object.entries(quantities)) {
             if (!quantity || !prices[key]) continue;
@@ -537,51 +353,50 @@ function calculateModalTotals() {
 
 
 
+function filterEventsChip(mode) {
+    const catalog = document.getElementById('upcoming-events');
+    if (!catalog) return;
+    if (mode === 'all') {
+        filterEvents('all');
+        return;
+    }
+    if (mode === 'free') {
+        catalog.setQuery?.('free');
+    } else if (mode === 'featured') {
+        catalog.setQuery?.('');
+    } else if (mode === 'weekend') {
+        catalog.setQuery?.('Sat');
+    } else if (mode === 'trending') {
+        document.getElementById('trending-events')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    } else if (mode === 'drops') {
+        catalog.setQuery?.('Early');
+    }
+    catalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleFlightDestinationsTab(scope) {
+    const localGrid = document.getElementById('flight-dest-local-grid');
+    const intlGrid = document.getElementById('flight-dest-intl-grid');
+    const localBtn = document.getElementById('btn-flight-dest-local');
+    const intlBtn = document.getElementById('btn-flight-dest-intl');
+    if (localGrid && intlGrid) {
+        localGrid.classList.toggle('hidden', scope !== 'local');
+        intlGrid.classList.toggle('hidden', scope !== 'intl');
+    }
+    if (localBtn && intlBtn) {
+        localBtn.className = scope === 'local'
+            ? 'px-4 py-1.5 rounded-full text-xs font-extrabold bg-[#009FE3] text-white transition'
+            : 'px-4 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+        intlBtn.className = scope === 'intl'
+            ? 'px-4 py-1.5 rounded-full text-xs font-extrabold bg-[#009FE3] text-white transition'
+            : 'px-4 py-1.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+    }
+}
+
 function closePassModal() {
     document.getElementById('pass-modal').classList.add('hidden');
     openTicketWallet();
-}
-
-
-
-// Web Audio API Synthesizer Preview
-function toggleAudioPreview() {
-    const textEl = document.getElementById('audio-status-text');
-    const iconEl = document.getElementById('audio-icon');
-
-    if (!state.isPlayingAudio) {
-        state.isPlayingAudio = true;
-        if (textEl) textEl.textContent = 'Playing: Konshens - Bruk Off Yuh Back (Loop)';
-        if (iconEl) iconEl.classList.add('text-emerald-400', 'animate-pulse');
-        showToast('Playing stadium sound acoustics preview...');
-        
-        try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (AudioContext) {
-                state.audioCtx = new AudioContext();
-                const osc = state.audioCtx.createOscillator();
-                const gain = state.audioCtx.createGain();
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(120, state.audioCtx.currentTime);
-                gain.gain.setValueAtTime(0.08, state.audioCtx.currentTime);
-                osc.connect(gain);
-                gain.connect(state.audioCtx.destination);
-                osc.start();
-                state.audioToneOscillator = osc;
-            }
-        } catch (e) {}
-
-    } else {
-        state.isPlayingAudio = false;
-        if (textEl) textEl.textContent = 'Preview "Bruk Off Yuh Back"';
-        if (iconEl) iconEl.classList.remove('text-emerald-400', 'animate-pulse');
-        
-        if (state.audioToneOscillator) {
-            try { state.audioToneOscillator.stop(); } catch (e) {}
-            state.audioToneOscillator = null;
-        }
-        showToast('Audio preview paused');
-    }
 }
 
 async function shareEvent() {
@@ -905,17 +720,9 @@ async function handleMpesaSubmit(event) {
                 eventTitle: state.tierPrices[tierKey]?.eventTitle || 'Ticketsasa Event',
                 unitPriceKes: state.tierPrices[tierKey]?.kes || 1000
             })),
-        ...Object.entries(state.merchQuantities).filter(([, quantity]) => quantity > 0)
-            .map(([key, quantity]) => ({
-                kind: 'merch',
-                productKey: merchKeys[key],
-                quantity,
-                title: state.merchPrices[key]?.name || key,
-                unitPriceKes: state.merchPrices[key]?.kes || 1500
-            }))
     ];
     if (!items.length) {
-        status.textContent = 'Select at least one ticket or merchandise item before checkout.';
+        status.textContent = 'Select at least one ticket before checkout.';
         return;
     }
     const payload = { customer, items, currency: state.currency, promoCode: state.promoCode, tipKes: state.tipAmount };
@@ -974,14 +781,14 @@ async function handleMpesaSubmit(event) {
             }
         }
         state.checkout = null;
-        for (const quantities of [state.quantities, state.merchQuantities]) {
+        for (const quantities of [state.quantities]) {
             for (const key of Object.keys(quantities)) quantities[key] = 0;
         }
         state.tipAmount = 0;
         state.promoCode = null;
         state.discountPercent = 0;
         state.promoRequest = null;
-        document.querySelectorAll('[id^="qty-"], [id^="merch-qty-"]').forEach(el => { el.textContent = '0'; });
+        document.querySelectorAll('[id^="qty-"]').forEach(el => { el.textContent = '0'; });
         document.querySelectorAll('.tip-chip').forEach(el => el.classList.toggle('active-tip', el.dataset.tip === '0'));
         document.getElementById('promo-code-input').value = '';
         document.getElementById('promo-status').classList.add('hidden');
@@ -1013,7 +820,7 @@ function openDigitalPass(pass) {
     if (image.hidden) {
         image.removeAttribute('src');
     } else {
-        image.src = commerceBase + '/passes/qr/' + encodeURIComponent(pass.qrCodeToken);
+        image.src = '/api/passes/qr/' + encodeURIComponent(pass.qrCodeToken);
     }
     closeTicketWallet();
     document.getElementById('pass-modal').classList.remove('hidden');
@@ -2302,81 +2109,12 @@ function openChatWithContext(topic) {
 }
 
 // ============================================================================
-// TALANTA SPORTS CITY ARENA ENGINE (talantasportscity.com)
-// ============================================================================
-
-function scrollToTalantaSection(id) {
-    const el = document.getElementById(id);
-    if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-}
-
-const talantaPreviews = {
-    bowl: ['167421/18eee427-e95b-4832-ab46-2dd2f60c246e_WhatsApp-Image-2026-04-10-at-19.45.51.jpeg', 'Stadium bowl and seating tiers'],
-    tiers: ['167422/bd5cde65-e5cb-42d6-abd1-32006fa3ec13_WhatsApp-Image-2026-04-10-at-19.49.36.jpeg', 'Seating installation across the stadium tiers'],
-    lower: ['167423/940d4362-ed2c-4680-bf31-e9d4386cc0e2_WhatsApp-Image-2026-04-10-at-19.53.02.jpeg', 'Fixed spectator seats on the lower terrace']
-};
-
-function showTalantaSeatPreview(area) {
-    const [file, description] = talantaPreviews[area];
-    const photo = document.getElementById('talanta-seat-photo');
-    const caption = document.getElementById('talanta-seat-caption');
-    photo.alt = description + ' at Talanta Stadium';
-    caption.textContent = description + '. Photo by Citizen Digital.';
-    photo.onerror = () => {
-        caption.textContent = description + '. The source photo is currently unavailable.';
-    };
-    photo.src = 'https://citizentv.obs.af-south-1.myhuaweicloud.com/' + file;
-}
-
-function inquireSkybox() {
-    openChatWithContext('How can I check Talanta skybox availability?');
-}
-
-// ============================================================================
-// HUSTLESASA PLATFORM LOGIC & CALCULATOR (hustlesasa.com)
-// ============================================================================
-
-const HUSTLE_COMMISSION_RATE = 0.04925; // Exact 4.925% from hustlesasa.com
-
-function calculateHustleEarnings() {
-    const input = document.getElementById('earnDisplay');
-    const settleEl = document.getElementById('settleAmount');
-    const feeEl = document.getElementById('feeAmountDisplay');
-
-    if (!input || !settleEl || !feeEl) return;
-
-    const earn = Math.max(0, Number(input.value) || 0);
-    const fee = earn * HUSTLE_COMMISSION_RATE;
-    const settle = earn - fee;
-
-    feeEl.textContent = `KES ${fee.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    settleEl.textContent = settle.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-    calculateHustleEarnings();
-});
-
-const commerceBase = location.protocol === 'file:' ? 'http://localhost:8000/api' : '/api';
-const merchKeys = {
-    hoodie: 'konshens-tour-hoodie',
-    tee: 'time-attack-team-tee',
-    cap: 'talanta-speed-snapback',
-    lanyard: 'dmsc-drift-lanyard'
-};
-
-function roundMoney(value) {
-    return Math.round(value * 100) / 100;
-}
-
 function formatMoney(value, currency) {
     return new Intl.NumberFormat('en-KE', { style: 'currency', currency, currencyDisplay: 'code' }).format(value);
 }
 
 async function commerceRequest(path, body) {
-    const response = await fetch(commerceBase + path, {
+    const response = await fetch('/api' + path, {
         method: body === undefined ? 'GET' : 'POST',
         headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -2389,38 +2127,19 @@ async function commerceRequest(path, body) {
 
 async function loadCommerceCatalog() {
     try {
-        const [tickets, merch] = await Promise.all([commerceRequest('/tickets'), commerceRequest('/merch')]);
+        const tickets = await commerceRequest('/tickets');
         for (const tier of tickets.data) {
-            state.quantities[tier.tierKey] ??= 0;
+            const saved = savedTicketQuantities[tier.tierKey];
+            state.quantities[tier.tierKey] ??= Number.isSafeInteger(saved) && saved > 0 ? saved : 0;
             state.tierPrices[tier.tierKey] = {
                 name: tier.title, eventId: tier.eventId, eventTitle: tier.eventTitle, kes: tier.priceKes, usd: tier.priceUsd,
                 gate: tier.designatedGate, stock: tier.remainingAllocation
             };
         }
-        for (const [key, id] of Object.entries(merchKeys)) {
-            const product = merch.data.find(item => item.productKey === id);
-            if (!product) continue;
-            state.merchPrices[key] = { name: product.title, kes: product.priceKes, usd: product.priceUsd, stock: product.stock };
-            const display = document.querySelector('.merch-price-' + key);
-            if (display) {
-                const availability = document.createElement('p');
-                availability.className = 'text-sm text-slate-600';
-                availability.textContent = product.stock ? product.stock + ' in stock' : 'Sold out';
-                const existing = display.nextElementSibling;
-                if (existing?.dataset.merchAvailability !== undefined) existing.replaceWith(availability);
-                else display.after(availability);
-                availability.dataset.merchAvailability = '';
-                display.dataset.kes = product.priceKes;
-                display.dataset.usd = product.priceUsd;
-            }
-        }
+        savedTicketQuantities = {};
         const available = new Map(tickets.data.map(tier => [tier.tierKey, tier.remainingAllocation]));
         for (const key of Object.keys(state.quantities)) {
             state.quantities[key] = Math.min(state.quantities[key], available.get(key) ?? 0);
-        }
-        for (const [key, id] of Object.entries(merchKeys)) {
-            const stock = merch.data.find(product => product.productKey === id)?.stock ?? 0;
-            state.merchQuantities[key] = Math.min(state.merchQuantities[key], stock);
         }
         renderDemoTicketOptions(tickets.data.filter(tier => !tier.published));
         renderPublishedTiers(tickets.data);
@@ -2495,7 +2214,6 @@ function submitSupportQuestion(trigger) {
         [/qr|gate|ticket|order|pass/i, 'Open Tickets in the header. Enter your order reference and checkout email, then select a pass to view its QR code.'],
         [/pay|mpesa|checkout|cart/i, 'Choose tickets for an event on sale, then review your order to pay by M-Pesa.'],
         [/flight|holiday|hotel/i, 'You can browse the travel pages here. Flight and holiday booking are unavailable in the app.'],
-        [/seat|stadium|skybox/i, 'Open Talanta Arena to compare seating and hospitality. The seating selector previews prices and does not reserve a seat.']
     ];
     const answer = answers.find(([pattern]) => pattern.test(message))?.[1] ??
         'I can help with ticket lookup, M-Pesa checkout, seating, and travel availability. Which one do you need?';
@@ -2557,22 +2275,199 @@ async function executeCheckTicket() {
     }
 }
 
-function simulateSocialLogin(provider) {
-    if (typeof showToast === 'function') {
-        showToast(`Signed in to Ticketsasa with ${provider}!`);
+let signedInAccount = null;
+let accountProviders;
+let accountRequestInProgress = false;
+let accountChanged = false;
+const accountPrefills = new Map();
+
+function showAccount(user) {
+    signedInAccount = user;
+    const nav = document.getElementById('account-nav');
+    if (nav) nav.textContent = user ? 'My account' : 'Log In';
+    for (const surface of document.querySelectorAll('[data-auth-surface]')) {
+        surface.querySelector('[data-auth-form]').hidden = Boolean(user);
+        surface.querySelector('[data-account-panel]').hidden = !user;
+        surface.querySelector('[data-account-name]').textContent = user ? user.name + ' · ' + user.email : '';
+        updateAccountReadiness(surface.querySelector('[data-auth-form]'));
     }
-    closeTicketsasaAuthModal();
-    switchTab('events');
+    for (const [input, value] of accountPrefills) {
+        if (input.value === value) input.value = '';
+    }
+    accountPrefills.clear();
+    if (user) {
+        for (const [id, value] of [
+            ['cust-name', user.name], ['cust-email', user.email],
+            ['wallet-email', user.email], ['ts-cust-name', user.name], ['ts-cust-email', user.email]
+        ]) {
+            const input = document.getElementById(id);
+            if (input && !input.value) {
+                input.value = value;
+                accountPrefills.set(input, value);
+            }
+        }
+    }
 }
 
-function handleAccountLogin(event) {
-    if (event) event.preventDefault();
-    const emailEl = document.getElementById('login-email-input') || document.getElementById('ts-auth-email');
-    const email = emailEl?.value?.trim() || 'member@ticketsasa.com';
-    if (typeof showToast === 'function') {
-        showToast(`Welcome back to Ticketsasa, ${email}!`);
+async function restoreAccount() {
+    try {
+        const { user } = await commerceRequest('/auth/me');
+        if (!accountChanged) showAccount(user);
+    } catch {
+        // A visitor without a session stays signed out.
     }
-    closeTicketsasaAuthModal();
+}
+
+async function loadAccountProviders() {
+    const notices = {
+        'google-unavailable': 'Google sign-in is not configured.',
+        'google-failed': 'Google sign-in could not be completed. Try again.',
+        'google-account': 'Use a Gmail or Google Workspace account, or confirm your email and sign in with your password.'
+    };
+    const notice = notices[new URLSearchParams(location.search).get('auth')];
+    if (notice) {
+        const status = document.querySelector('#view-login [data-auth-status]');
+        if (status) status.textContent = notice;
+        const url = new URL(location.href);
+        url.searchParams.delete('auth');
+        history.replaceState(history.state, '', url);
+    }
+    await refreshAccountProviders();
+}
+
+async function refreshAccountProviders() {
+    try {
+        accountProviders = await commerceRequest('/auth/providers');
+    } catch {
+        accountProviders = { storageAvailable: false, google: false, confirmationEmail: false };
+    }
+    for (const form of document.querySelectorAll('[data-auth-form]')) updateAccountReadiness(form);
+}
+
+function updateAccountReadiness(form) {
+    const surface = form.closest('[data-auth-surface]');
+    const readiness = surface.querySelector('[data-auth-readiness]');
+    const registering = form.dataset.mode === 'register';
+    const connected = accountProviders?.storageAvailable !== false;
+    const canConfirm = accountProviders?.confirmationEmail !== false;
+    const message = signedInAccount ? '' : !connected
+        ? 'Accounts are temporarily unavailable. You can still look up an existing ticket.'
+        : registering && !canConfirm
+            ? 'Account creation is temporarily unavailable because confirmation emails cannot be sent.'
+            : '';
+    readiness.textContent = message;
+    readiness.hidden = !message;
+    form.querySelector('button[type=submit]').disabled =
+        accountRequestInProgress || !connected || registering && !canConfirm;
+    form.querySelector('[data-auth-resend]').hidden = !connected || !accountProviders?.confirmationEmail;
+    // Google OAuth is unavailable inside Android WebView.
+    form.querySelector('[data-auth-google]').hidden =
+        !connected || !accountProviders?.google || /; wv\)/.test(navigator.userAgent);
+}
+
+async function resendAccountConfirmation(button) {
+    if (accountRequestInProgress) return;
+    const form = button.form;
+    const email = form.elements.email;
+    const status = form.closest('[data-auth-surface]').querySelector('[data-auth-status]');
+    if (!email.reportValidity()) return;
+    accountRequestInProgress = true;
+    button.disabled = true;
+    status.textContent = 'Requesting a new confirmation link…';
+    try {
+        const result = await commerceRequest('/auth/resend-confirmation', { email: email.value });
+        status.textContent = result.message;
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        accountRequestInProgress = false;
+        button.disabled = false;
+    }
+}
+
+function setAccountMode(form, mode) {
+    const registering = mode === 'register';
+    form.dataset.mode = mode;
+    form.querySelector('[data-auth-name]').hidden = !registering;
+    form.elements.name.required = registering;
+    form.elements.password.minLength = registering ? 12 : 0;
+    form.elements.password.autocomplete = registering ? 'new-password' : 'current-password';
+    form.querySelector('button[type=submit]').textContent = registering ? 'Create account' : 'Log In';
+    form.querySelector('[data-auth-toggle]').textContent = registering ? 'Back to log in' : 'Create an account';
+    const title = form.closest('#ticketsasa-auth-modal') ? document.getElementById('ts-auth-title') : document.getElementById('login-page-title');
+    if (title && (!form.closest('#ticketsasa-auth-modal') || ['login', 'register'].includes(title.closest('[role=dialog]').dataset.mode))) {
+        title.textContent = signedInAccount ? 'My account' : registering ? 'Create a Ticketsasa account' : 'Log In to Ticketsasa';
+    }
+    updateAccountReadiness(form);
+    form.closest('[data-auth-surface]').querySelector('[data-auth-status]').textContent = registering
+        ? 'Use at least 12 characters for your password.' : '';
+}
+
+function toggleAccountMode(form) {
+    if (accountRequestInProgress) return;
+    setAccountMode(form, form.dataset.mode === 'register' ? 'login' : 'register');
+}
+
+async function handleAccountLogin(event) {
+    event.preventDefault();
+    if (accountRequestInProgress) return;
+    const form = event.currentTarget;
+    const status = form.closest('[data-auth-surface]').querySelector('[data-auth-status]');
+    const submit = form.querySelector('button[type=submit]');
+    const registering = form.dataset.mode === 'register';
+    accountRequestInProgress = true;
+    submit.disabled = true;
+    status.textContent = registering ? 'Creating your account…' : 'Signing in…';
+    try {
+        const result = await commerceRequest(registering ? '/auth/register' : '/auth/login', {
+            name: form.elements.name.value, email: form.elements.email.value, password: form.elements.password.value
+        });
+        if (registering) {
+            setAccountMode(form, 'login');
+            status.textContent = result.message;
+            return;
+        }
+        accountChanged = true;
+        form.reset();
+        setAccountMode(form, 'login');
+        showAccount(result.user);
+        if (form.closest('#ticketsasa-auth-modal')) closeTicketsasaAuthModal();
+        showToast('You are signed in.');
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        form.elements.password.value = '';
+        accountRequestInProgress = false;
+        updateAccountReadiness(form);
+    }
+}
+
+async function signOutAccount(button) {
+    if (accountRequestInProgress) return;
+    const status = button.closest('[data-auth-surface]').querySelector('[data-auth-status]');
+    accountRequestInProgress = true;
+    button.disabled = true;
+    status.textContent = 'Signing out…';
+    try {
+        await commerceRequest('/auth/logout', {});
+        accountChanged = true;
+        showAccount(null);
+        state.passes = [];
+        document.getElementById('wallet-passes')?.replaceChildren();
+        for (const id of ['wallet-reference', 'wallet-email']) {
+            const field = document.getElementById(id);
+            if (field) field.value = '';
+        }
+        const walletStatus = document.getElementById('wallet-status');
+        if (walletStatus) walletStatus.textContent = '';
+        status.textContent = 'Signed out.';
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        accountRequestInProgress = false;
+        button.disabled = false;
+        updateAccountReadiness(button.closest('[data-auth-surface]').querySelector('[data-auth-form]'));
+    }
 }
 
 function renderDemoTicketOptions(tiers, options = document.getElementById('demo-ticket-options')) {
@@ -2599,7 +2494,7 @@ function renderDemoTicketOptions(tiers, options = document.getElementById('demo-
         const controls = document.createElement('div');
         controls.className = 'flex items-center gap-3';
         const quantity = document.createElement('output');
-        quantity.id = options.id === 'talanta-inline-tiers' ? 'talanta-qty-' + tier.tierKey : 'qty-' + tier.tierKey;
+        quantity.id = 'qty-' + tier.tierKey;
         quantity.dataset.ticketQuantity = tier.tierKey;
         quantity.textContent = state.quantities[tier.tierKey];
         const adjust = (label, change) => {
@@ -2618,329 +2513,18 @@ function renderDemoTicketOptions(tiers, options = document.getElementById('demo-
         availability.textContent = tier.remainingAllocation === 0 ? 'Sold out'
             : tier.remainingAllocation.toLocaleString('en-KE') + ' seats remaining';
         card.append(event, title, price, availability);
-        if (options.dataset.talanta === 'true') card.append(talantaPositionPreview(tier));
         card.append(controls);
         options.append(card);
     }
 }
 
 // =========================================================================
-// TALANTA SPORTS CITY ARENA COMPLETE BUILD UNDER EVENTS ENGINE
-// =========================================================================
-const talantaHubZones = {
-    pitlane: {
-        key: 'pitlane',
-        name: 'VIP Pit Lane & Paddock Lounge',
-        priceKes: 5000,
-        priceUsd: 40,
-        capacity: 2500,
-        available: 450,
-        gate: 'Gate B (Ngong Road North)',
-        turnstiles: 'Turnstiles 1–6 (Fast-Track)',
-
-        viewDesc: 'Trackside paddock perspective facing the starting grid & Konshens acoustic soundcheck stage',
-        perks: 'Paddock Pass + Pit Walk + VIP Open Bar Access + Free Lanyard',
-        blocks: ['Block B1', 'Block B2', 'Block B3']
-    },
-    vvip: {
-        key: 'vvip',
-        name: 'VVIP Royal Box & Presidential Suite',
-        priceKes: 15000,
-        priceUsd: 120,
-        capacity: 450,
-        available: 12,
-        gate: 'Gate A (Presidential VIP Jamhuri)',
-        turnstiles: 'Private VIP Elevator · North Lobby',
-
-        viewDesc: 'Panoramic climate-controlled presidential balcony overlooking the entire 4.2km circuit & main straight',
-        perks: '5-Course Gourmet Dining + Presidential Lounge + Dedicated Valet',
-        blocks: ['Royal Box 01', 'Royal Box 02', 'Presidential Suite']
-    },
-    lower: {
-        key: 'lower',
-        name: 'Lower Tier · Pitchside Grandstand',
-        priceKes: 3500,
-        priceUsd: 28,
-        capacity: 12000,
-        available: 3240,
-        gate: 'Gate B & D',
-        turnstiles: 'Turnstiles 7–18',
-
-        viewDesc: 'Immersive ground-level view directly alongside the GrassMaster hybrid pitch & pit straight',
-        perks: 'Contiguous Seating + Close-Up Driver Views + Quick Concession Access',
-        blocks: ['Block L1', 'Block L2', 'Block L3', 'Block L4']
-    },
-    upper: {
-        key: 'upper',
-        name: 'Upper Tier · Panoramic Skyline',
-        priceKes: 2500,
-        priceUsd: 20,
-        capacity: 18000,
-        available: 9900,
-        gate: 'Gate B & C',
-        turnstiles: 'Turnstiles 19–36',
-
-        viewDesc: 'Elevated 360-degree stadium panorama under the Maasai Shield solar canopy roof',
-        perks: 'Full Arena Sightline + Shaded Canopy Seating + Family Friendly',
-        blocks: ['Block U1', 'Block U2', 'Block U3', 'Block U4']
-    },
-    stage: {
-        key: 'stage',
-        name: 'South Stand & Dancehall Fan Pit',
-        priceKes: 5000,
-        priceUsd: 40,
-        capacity: 15000,
-        available: 4200,
-        gate: 'Gate C & D (Southern Bypass)',
-        turnstiles: 'Turnstiles 37–48',
-
-        viewDesc: 'Front-row high-energy festival atmosphere directly facing the concert soundstage & pyrotechnics',
-        perks: 'Dancehall Pit Access + DJ Lineup Proximity + Concert Audio Acoustics',
-        blocks: ['Pit S1', 'Pit S2', 'Pit S3']
-    },
-    east: {
-        key: 'east',
-        name: 'East Grandstand · Drift Apex Curve',
-        priceKes: 3000,
-        priceUsd: 24,
-        capacity: 10050,
-        available: 3015,
-        gate: 'Gate C (Jamhuri Axis)',
-        turnstiles: 'Turnstiles 49–60',
-
-        viewDesc: 'Direct sightline of the high-angle tandem smoke drift curve and technical chicane deceleration',
-        perks: 'Engine Acoustics + Drift Exhibition Sightline + Free Sun Visor',
-        blocks: ['Block E1', 'Block E2', 'Block E3']
-    }
-};
-
-const talantaHubState = {
-    zoneKey: 'pitlane',
-    selectedBlock: 'Block B2',
-    selectedRow: 'Row F',
-    selectedSeat: 24,
-    qty: 1,
-    includeVipParking: false,
-    occupiedSeats: [3, 4, 8, 11, 12, 17, 19, 21, 28, 29]
-};
-
-function selectTalantaHubZone(key) {
-    if (!talantaHubZones[key]) return;
-    talantaHubState.zoneKey = key;
-    const zone = talantaHubZones[key];
-
-    // Update active zone tab pills
-    document.querySelectorAll('[data-hub-zone]').forEach(el => {
-        const isMatch = el.getAttribute('data-hub-zone') === key;
-        el.classList.toggle('border-cyan-400', isMatch);
-        el.classList.toggle('bg-cyan-950/70', isMatch);
-        el.classList.toggle('shadow-lg', isMatch);
-    });
-
-    // Update zone overview details
-    const nameEl = document.getElementById('hub-zone-name');
-    const badgeEl = document.getElementById('hub-zone-badge');
-    const gateEl = document.getElementById('hub-zone-gate');
-    const turnstilesEl = document.getElementById('hub-zone-turnstiles');
-    const availEl = document.getElementById('hub-zone-avail');
-    const capacityEl = document.getElementById('hub-zone-capacity');
-    const availBarEl = document.getElementById('hub-zone-avail-bar');
-    const perksEl = document.getElementById('hub-zone-perks');
-    const viewImgEl = document.getElementById('hub-zone-view-img');
-    const viewDescEl = document.getElementById('hub-zone-view-desc');
-
-    if (nameEl) nameEl.textContent = zone.name;
-    if (badgeEl) badgeEl.textContent = zone.gate;
-    if (gateEl) gateEl.textContent = zone.gate;
-    if (turnstilesEl) turnstilesEl.textContent = zone.turnstiles;
-    if (availEl) availEl.textContent = `${zone.available.toLocaleString()} Seats Left`;
-    if (capacityEl) capacityEl.textContent = `${zone.capacity.toLocaleString()} Total Capacity`;
-    if (perksEl) perksEl.textContent = zone.perks;
-    if (viewImgEl) viewImgEl.src = zone.image;
-    if (viewDescEl) viewDescEl.textContent = zone.viewDesc;
-
-    if (availBarEl) {
-        const pct = Math.round((zone.available / zone.capacity) * 100);
-        availBarEl.style.width = `${pct}%`;
-    }
-
-    // Update block options
-    const blockSelect = document.getElementById('hub-block-select');
-    if (blockSelect) {
-        blockSelect.innerHTML = '';
-        zone.blocks.forEach((blk, idx) => {
-            const opt = document.createElement('option');
-            opt.value = blk;
-            opt.textContent = blk;
-            if (idx === 1 || zone.blocks.length === 1) opt.selected = true;
-            blockSelect.appendChild(opt);
-        });
-        talantaHubState.selectedBlock = blockSelect.value;
-    }
-
-    renderTalantaSeatGrid();
-    calculateTalantaHubPrice();
-    showToast(`Switched zone: ${zone.name}`);
-}
-
-function selectTalantaBlock(blk) {
-    talantaHubState.selectedBlock = blk;
-    renderTalantaSeatGrid();
-    calculateTalantaHubPrice();
-}
-
-function selectTalantaRow(row) {
-    talantaHubState.selectedRow = row;
-    renderTalantaSeatGrid();
-    calculateTalantaHubPrice();
-}
-
-function selectTalantaSeat(seatNum) {
-    if (talantaHubState.occupiedSeats.includes(seatNum)) return;
-    talantaHubState.selectedSeat = seatNum;
-    
-    document.querySelectorAll('.seat-btn').forEach(btn => {
-        const s = Number(btn.getAttribute('data-seat'));
-        btn.classList.toggle('selected-seat', s === seatNum);
-    });
-
-    const statusEl = document.getElementById('hub-seat-status-readout');
-    if (statusEl) {
-        statusEl.innerHTML = `<span class="text-cyan-400 font-extrabold">${talantaHubState.selectedBlock} &bull; ${talantaHubState.selectedRow} &bull; Seat ${seatNum}</span>`;
-    }
-
-    calculateTalantaHubPrice();
-}
-
-function renderTalantaSeatGrid() {
-    const gridEl = document.getElementById('hub-seat-grid');
-    if (!gridEl) return;
-    gridEl.innerHTML = '';
-
-    for (let i = 1; i <= 30; i++) {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.setAttribute('data-seat', i);
-        btn.className = 'seat-btn w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-[10px] font-bold border transition flex items-center justify-center';
-
-        const isOccupied = talantaHubState.occupiedSeats.includes(i);
-        const isSelected = talantaHubState.selectedSeat === i;
-
-        if (isOccupied) {
-            btn.disabled = true;
-            btn.className += ' bg-slate-800/60 border-slate-700/50 text-slate-500 cursor-not-allowed';
-            btn.title = `Seat ${i} (Booked / Occupied)`;
-            btn.textContent = i;
-        } else if (isSelected) {
-            btn.className += ' selected-seat bg-cyan-500 text-slate-950 border-white shadow-lg shadow-cyan-500/50';
-            btn.title = `Seat ${i} (Currently Selected)`;
-            btn.textContent = i;
-        } else {
-            btn.className += ' bg-slate-900/90 border-slate-700 text-slate-300 hover:border-cyan-400 hover:text-white';
-            btn.title = `Seat ${i} (Available)`;
-            btn.textContent = i;
-            btn.onclick = () => selectTalantaSeat(i);
-        }
-
-        gridEl.appendChild(btn);
-    }
-
-    const statusEl = document.getElementById('hub-seat-status-readout');
-    if (statusEl) {
-        statusEl.innerHTML = `<span class="text-cyan-400 font-extrabold">${talantaHubState.selectedBlock} &bull; ${talantaHubState.selectedRow} &bull; Seat ${talantaHubState.selectedSeat}</span>`;
-    }
-}
-
-function adjustTalantaHubQty(delta) {
-    talantaHubState.qty = Math.max(1, Math.min(8, talantaHubState.qty + delta));
-    const qtyEl = document.getElementById('hub-qty-display');
-    if (qtyEl) qtyEl.textContent = talantaHubState.qty;
-    calculateTalantaHubPrice();
-}
-
-function toggleTalantaVipAddon() {
-    talantaHubState.includeVipParking = !talantaHubState.includeVipParking;
-    const checkEl = document.getElementById('hub-vip-addon-checkbox');
-    if (checkEl) checkEl.checked = talantaHubState.includeVipParking;
-    calculateTalantaHubPrice();
-}
-
-function calculateTalantaHubPrice() {
-    const zone = talantaHubZones[talantaHubState.zoneKey] || talantaHubZones.pitlane;
-    const isKes = state.currency === 'KES';
-    const unitPrice = isKes ? zone.priceKes : zone.priceUsd;
-    const parkingFee = talantaHubState.includeVipParking ? (isKes ? 1000 : 8) * talantaHubState.qty : 0;
-    const subtotal = (unitPrice * talantaHubState.qty) + parkingFee;
-    const serviceFee = Math.round(subtotal * 0.05);
-    const totalAmount = subtotal + serviceFee;
-
-    const unitPriceEl = document.getElementById('hub-unit-price');
-    const subtotalEl = document.getElementById('hub-subtotal-price');
-    const feeEl = document.getElementById('hub-fee-price');
-    const totalEl = document.getElementById('hub-total-price');
-    const buttonTotalEl = document.getElementById('hub-cta-total');
-
-    if (unitPriceEl) unitPriceEl.textContent = isKes ? `KES ${unitPrice.toLocaleString()}` : `$${unitPrice}`;
-    if (subtotalEl) subtotalEl.textContent = isKes ? `KES ${subtotal.toLocaleString()}` : `$${subtotal}`;
-    if (feeEl) feeEl.textContent = isKes ? `KES ${feeEl ? serviceFee.toLocaleString() : 0}` : `$${serviceFee}`;
-    if (totalEl) totalEl.textContent = isKes ? `KES ${totalAmount.toLocaleString()}` : `$${totalAmount}`;
-    if (buttonTotalEl) buttonTotalEl.textContent = isKes ? `KES ${totalAmount.toLocaleString()}` : `$${totalAmount}`;
-}
-
-function proceedTalantaHubToCheckout() {
-    const zoneKey = talantaHubState.zoneKey || 'pitlane';
-    const zoneToTier = {
-        pitlane: 'vip',
-        vvip: 'vvip',
-        north: 'paddock',
-        west: 'regular',
-        east: 'regular',
-        south: 'regular'
-    };
-    const tierKey = zoneToTier[zoneKey] || 'regular';
-    const zone = talantaHubZones[zoneKey] || talantaHubZones.pitlane;
-    state.tierPrices[tierKey] ??= {
-        name: zone.name,
-        eventId: 'talanta-open-day-demo',
-        eventTitle: 'Talanta Sports City Live',
-        kes: zone.priceKes || 1500,
-        usd: zone.priceUsd || 12,
-        gate: zone.gate || 'Gate A',
-        stock: zone.available || 250
-    };
-    state.quantities[tierKey] = Math.max(1, talantaHubState.qty || 1);
-    updateCartDisplay();
-    openCheckoutModal();
-}
-
-// Auto-initialize Talanta Hub on DOM ready
-document.addEventListener('DOMContentLoaded', () => {
-    selectTalantaHubZone('pitlane');
-});
-
-
-
 const publishedOptions = new Map();
 const publishedEventDates = new Map();
 const eventDateFormatter = new Intl.DateTimeFormat('en-KE', {
     dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi'
 });
 let currentTicketTiers = [];
-let talantaEvents = [];
-
-function updateTalantaTickets() {
-    const picker = document.getElementById('talanta-event-picker');
-    const event = talantaEvents.find(item => item.id === picker.value);
-    const status = document.getElementById('talanta-ticket-status');
-    const link = document.getElementById('talanta-ticket-link');
-    status.textContent = event
-        ? event.onSale ? 'Select a ticket tier below.' : 'Tickets for this event are currently off sale.'
-        : 'No upcoming Talanta events are published.';
-    link.hidden = !event;
-    if (event) link.href = '/?view=events&event=' + encodeURIComponent(event.id);
-    renderPublishedTiers(currentTicketTiers);
-}
-
 const ticketsasaCatalogMap = new Map();
 let activeTicketsasaDetailEvent = null;
 
@@ -2965,16 +2549,6 @@ async function loadPublishedEvents() {
                 });
             }
         }
-        talantaEvents = data.filter(event => /talanta|raila odinga/i.test(event.venue));
-        const picker = document.getElementById('talanta-event-picker');
-        const previous = picker.value;
-        picker.replaceChildren(...talantaEvents.map(event => new Option(
-            event.title + ' · ' + eventDateFormatter.format(new Date(event.startsAt)), event.id)));
-        picker.parentElement.hidden = !talantaEvents.length;
-        picker.value = talantaEvents.find(event => event.id === previous)?.id
-            ?? (talantaEvents.find(event => event.onSale) || talantaEvents[0])?.id ?? '';
-        picker.onchange = updateTalantaTickets;
-        updateTalantaTickets();
         section.querySelectorAll('[data-published-search]').forEach(card => card.remove());
         publishedOptions.clear();
         document.getElementById('published-status').textContent = data.length ? '' : 'No events currently have tickets on this site.';
@@ -3012,7 +2586,6 @@ async function loadPublishedEvents() {
             }
             const options = document.createElement('div');
             options.className = 'grid gap-3 sm:grid-cols-2';
-            if (talantaEvents.includes(event)) options.dataset.talanta = 'true';
             if (event.onSale) {
                 publishedOptions.set(event.id, options);
                 const checkout = document.createElement('button');
@@ -3041,27 +2614,11 @@ async function loadPublishedEvents() {
         renderPublishedTiers(currentTicketTiers);
     } catch {
         document.getElementById('published-status').textContent = 'Ticketed events could not be loaded.';
-        document.getElementById('talanta-ticket-status').textContent = 'Ticket availability could not be checked.';
     }
 }
 
 function renderPublishedTiers(tiers) {
     currentTicketTiers = tiers;
-    const inline = document.getElementById('talanta-inline-tiers');
-    if (inline) {
-        inline.dataset.talanta = 'true';
-        const eventId = document.getElementById('talanta-event-picker').value;
-        const matchTiers = tiers.filter(tier => tier.eventId === eventId);
-        renderDemoTicketOptions(matchTiers, inline);
-        if (matchTiers.some(tier => tier.remainingAllocation > 0)) {
-            const checkout = document.createElement('button');
-            checkout.type = 'button';
-            checkout.className = 'min-h-11 rounded-lg bg-rose-700 px-4 text-white';
-            checkout.textContent = 'Review ticket order';
-            checkout.addEventListener('click', openCheckoutModal);
-            inline.append(checkout);
-        }
-    }
     for (const [id, options] of publishedOptions) {
         const eventTiers = tiers.filter(tier => tier.eventId === id);
         renderDemoTicketOptions(eventTiers, options);
@@ -3071,37 +2628,10 @@ function renderPublishedTiers(tiers) {
 }
 
 
-function talantaPositionPreview(tier) {
-    const figure = document.createElement('figure');
-    const gate = /^Gate ([A-D])$/.exec(tier.designatedGate)?.[1];
-    const map = document.createElement('div');
-    map.className = 'talanta-position';
-    map.setAttribute('role', 'img');
-    map.setAttribute('aria-label', gate ? 'Illustrative stadium diagram with Gate ' + gate + ' highlighted' : 'Illustrative stadium diagram');
-    for (const label of ['A', 'B', 'C', 'D', 'Pitch']) {
-        const marker = document.createElement('span');
-        marker.className = label === 'Pitch' ? 'talanta-position-pitch' : 'talanta-position-gate';
-        marker.dataset.position = label;
-        if (label === gate) marker.dataset.selected = 'true';
-        marker.textContent = label === 'Pitch' ? label : 'Gate ' + label;
-        map.append(marker);
-    }
-    const caption = document.createElement('figcaption');
-    caption.className = 'mt-2 text-xs text-slate-600';
-    caption.textContent = gate
-        ? 'Entry via Gate ' + gate + '. Schematic entrance position. Row and seat positions are unavailable.'
-        : 'The organizer has not supplied an entrance position.';
-    figure.append(map, caption);
-    return figure;
-}
-
-
-
 function openTicketsasaEventModal(eventId) {
     let ev = ticketsasaCatalogMap.get(eventId);
     if (!ev) {
-        ev = [...ticketsasaCatalogMap.values()].find(item => item.slug === eventId || item.id.includes(eventId))
-            || [...ticketsasaCatalogMap.values()][0];
+        ev = [...ticketsasaCatalogMap.values()].find(item => item.slug === eventId || String(item.numericId) === eventId);
     }
     if (!ev) return;
     activeTicketsasaDetailEvent = ev;
@@ -3139,39 +2669,18 @@ function openTicketsasaEventModal(eventId) {
     if (mapLinkEl) {
         mapLinkEl.href = 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(ev.locationFull || ev.venue || 'Nairobi');
     }
+    const mapFrame = document.getElementById('ts-detail-map-iframe');
+    if (mapFrame) {
+        mapFrame.src = 'https://maps.google.com/maps?q=' + encodeURIComponent(ev.locationFull || ev.venue || 'Nairobi, Kenya') + '&output=embed';
+    }
     if (statusEl) statusEl.textContent = '';
 
-    // Ensure at least 1 ticket of first tier is preselected if none of this event's tiers are in cart yet
-    let eventTiers = (ev.tiers && ev.tiers.length)
-        ? ev.tiers
-        : currentTicketTiers.filter(t => t.eventId === ev.id);
-    if (!eventTiers.length) {
-        const baseKes = Math.max(500, Number(ev.startingPrice || ev.price?.amount || 1000));
-        eventTiers = [
-            {
-                tierKey: `${ev.id}-regular`,
-                title: 'Regular Advance Ticket',
-                eventId: ev.id,
-                eventTitle: ev.title,
-                priceKes: baseKes,
-                priceUsd: Math.max(4, Math.round(baseKes / 125)),
-                remainingAllocation: 300,
-                designatedGate: 'Gate A',
-                published: true
-            },
-            {
-                tierKey: `${ev.id}-vip`,
-                title: 'VIP Ticket',
-                eventId: ev.id,
-                eventTitle: ev.title,
-                priceKes: baseKes * 2,
-                priceUsd: Math.max(8, Math.round((baseKes * 2) / 125)),
-                remainingAllocation: 100,
-                designatedGate: 'Gate B',
-                published: true
-            }
-        ];
-        ev.tiers = eventTiers;
+    const eventTiers = currentTicketTiers.filter(tier => tier.eventId === ev.id);
+    activeTicketsasaDetailEvent = { ...ev, tiers: eventTiers };
+    const bookButton = document.getElementById('ts-btn-book-now');
+    if (bookButton) bookButton.disabled = !eventTiers.some(tier => tier.remainingAllocation > 0);
+    if (statusEl && !eventTiers.some(tier => tier.remainingAllocation > 0)) {
+        statusEl.textContent = 'Tickets for this event are unavailable.';
     }
     for (const tier of eventTiers) {
         state.quantities[tier.tierKey] ??= 0;
@@ -3182,12 +2691,12 @@ function openTicketsasaEventModal(eventId) {
             kes: Math.max(1, Number(tier.priceKes || ev.startingPrice || 1000)),
             usd: Math.max(1, Number(tier.priceUsd || Math.round((tier.priceKes || 1000) / 125))),
             gate: tier.designatedGate || 'Gate A',
-            stock: tier.remainingAllocation || 250
+            stock: tier.remainingAllocation
         };
     }
-    if (!eventTiers.some(t => (state.quantities[t.tierKey] || 0) > 0) && eventTiers[0]) {
-        state.quantities[eventTiers[0].tierKey] = 1;
-        updateCartDisplay();
+    const firstAvailable = eventTiers.find(tier => tier.remainingAllocation > 0);
+    if (firstAvailable && !eventTiers.some(tier => (state.quantities[tier.tierKey] || 0) > 0)) {
+        updateQty(firstAvailable.tierKey, 1);
     }
 
     renderTicketsasaDetailTiers(eventTiers);
@@ -3324,8 +2833,9 @@ async function handleTicketsasaDetailCheckout(event) {
     const ev = activeTicketsasaDetailEvent;
     const eventTiers = ev.tiers || [];
     const hasSelected = eventTiers.some(t => (state.quantities[t.tierKey] || 0) > 0);
-    if (!hasSelected && eventTiers[0]) {
-        updateQty(eventTiers[0].tierKey, 1);
+    const firstAvailable = eventTiers.find(tier => tier.remainingAllocation > 0);
+    if (!hasSelected && firstAvailable) {
+        updateQty(firstAvailable.tierKey, 1);
         renderTicketsasaDetailTiers(eventTiers);
     }
     const nameVal = document.getElementById('ts-cust-name')?.value.trim() || '';
@@ -3426,7 +2936,11 @@ function openTicketsasaAuthModal(mode = 'login') {
         terms: 'Ticketsasa Terms & Conditions',
         privacy: 'Ticketsasa Privacy Policy'
     };
-    title.textContent = titles[mode] || 'Ticketsasa Account';
+    modal.dataset.mode = mode;
+    void refreshAccountProviders();
+    title.textContent = signedInAccount && mode === 'login' ? 'My account' : (titles[mode] || 'Ticketsasa Account');
+    const form = modal.querySelector('[data-auth-form]');
+    if (!accountRequestInProgress) setAccountMode(form, mode === 'register' ? 'register' : 'login');
     modal.classList.remove('hidden');
 }
 
