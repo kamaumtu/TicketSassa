@@ -914,7 +914,7 @@ async function handleMpesaSubmit(event) {
             status.textContent = payment.CustomerMessage || ('Approve the prompt on your phone via ' + (provider === 'nexuspay' ? 'Nexus Pay' : 'PayHero') + '. Order: ' + orderReference + '.');
             for (let attempt = 0; attempt < 15; attempt++) {
                 await new Promise(resolve => setTimeout(resolve, 3500));
-                const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference)).catch(() => null);
+                const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(customer.email)).catch(() => null);
                 if (check?.status === 'COMPLETED') {
                     result = { data: check.order, passes: check.passes };
                     break;
@@ -1795,7 +1795,7 @@ const holidayDb = {
         resortName: 'Swahili Beach Resort Diani',
         destination: 'Diani Beach, South Coast',
         duration: '3D / 2N',
-        image: 'assets/holidays/swahili-beach.jpg',
+        image: 'assets/holidays/swahili-beach-resort.jpg',
         rate: 40100,
         originalRate: 85000,
         discount: '53% OFF',
@@ -1816,10 +1816,10 @@ const holidayDb = {
         resortName: 'Masai Mara Sopa Lodge',
         destination: 'Masai Mara Game Reserve, Kenya',
         duration: '3D / 2N',
-        image: 'assets/holidays/masai-mara.jpg',
-        rate: 32000,
-        originalRate: 75000,
-        discount: '57% OFF',
+        image: 'assets/holidays/masai-mara-sopa-lodge.jpg',
+        rate: 13350,
+        originalRate: 32000,
+        discount: '58% OFF',
         mealPlan: 'Full Board Bush Dining (All meals included)',
         inclusions: [
             'Comprehensive safari package with 4x4 Land Cruiser game drives',
