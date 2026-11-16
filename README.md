@@ -108,6 +108,29 @@ The backend refreshes upcoming Kenyan listings from
 15 minutes. It caches the last successful result in MongoDB. A failed
 refresh leaves the previous listings available with a stale label.
 
+### Tickets.dev discovery
+
+Set `TICKETS_DEV_KEY` in the server environment to add Tickets.dev results to
+the Kenya event catalog. `TICKETS_DEV_QUERIES` is a comma-separated list of
+search terms, defaulting to Nairobi and Talanta Sports City. The importer
+keeps upcoming events with a Kenyan venue and caches results in MongoDB.
+Use `tk_test_sandbox` for development with provider fixtures. Discovery
+does not create inventory or enable checkout for a listing.
+
+Set `TICKETMASTER_API_KEY` to also import Ticketmaster Discovery events.
+The importer requests Kenyan venues and saves a separate MongoDB snapshot.
+Ticketmaster listings also require an authorized allocation or booking
+integration before checkout can be offered.
+
+### Quicket discovery
+
+Set `QUICKET_API_KEY` in the backend environment to import upcoming Kenyan
+events from Quicket. The importer checks up to three pages of recently
+modified public listings. Set `QUICKET_EVENT_IDS` to a comma-separated list
+of numeric event IDs from Quicket URLs to import those specific events
+instead. Results are cached in MongoDB. Public listings do not enable
+checkout or grant permission to sell tickets.
+
 ### Automatic checkout for imported events
 
 Public listings describe events and advertised prices. Configure a separate

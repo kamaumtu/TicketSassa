@@ -419,8 +419,29 @@ function updateCartDisplay() {
     }
 }
 
+async function loadPaymentOptions() {
+    const select = document.getElementById('payment-provider');
+    if (!select) return;
+    const previous = select.value || 'nexuspay';
+    const { gateways = [] } = await commerceRequest('/payments/gateways').catch(() => ({}));
+    const enabled = gateways.filter(gateway => gateway.configured);
+    if (!enabled.length) return;
+    const options = [
+        ...enabled.map(g => new Option(
+            g.id === 'nexuspay' ? '⚡ Nexus Pay / Makamesco STK Push (Live)'
+                : g.id === 'payhero' ? '⚡ PayHero M-Pesa STK Push (Live)'
+                : g.name,
+            g.id
+        )),
+        ...(enabled.some(g => g.id === 'demo') ? [] : [new Option('🧪 Demo Checkout (Simulation - No Real Charge)', 'demo')])
+    ];
+    select.replaceChildren(...options);
+    if ([...select.options].some(opt => opt.value === previous)) select.value = previous;
+}
+
 // Checkout Modal
 function openCheckoutModal() {
+    void loadPaymentOptions();
     const isDirectCheckout = Boolean(state.checkout && state.checkout.itemKey);
 
     if (!isDirectCheckout) {
@@ -877,10 +898,26 @@ async function handleMpesaSubmit(event) {
     const customer = { name: value('cust-name'), email: value('cust-email'), phone: value('cust-phone') };
     const items = [
         ...Object.entries(state.quantities).filter(([, quantity]) => quantity > 0)
-            .map(([tierKey, quantity]) => ({ tierKey, quantity })),
+            .map(([tierKey, quantity]) => ({
+                tierKey,
+                quantity,
+                title: state.tierPrices[tierKey]?.name || tierKey,
+                eventTitle: state.tierPrices[tierKey]?.eventTitle || 'Ticketsasa Event',
+                unitPriceKes: state.tierPrices[tierKey]?.kes || 1000
+            })),
         ...Object.entries(state.merchQuantities).filter(([, quantity]) => quantity > 0)
-            .map(([key, quantity]) => ({ kind: 'merch', productKey: merchKeys[key], quantity }))
+            .map(([key, quantity]) => ({
+                kind: 'merch',
+                productKey: merchKeys[key],
+                quantity,
+                title: state.merchPrices[key]?.name || key,
+                unitPriceKes: state.merchPrices[key]?.kes || 1500
+            }))
     ];
+    if (!items.length) {
+        status.textContent = 'Select at least one ticket or merchandise item before checkout.';
+        return;
+    }
     const payload = { customer, items, currency: state.currency, promoCode: state.promoCode, tipKes: state.tipAmount };
     checkoutSubmitting = true;
     button.disabled = true;
@@ -892,7 +929,9 @@ async function handleMpesaSubmit(event) {
         return;
     }
     if (mode === 'live') payload.currency = 'KES';
-    const fingerprint = JSON.stringify(payload);
+    const select = document.getElementById('payment-provider');
+    const provider = select?.value || undefined;
+    const fingerprint = JSON.stringify({ ...payload, provider, ts: Date.now() });
     status.textContent = 'Preparing your order…';
     try {
         if (state.checkout?.fingerprint !== fingerprint) {
@@ -904,14 +943,14 @@ async function handleMpesaSubmit(event) {
         const orderReference = state.checkout.reference;
         document.getElementById('wallet-reference').value = orderReference;
         document.getElementById('wallet-email').value = customer.email;
-        const provider = document.getElementById('payment-provider')?.value || 'payhero';
-        status.textContent = 'Contacting ' + (provider === 'nexuspay' ? 'Nexus Pay' : provider === 'payhero' ? 'PayHero' : 'Demo') + ' gateway. Order reference: ' + orderReference + '…';
+        status.textContent = 'Starting M-Pesa payment. Order ' + orderReference + '…';
         const payment = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: customer.phone, provider });
         let result;
         if (payment.mode === 'demo') {
             result = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payment.CheckoutRequestID });
         } else {
-            status.textContent = payment.CustomerMessage || ('Approve the prompt on your phone via ' + (provider === 'nexuspay' ? 'Nexus Pay' : 'PayHero') + '. Order: ' + orderReference + '.');
+            status.textContent = (payment.checkoutStarted ? 'Approve the M-Pesa prompt on your phone.'
+                : 'Waiting for the payment provider to confirm the request.') + ' Order ' + orderReference + '.';
             for (let attempt = 0; attempt < 15; attempt++) {
                 await new Promise(resolve => setTimeout(resolve, 3500));
                 const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(customer.email)).catch(() => null);
@@ -1616,20 +1655,22 @@ function calculateFlightTotal() {
     return { totalKes, totalUsd };
 }
 
-function handleFlightBookingSubmit(event) {
+async function handleFlightBookingSubmit(event) {
     event.preventDefault();
     const flight = flightSearchState.selectedFlight;
     if (!flight) return;
-    const firstName = document.getElementById('fbm-first-name')?.value?.trim() || '';
+    const firstName = document.getElementById('fbm-first-name')?.value?.trim() || 'Passenger';
     const lastName = document.getElementById('fbm-last-name')?.value?.trim() || '';
     const passport = document.getElementById('fbm-passport')?.value?.trim() || '';
     const email = document.getElementById('fbm-email')?.value?.trim() || '';
     const phone = document.getElementById('fbm-phone')?.value?.trim() || '';
     const provider = document.getElementById('fbm-payment-provider')?.value || 'payhero';
     const totals = calculateFlightTotal() || { totalKes: flight.priceKes };
+    const statusEl = document.getElementById('fbm-status');
+    const submitBtn = document.getElementById('btn-fbm-submit');
     saveTravelPlan('flight', 'fbm-status', {
         airline: flight.airline,
-        flightNo: flight.flightNo,
+        flightNo: flight.flightNumber || flight.flightNo,
         origin: flight.origin,
         destination: flight.dest,
         departure: document.getElementById('flight-depart-date')?.value || '',
@@ -1642,8 +1683,38 @@ function handleFlightBookingSubmit(event) {
         provider,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
-    if (typeof showToast === 'function') {
-        showToast(`Flight itinerary (${flight.flightNo}) saved & queued for ${provider.toUpperCase()} confirmation!`);
+    if (!phone || !email) return;
+    if (submitBtn) submitBtn.disabled = true;
+    if (statusEl) statusEl.textContent = `Sending M-Pesa STK Push to ${phone} via ${provider.toUpperCase()}...`;
+    try {
+        const orderRes = await commerceRequest('/orders', {
+            customer: { name: [firstName, lastName].filter(Boolean).join(' '), email, phone },
+            items: [{
+                kind: 'flight',
+                id: flight.id || 'FLT-1',
+                title: `${flight.airline} (${flight.flightNumber || flight.id}) ${flight.origin} → ${flight.dest}`,
+                unitPriceKes: Math.round(totals.totalKes || flight.priceKes),
+                quantity: 1
+            }],
+            currency: 'KES',
+            paymentMethod: 'MPESA'
+        });
+        const orderReference = orderRes.data.orderReference;
+        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone, provider });
+        if (payRes.mode === 'demo') {
+            const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
+            rememberOrder(conf.data, conf.passes);
+            if (statusEl) statusEl.textContent = `Demo flight e-ticket confirmed! Order: ${orderReference}`;
+        } else {
+            if (statusEl) statusEl.textContent = payRes.CustomerMessage || `STK Push sent to ${phone}! Enter your M-Pesa PIN. Order: ${orderReference}`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(payRes.CustomerMessage || `STK Push sent to ${phone} (${orderReference})`);
+        }
+    } catch (err) {
+        if (statusEl) statusEl.textContent = err.message || 'Could not initiate M-Pesa STK push.';
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -2118,16 +2189,18 @@ function calculateHolidayTotal() {
     return { totalKes, totalUsd };
 }
 
-function handleHolidayBookingSubmit(event) {
+async function handleHolidayBookingSubmit(event) {
     event.preventDefault();
     if (!currentHolidayBooking) return;
     const checkin = document.getElementById('hbm-checkin-date').value;
     const checkout = document.getElementById('hbm-checkout-date').value;
+    const statusEl = document.getElementById('hbm-status');
+    const submitBtn = document.getElementById('btn-hbm-submit');
     if (!checkin || !checkout || checkout <= checkin) {
-        document.getElementById('hbm-status').textContent = 'Choose a check-out date after check-in.';
+        if (statusEl) statusEl.textContent = 'Choose a check-out date after check-in.';
         return;
     }
-    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || '';
+    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || 'Guest';
     const guestEmail = document.getElementById('hbm-guest-email')?.value?.trim() || '';
     const guestPhone = document.getElementById('hbm-guest-phone')?.value?.trim() || '';
     const provider = document.getElementById('hbm-payment-provider')?.value || 'payhero';
@@ -2143,8 +2216,38 @@ function handleHolidayBookingSubmit(event) {
         provider,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
-    if (typeof showToast === 'function') {
-        showToast(`Holiday package (${currentHolidayBooking.resortName}) saved & queued for ${provider.toUpperCase()}!`);
+    if (!guestPhone || !guestEmail) return;
+    if (submitBtn) submitBtn.disabled = true;
+    if (statusEl) statusEl.textContent = `Sending M-Pesa STK Push to ${guestPhone} via ${provider.toUpperCase()}...`;
+    try {
+        const orderRes = await commerceRequest('/orders', {
+            customer: { name: guestName, email: guestEmail, phone: guestPhone },
+            items: [{
+                kind: 'holiday',
+                id: currentHolidayBooking.key || 'HOL-1',
+                title: `${currentHolidayBooking.title} (${checkin} to ${checkout})`,
+                unitPriceKes: Math.round(totals.totalKes || currentHolidayBooking.rate),
+                quantity: 1
+            }],
+            currency: 'KES',
+            paymentMethod: 'MPESA'
+        });
+        const orderReference = orderRes.data.orderReference;
+        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: guestPhone, provider });
+        if (payRes.mode === 'demo') {
+            const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
+            rememberOrder(conf.data, conf.passes);
+            if (statusEl) statusEl.textContent = `Demo holiday voucher confirmed! Order: ${orderReference}`;
+        } else {
+            if (statusEl) statusEl.textContent = payRes.CustomerMessage || `STK Push sent to ${guestPhone}! Enter your M-Pesa PIN. Order: ${orderReference}`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(payRes.CustomerMessage || `STK Push sent to ${guestPhone} (${orderReference})`);
+        }
+    } catch (err) {
+        if (statusEl) statusEl.textContent = err.message || 'Could not initiate M-Pesa STK push.';
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
     }
 }
 
@@ -2785,8 +2888,29 @@ function calculateTalantaHubPrice() {
 }
 
 function proceedTalantaHubToCheckout() {
-    switchTab('talanta');
-    scrollToTalantaSection('stadium-seat-selector');
+    const zoneKey = talantaHubState.zoneKey || 'pitlane';
+    const zoneToTier = {
+        pitlane: 'vip',
+        vvip: 'vvip',
+        north: 'paddock',
+        west: 'regular',
+        east: 'regular',
+        south: 'regular'
+    };
+    const tierKey = zoneToTier[zoneKey] || 'regular';
+    const zone = talantaHubZones[zoneKey] || talantaHubZones.pitlane;
+    state.tierPrices[tierKey] ??= {
+        name: zone.name,
+        eventId: 'talanta-open-day-demo',
+        eventTitle: 'Talanta Sports City Live',
+        kes: zone.priceKes || 1500,
+        usd: zone.priceUsd || 12,
+        gate: zone.gate || 'Gate A',
+        stock: zone.available || 250
+    };
+    state.quantities[tierKey] = Math.max(1, talantaHubState.qty || 1);
+    updateCartDisplay();
+    openCheckoutModal();
 }
 
 // Auto-initialize Talanta Hub on DOM ready
@@ -2832,7 +2956,14 @@ async function loadPublishedEvents() {
     try {
         const { data } = await commerceRequest('/published-events');
         for (const ev of data) {
-            if (ev?.id) ticketsasaCatalogMap.set(ev.id, ev);
+            if (ev?.id) {
+                const existing = ticketsasaCatalogMap.get(ev.id);
+                ticketsasaCatalogMap.set(ev.id, {
+                    ...existing,
+                    ...ev,
+                    tiers: ev.tiers?.length ? ev.tiers : (existing?.tiers || [])
+                });
+            }
         }
         talantaEvents = data.filter(event => /talanta|raila odinga/i.test(event.venue));
         const picker = document.getElementById('talanta-event-picker');
@@ -3011,20 +3142,52 @@ function openTicketsasaEventModal(eventId) {
     if (statusEl) statusEl.textContent = '';
 
     // Ensure at least 1 ticket of first tier is preselected if none of this event's tiers are in cart yet
-    const eventTiers = (ev.tiers && ev.tiers.length)
+    let eventTiers = (ev.tiers && ev.tiers.length)
         ? ev.tiers
         : currentTicketTiers.filter(t => t.eventId === ev.id);
+    if (!eventTiers.length) {
+        const baseKes = Math.max(500, Number(ev.startingPrice || ev.price?.amount || 1000));
+        eventTiers = [
+            {
+                tierKey: `${ev.id}-regular`,
+                title: 'Regular Advance Ticket',
+                eventId: ev.id,
+                eventTitle: ev.title,
+                priceKes: baseKes,
+                priceUsd: Math.max(4, Math.round(baseKes / 125)),
+                remainingAllocation: 300,
+                designatedGate: 'Gate A',
+                published: true
+            },
+            {
+                tierKey: `${ev.id}-vip`,
+                title: 'VIP Ticket',
+                eventId: ev.id,
+                eventTitle: ev.title,
+                priceKes: baseKes * 2,
+                priceUsd: Math.max(8, Math.round((baseKes * 2) / 125)),
+                remainingAllocation: 100,
+                designatedGate: 'Gate B',
+                published: true
+            }
+        ];
+        ev.tiers = eventTiers;
+    }
     for (const tier of eventTiers) {
         state.quantities[tier.tierKey] ??= 0;
-        state.tierPrices[tier.tierKey] ??= {
+        state.tierPrices[tier.tierKey] = {
             name: tier.title,
             eventId: ev.id,
             eventTitle: ev.title,
-            kes: tier.priceKes,
-            usd: tier.priceUsd,
+            kes: Math.max(1, Number(tier.priceKes || ev.startingPrice || 1000)),
+            usd: Math.max(1, Number(tier.priceUsd || Math.round((tier.priceKes || 1000) / 125))),
             gate: tier.designatedGate || 'Gate A',
             stock: tier.remainingAllocation || 250
         };
+    }
+    if (!eventTiers.some(t => (state.quantities[t.tierKey] || 0) > 0) && eventTiers[0]) {
+        state.quantities[eventTiers[0].tierKey] = 1;
+        updateCartDisplay();
     }
 
     renderTicketsasaDetailTiers(eventTiers);
@@ -3158,31 +3321,99 @@ function renderTicketsasaRelatedEvents(excludeId) {
 async function handleTicketsasaDetailCheckout(event) {
     event.preventDefault();
     if (!activeTicketsasaDetailEvent) return;
-    const eventTiers = activeTicketsasaDetailEvent.tiers || [];
+    const ev = activeTicketsasaDetailEvent;
+    const eventTiers = ev.tiers || [];
     const hasSelected = eventTiers.some(t => (state.quantities[t.tierKey] || 0) > 0);
     if (!hasSelected && eventTiers[0]) {
         updateQty(eventTiers[0].tierKey, 1);
         renderTicketsasaDetailTiers(eventTiers);
     }
-    // Sync form values into the main checkout modal inputs and trigger handleMpesaSubmit
     const nameVal = document.getElementById('ts-cust-name')?.value.trim() || '';
     const emailVal = document.getElementById('ts-cust-email')?.value.trim() || '';
     const phoneVal = document.getElementById('ts-cust-phone')?.value.trim() || '';
     const providerVal = document.getElementById('ts-payment-provider')?.value || 'payhero';
+    const statusEl = document.getElementById('ts-checkout-status');
+    const bookBtn = document.getElementById('ts-btn-book-now');
 
-    const mainName = document.getElementById('cust-name');
-    const mainEmail = document.getElementById('cust-email');
-    const mainPhone = document.getElementById('cust-phone');
-    const mainProvider = document.getElementById('payment-provider');
-    if (mainName) mainName.value = nameVal;
-    if (mainEmail) mainEmail.value = emailVal;
-    if (mainPhone) mainPhone.value = phoneVal;
-    if (mainProvider) mainProvider.value = providerVal;
+    const selectedItems = eventTiers
+        .filter(t => (state.quantities[t.tierKey] || 0) > 0)
+        .map(t => ({
+            tierKey: t.tierKey,
+            quantity: state.quantities[t.tierKey],
+            title: t.title,
+            eventTitle: ev.title,
+            unitPriceKes: Math.max(1, Number(t.priceKes || ev.startingPrice || 1000))
+        }));
 
-    closeTicketsasaEventModal();
-    openCheckoutModal();
-    const fakeEvent = { preventDefault() {} };
-    await handleMpesaSubmit(fakeEvent);
+    if (!selectedItems.length) {
+        if (statusEl) statusEl.textContent = 'Please select at least 1 ticket above.';
+        return;
+    }
+
+    if (bookBtn) bookBtn.disabled = true;
+    if (statusEl) statusEl.textContent = `Creating order & sending M-Pesa STK Push to ${phoneVal} via ${providerVal.toUpperCase()}...`;
+
+    try {
+        const orderRes = await commerceRequest('/orders', {
+            customer: { name: nameVal, email: emailVal, phone: phoneVal },
+            items: selectedItems,
+            currency: 'KES',
+            paymentMethod: 'MPESA'
+        });
+        const orderReference = orderRes.data.orderReference;
+        document.getElementById('wallet-reference').value = orderReference;
+        document.getElementById('wallet-email').value = emailVal;
+
+        if (statusEl) statusEl.textContent = `Initiating M-Pesa prompt on ${phoneVal} (Order ${orderReference})...`;
+        const payment = await commerceRequest('/payments/mpesa/stkpush', {
+            orderReference,
+            phone: phoneVal,
+            provider: providerVal
+        });
+
+        if (payment.mode === 'demo') {
+            const conf = await commerceRequest('/payments/demo/confirm', {
+                orderReference,
+                checkoutRequestId: payment.CheckoutRequestID
+            });
+            for (const t of eventTiers) state.quantities[t.tierKey] = 0;
+            updateCartDisplay();
+            rememberOrder(conf.data, conf.passes);
+            closeTicketsasaEventModal();
+            openTicketWallet();
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.textContent = payment.CustomerMessage || `Approve the M-Pesa prompt sent to ${phoneVal}. Order: ${orderReference}`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(payment.CustomerMessage || `M-Pesa STK prompt sent to ${phoneVal}!`);
+        }
+
+        for (let attempt = 0; attempt < 15; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 3500));
+            const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(emailVal)).catch(() => null);
+            if (check?.status === 'COMPLETED') {
+                for (const t of eventTiers) state.quantities[t.tierKey] = 0;
+                updateCartDisplay();
+                rememberOrder(check.order, check.passes);
+                closeTicketsasaEventModal();
+                openTicketWallet();
+                return;
+            }
+            if (check?.status === 'FAILED') {
+                throw new Error(check.reason || 'Payment was declined or cancelled on your mobile phone.');
+            }
+            if (statusEl) {
+                statusEl.textContent = `M-Pesa STK Push sent to ${phoneVal}. Awaiting PIN confirmation (${attempt + 1}/15)... Order: ${orderReference}`;
+            }
+        }
+    } catch (err) {
+        if (statusEl) statusEl.textContent = err.message || 'Could not start M-Pesa payment. Please check your phone number and try again.';
+    } finally {
+        if (bookBtn) bookBtn.disabled = false;
+    }
 }
 
 function openTicketsasaAuthModal(mode = 'login') {

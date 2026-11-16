@@ -52,7 +52,7 @@ const defaultMerch = [
 
 async function getMerchCatalog() {
     const products = isConnected() ? await MerchProduct.find().lean() : defaultMerch;
-    return products.length ? products : defaultMerch;
+    return (products.length ? products : defaultMerch).map(item => ({ ...item, published: true }));
 }
 
 exports.getMerchCatalog = getMerchCatalog;

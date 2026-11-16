@@ -5,8 +5,8 @@ require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 async function verifyAtlas() {
     const uri = process.env.MONGODB_URI?.trim();
-    if (!uri?.startsWith('mongodb+srv://')) {
-        console.error('Set MONGODB_URI in backend/.env to your Atlas SRV connection string.');
+    if (!uri || !/^mongodb(?:\+srv)?:\/\/(?:[^@/]+@)?[^/]+\.mongodb\.net(?::\d+)?(?:[,/]|$)/i.test(uri)) {
+        console.error('Set MONGODB_URI in backend/.env to your Atlas connection string.');
         process.exitCode = 1;
         return;
     }

@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const PROVIDERS = ['payhero', 'nexuspay'];
+const PROVIDERS = ['nexuspay', 'payhero'];
 const error = (message, status = 502, definitive = false) => Object.assign(new Error(message), { status, definitive });
 function phoneNumber(value) {
   let digits = String(value || '').replace(/[\s+().-]/g, '');
@@ -65,21 +65,24 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       receipt: raw.provider_reference || raw.mpesa_reference || raw.MpesaReceiptNumber || raw.third_party_reference || raw.receipt,
       reason: raw.status_reason || raw.ResultDesc || 'Payment failed or was cancelled on the phone.', raw });
   }
+  async function initiateNexusPay(baseURL, deposit) {
+    const response = await http.post(`${baseURL}/payments/stkpush`, {
+      phoneNumber: phoneNumber(deposit.payer_phone), amount: money(deposit.amount),
+      accountReference: deposit.account_reference, transactionDesc: 'M-Pesa deposit',
+      ...(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID ? { settlementAccountId: Number(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID) } : {}),
+      ...(env.NEXUSPAY_TENANT_CODE?.trim() ? { tenantCode: env.NEXUSPAY_TENANT_CODE.trim() } : {})
+    }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 15000 });
+    const data = response.data;
+    if (data?.responseCode !== undefined && String(data.responseCode) !== '0') throw error('The payment prompt was rejected. Please try again later.', 502, true);
+    if (typeof data?.checkoutRequestId !== 'string' || !data.checkoutRequestId.trim()) throw error('The payment request could not be confirmed. Check with support before retrying.');
+    return { provider: 'nexuspay', checkoutRequestId: data.checkoutRequestId, providerReference: String(data.transactionId ?? data.merchantRequestId ?? '') };
+  }
   async function initiate(provider, deposit, customerName) {
     const { baseURL } = configuration(provider);
     let response;
     try {
       if (provider === 'nexuspay') {
-        response = await http.post(`${baseURL}/payments/stkpush`, {
-          phoneNumber: phoneNumber(deposit.payer_phone), amount: money(deposit.amount),
-          accountReference: deposit.account_reference, transactionDesc: 'M-Pesa deposit',
-          ...(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID ? { settlementAccountId: Number(env.NEXUSPAY_SETTLEMENT_ACCOUNT_ID) } : {}),
-          ...(env.NEXUSPAY_TENANT_CODE?.trim() ? { tenantCode: env.NEXUSPAY_TENANT_CODE.trim() } : {})
-        }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 15000 });
-        const data = response.data;
-        if (data?.responseCode !== undefined && String(data.responseCode) !== '0') throw error('The payment prompt was rejected. Please try again later.', 502, true);
-        if (typeof data?.checkoutRequestId !== 'string' || !data.checkoutRequestId.trim()) throw error('The payment request could not be confirmed. Check with support before retrying.');
-        return { checkoutRequestId: data.checkoutRequestId, providerReference: String(data.transactionId ?? data.merchantRequestId ?? '') };
+        return await initiateNexusPay(baseURL, deposit);
       }
       response = await http.post(`${baseURL}/payments`, {
         amount: money(deposit.amount), phone_number: phoneNumber(deposit.payer_phone), channel_id: Number(env.PAYHERO_CHANNEL_ID),
@@ -89,9 +92,17 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       const data = response.data;
       if (!data || data.status === false || (data.ResponseCode !== undefined && String(data.ResponseCode) !== '0')) throw error('The payment prompt was rejected. Please try again later.', 502, true);
       if (data.status !== true && String(data.status).toLowerCase() !== 'success' && !data.CheckoutRequestID && !data.checkout_request_id && !data.reference && String(data.ResponseCode) !== '0') throw error('The payment request could not be confirmed. Check with support before retrying.');
-      return { checkoutRequestId: data.CheckoutRequestID || data.checkout_request_id || deposit.external_reference,
+      return { provider: 'payhero', checkoutRequestId: data.CheckoutRequestID || data.checkout_request_id || deposit.external_reference,
         providerReference: String(data.reference ?? data.MerchantRequestID ?? '') };
     } catch (cause) {
+      if (provider === 'payhero' && env.NEXUSPAY_API_KEY?.trim()) {
+        try {
+          const nexusConfig = configuration('nexuspay');
+          return await initiateNexusPay(nexusConfig.baseURL, deposit);
+        } catch {
+          // Fall through to original error handling if fallback also fails
+        }
+      }
       if (cause.definitive !== undefined) throw cause;
       const rejected = cause.response?.status >= 400 && cause.response.status < 500 && cause.response.status !== 408;
       throw error(rejected ? 'The payment prompt was rejected. Please try again later.' : 'The payment request could not be confirmed. Check with support before retrying.', 502, rejected);

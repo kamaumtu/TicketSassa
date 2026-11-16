@@ -85,17 +85,19 @@ const demoEvent = {
 };
 
 async function getTicketCatalog() {
-    const tiers = isConnected() ? await TicketTier.find({ isActive: true }).lean() : defaultTiers;
-    const baseTiers = tiers.length ? tiers : defaultTiers;
+    if (!isConnected()) return [...ticketsasaTiers, ...defaultTiers.map(t => ({ ...t, published: true }))];
+    const tiers = await TicketTier.find({ isActive: true }).lean().catch(() => []);
+    const baseTiers = (tiers.length ? tiers : defaultTiers).map(t => ({ ...t, published: true }));
     const { publishedTiers } = require('../routes/publishedEvents');
     const pub = await publishedTiers().catch(() => []);
     const seen = new Set();
     const combined = [];
-    for (const tier of [...baseTiers, ...ticketsasaTiers, ...pub]) {
+    for (const tier of [...pub, ...ticketsasaTiers, ...baseTiers]) {
         if (!tier?.tierKey || seen.has(tier.tierKey)) continue;
         seen.add(tier.tierKey);
         combined.push({
             ...tier,
+            published: true,
             eventId: tier.eventId || demoEvent.id,
             eventTitle: tier.eventTitle || demoEvent.title
         });

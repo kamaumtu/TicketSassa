@@ -29,7 +29,8 @@ async function events() {
         startingPrice: ev.startingPrice,
         isFree: ev.isFree,
         status: 'published',
-        tiers: ev.tiers
+        discoveryOnly: false,
+        tiers: (ev.tiers || []).map(t => ({ ...t, published: true }))
     }));
     const byId = new Map(defaultPublished.map(e => [e.id, e]));
     for (const ev of dbEvents) byId.set(ev.id, ev);
@@ -41,7 +42,7 @@ function visible(event) {
 }
 
 function onSale(event, now = Date.now()) {
-    return visible(event) && withinSalesWindow(event, now) &&
+    return !event.discoveryOnly && visible(event) && withinSalesWindow(event, now) &&
         (!event.source || Date.parse(event.allocationExpiresAt) > now);
 }
 

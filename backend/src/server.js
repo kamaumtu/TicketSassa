@@ -1,7 +1,7 @@
-require('dotenv').config();
+const { resolve } = require('node:path');
+require('dotenv').config({ path: resolve(__dirname, '../.env') });
 const express = require('express');
 const { timingSafeEqual } = require('node:crypto');
-const { resolve } = require('node:path');
 const cors = require('cors');
 const { checkoutMode, createIndexes } = require('./services/commerceDb');
 const { connectDB, isConnected } = require('./config/db');

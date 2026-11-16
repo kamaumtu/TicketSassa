@@ -17,8 +17,16 @@ async function migrate() {
         const passes = source.prepare('SELECT data FROM passes').all().map(row => JSON.parse(row.data));
         const audit = source.prepare('SELECT rowid AS sequence, action, target, timestamp, actor FROM admin_audit').all();
         const holds = source.prepare('SELECT * FROM holds WHERE expires_at > ?').all(Date.now());
-        const sales = source.prepare('SELECT * FROM sales').all();
-        const key = product => product.startsWith('live:') ? product : 'demo:' + product;
+        const orderModes = new Map(orders.map(order => [order.orderReference, order.mode]));
+        const key = (product, mode) => /^(live|demo):/.test(product) ? product : mode + ':' + product;
+        const sales = new Map();
+        for (const order of orders) {
+            if (order.paymentStatus !== 'COMPLETED') continue;
+            for (const item of order.items) {
+                const product = key(item.key, order.mode);
+                sales.set(product, (sales.get(product) ?? 0) + item.quantity);
+            }
+        }
 
         await transaction(async session => {
             const marker = collection('commerce_migrations');
@@ -32,10 +40,10 @@ async function migrate() {
                 ['commerce_audit', audit.map(({ sequence, ...entry }) => ({ ...entry, _id: 'legacy:' + sequence }))],
                 ['commerce_holds', holds.map(row => ({
                     _id: row.order_reference + ':' + row.product, orderReference: row.order_reference,
-                    product: key(row.product), quantity: row.quantity, expiresAt: row.expires_at,
+                    product: key(row.product, orderModes.get(row.order_reference)), quantity: row.quantity, expiresAt: row.expires_at,
                     ...(row.expires_at < Number.MAX_SAFE_INTEGER ? { purgeAt: new Date(row.expires_at) } : {})
                 }))],
-                ['commerce_stock', sales.map(row => ({ _id: key(row.product), sold: row.quantity, revision: 0 }))]
+                ['commerce_stock', [...sales].map(([_id, sold]) => ({ _id, sold, revision: 0 }))]
             ];
             for (const [name, documents] of groups) {
                 if (documents.length) await collection(name).insertMany(documents, { session });

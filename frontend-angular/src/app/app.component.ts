@@ -61,7 +61,7 @@ export class AppComponent implements OnInit {
   activeTab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet' = 'events';
 
   // Gateway Selector
-  selectedGateway: 'payhero' | 'nexuspay' | 'demo' = 'payhero';
+  selectedGateway: 'payhero' | 'nexuspay' | 'demo' = 'nexuspay';
 
   // Application State
   currency: 'KES' | 'USD' = 'KES';
