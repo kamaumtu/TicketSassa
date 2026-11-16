@@ -1,3 +1,4 @@
+const { isRemovedVenue } = require('../services/eventVisibility');
 const { collection } = require('../services/commerceDb');
 const { isConnected } = require('./db');
 const { syncAllocations } = require('../services/eventAllocations');
@@ -83,7 +84,7 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
     }
 
     function refresh() {
-        const queries = (process.env.TICKETS_DEV_QUERIES || 'Nairobi,Talanta Sports City')
+        const queries = (process.env.TICKETS_DEV_QUERIES || 'Nairobi')
             .split(',').map(query => query.trim()).filter(Boolean).slice(0, 5);
         const eventIds = (process.env.QUICKET_EVENT_IDS || '').split(',').map(id => id.trim()).filter(Boolean).slice(0, 20);
         pending ??= Promise.all([
@@ -136,52 +137,30 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
                 $or: [{ status: { $exists: false } }, { status: 'published' }]
             }, { projection: { _id: 1, tiers: 1 } }).toArray() : [];
             const sales = new Map(allocated.map(event => [event._id,
-                Math.min(...event.tiers.map(tier => tier.priceKes))]));
+                event.tiers]));
             const remoteEvents = (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
                 ...event, checkout: sales.has(event.id),
-                price: sales.has(event.id) ? { amount: sales.get(event.id), currency: 'KES' } : event.price
+                price: sales.has(event.id) ? { amount: Math.min(...sales.get(event.id).map(tier => tier.priceKes)), currency: 'KES' } : event.price,
+                tiers: sales.get(event.id) ?? []
             }));
-            function ensureEventTiers(ev) {
-                const basePrice = Math.max(500, Math.round(Number(ev.startingPrice || ev.price?.amount || 1500)));
-                const tiers = Array.isArray(ev.tiers) && ev.tiers.length ? ev.tiers : [
-                    {
-                        tierKey: `${ev.id}-regular`,
-                        title: 'Regular Advance Ticket',
-                        eventId: ev.id,
-                        eventTitle: ev.title,
-                        priceKes: basePrice,
-                        priceUsd: Math.max(4, Math.round(basePrice / 125)),
-                        remainingAllocation: 300,
-                        designatedGate: 'Gate A',
-                        published: true
-                    },
-                    {
-                        tierKey: `${ev.id}-vip`,
-                        title: 'VIP Pass',
-                        eventId: ev.id,
-                        eventTitle: ev.title,
-                        priceKes: basePrice * 2,
-                        priceUsd: Math.max(8, Math.round((basePrice * 2) / 125)),
-                        remainingAllocation: 100,
-                        designatedGate: 'Gate B',
-                        published: true
-                    }
-                ];
-                return { ...ev, checkout: true, onSale: true, startingPrice: ev.startingPrice || basePrice, tiers };
+            function eventWithTickets(event) {
+                const tiers = Array.isArray(event.tiers) ? event.tiers : [];
+                const onSale = tiers.length > 0;
+                return { ...event, tiers, checkout: onSale, onSale };
             }
             const mergedMap = new Map();
             for (const ev of ticketsasaEvents) {
-                mergedMap.set(ev.id, ensureEventTiers(ev));
+                mergedMap.set(ev.id, eventWithTickets(ev));
             }
             for (const ev of remoteEvents) {
-                if (!mergedMap.has(ev.id)) mergedMap.set(ev.id, ensureEventTiers(ev));
+                if (!mergedMap.has(ev.id)) mergedMap.set(ev.id, eventWithTickets(ev));
             }
             for (const event of [...(discovery?.events ?? []), ...(ticketmaster?.events ?? []), ...(quicket?.events ?? [])]) {
-                if (event.startsAt > now && !mergedMap.has(event.id)) mergedMap.set(event.id, ensureEventTiers(event));
+                if (event.startsAt > now && !mergedMap.has(event.id)) mergedMap.set(event.id, eventWithTickets(event));
             }
             return {
-                events: [...mergedMap.values()],
-                sliders: ticketsasaSliders,
+                events: [...mergedMap.values()].filter(event => !isRemovedVenue(event)),
+                sliders: ticketsasaSliders.filter(slider => !isRemovedVenue(slider) && !isRemovedVenue(mergedMap.get(slider.eventId))),
                 updatedAt: [snapshot?.updatedAt, discovery?.updatedAt, ticketmaster?.updatedAt, quicket?.updatedAt]
                     .filter(Boolean).sort().at(-1) ?? null,
                 ticketsDevStatus: !process.env.TICKETS_DEV_KEY?.trim() ? 'unconfigured'

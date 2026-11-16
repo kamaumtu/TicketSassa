@@ -9,7 +9,7 @@
         T
       </div>
       <div>
-        <span class="font-extrabold text-white text-base tracking-tight block">TALANTA × TICKETSASA</span>
+        <span class="font-extrabold text-white text-base tracking-tight block">TICKETSASSA</span>
         <span class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold block">Full Ecosystem · Angular 19</span>
       </div>
     </div>
@@ -37,20 +37,8 @@
         class="px-3.5 py-2 rounded-xl transition hover:text-white">
         🌴 Holidays
       </button>
-      <button type="button" (click)="switchTab('talanta')"
-        [class.bg-emerald-400]="activeTab === 'talanta'"
-        [class.text-black]="activeTab === 'talanta'"
-        [class.text-slate-300]="activeTab !== 'talanta'"
-        class="px-3.5 py-2 rounded-xl transition hover:text-white">
-        🏟 Talanta Arena
-      </button>
-      <button type="button" (click)="switchTab('hustle')"
-        [class.bg-red-500]="activeTab === 'hustle'"
-        [class.text-white]="activeTab === 'hustle'"
-        [class.text-slate-300]="activeTab !== 'hustle'"
-        class="px-3.5 py-2 rounded-xl transition hover:text-white">
-        ⚡ HustleSasa
-      </button>
+
+
       <button type="button" (click)="switchTab('wallet')"
         [class.bg-purple-500]="activeTab === 'wallet'"
         [class.text-white]="activeTab === 'wallet'"
@@ -77,7 +65,7 @@
 <main id="main-content" tabindex="-1" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
   <!-- ========================================================================= -->
-  <!-- TAB 1: TICKETSASA EVENTS & CONCERTS                                      -->
+  <!-- TAB 1: TICKETSASSA EVENTS & CONCERTS                                      -->
   <!-- ========================================================================= -->
   <div *ngIf="activeTab === 'events'" class="space-y-12">
     <!-- HERO BANNER -->
@@ -94,12 +82,10 @@
           </span>
         </h1>
         <p class="text-slate-300 text-sm sm:text-base leading-relaxed">
-          60,000 capacity mega-production inside Raila Odinga International Stadium, Talanta Sports City. High-octane track sprints followed by Konshens live on the main stage.
+          Find upcoming events and book available tickets.
         </p>
         <div class="flex flex-wrap items-center gap-4 pt-2">
-          <button (click)="switchTab('talanta')" class="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs transition">
-            🏟 Inspect Stadium Blueprint
-          </button>
+
           <a href="#ticket-passes" class="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs border border-slate-700 transition">
             🎟 Choose Passes Below
           </a>
@@ -116,7 +102,7 @@
       <kenya-event-catalog id="upcoming-events"></kenya-event-catalog>
     </section>
 
-    <!-- TICKETSASA TICKET TIERS -->
+    <!-- TICKETSASSA TICKET TIERS -->
     <section id="ticket-passes" class="space-y-6">
       <div>
         <h2 class="text-2xl font-black text-white">Official Ticket Passes &amp; Tiers</h2>
@@ -259,7 +245,7 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- TAB 3: TICKETSASA HOLIDAYS & COAST RESORT PACKAGES                        -->
+  <!-- TAB 3: TICKETSASSA HOLIDAYS & COAST RESORT PACKAGES                        -->
   <!-- ========================================================================= -->
   <div *ngIf="activeTab === 'holidays'" class="space-y-8">
     <div class="p-8 rounded-3xl bg-gradient-to-r from-amber-950/60 via-slate-900 to-slate-950 border border-amber-800/40">
@@ -306,148 +292,14 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- TAB 4: TALANTA SPORTS CITY STADIUM BLUEPRINT                              -->
-  <!-- ========================================================================= -->
-  <div *ngIf="activeTab === 'talanta'" class="space-y-8">
-    <div class="p-8 rounded-3xl bg-[#0B1120] border border-slate-800 flex flex-wrap items-center justify-between gap-4">
-      <div>
-        <span class="px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-400/30 text-emerald-400 text-xs font-bold uppercase tracking-wider">
-          🏟 Raila Odinga International Stadium
-        </span>
-        <h2 class="text-3xl font-black text-white mt-2">60,000-Seater Interactive Arena Blueprint</h2>
-        <p class="text-xs text-slate-400 mt-1">Telemetry, gate access coordinates, turnstiles, and grandstand sightlines.</p>
-      </div>
-      <div class="flex items-center gap-3">
-        <span class="text-xs text-slate-300 bg-slate-900 px-3 py-2 rounded-xl border border-slate-800">
-          📍 Ngong Road, Nairobi, Kenya
-        </span>
-      </div>
-    </div>
-
-    <!-- Interactive Zones Selector -->
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-      <button *ngFor="let z of zones" (click)="selectZone(z.zoneKey)"
-        [class.border-emerald-400]="selectedZone?.zoneKey === z.zoneKey"
-        [class.bg-emerald-950]="selectedZone?.zoneKey === z.zoneKey"
-        class="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-left transition hover:border-slate-600 shadow-md">
-        <div class="text-[10px] text-slate-400 uppercase font-black">{{ z.gate }}</div>
-        <div class="text-sm font-extrabold text-white truncate">{{ z.name }}</div>
-        <div class="text-[10px] text-emerald-400 font-bold mt-1">{{ z.availablePercent }}% Left</div>
-      </button>
-    </div>
-
-    <!-- Active Zone Detailed Telemetry Card -->
-    <div *ngIf="selectedZone" class="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-8 shadow-2xl">
-      <div class="md:col-span-2 space-y-4">
-        <div class="flex items-center gap-3">
-          <span class="px-3 py-1 rounded-xl bg-emerald-500/20 text-emerald-400 text-xs font-black uppercase">{{ selectedZone.gate }} Access</span>
-          <span class="text-xs text-slate-400">Angle: {{ selectedZone.fieldOfViewAngle }}</span>
-        </div>
-        <h3 class="text-2xl font-black text-white">{{ selectedZone.name }}</h3>
-        <p class="text-sm text-slate-300 leading-relaxed">{{ selectedZone.description }}</p>
-        
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 pt-2">
-          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <span class="text-[10px] text-slate-400 block uppercase">Zone Capacity</span>
-            <span class="text-lg font-black text-white">{{ selectedZone.capacity | number }}</span>
-          </div>
-          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <span class="text-[10px] text-slate-400 block uppercase">Remaining</span>
-            <span class="text-lg font-black text-emerald-400">{{ selectedZone.availablePercent }}%</span>
-          </div>
-          <div class="p-3 rounded-2xl bg-slate-950 border border-slate-800">
-            <span class="text-[10px] text-slate-400 block uppercase">Designated Gate</span>
-            <span class="text-lg font-black text-amber-400">{{ selectedZone.gate }}</span>
-          </div>
-        </div>
-
-        <div class="pt-2">
-          <span class="text-xs font-bold text-slate-400 block mb-2">Zone Privileges &amp; Inclusions:</span>
-          <div class="flex flex-wrap gap-2">
-            <span *ngFor="let perk of selectedZone.includedPerks" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-200 text-xs font-semibold">
-              ✓ {{ perk }}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div class="flex flex-col justify-between space-y-4 bg-slate-950 p-6 rounded-2xl border border-slate-800">
-        <div>
-          <span class="text-xs text-slate-400 block">Recommended Pass</span>
-          <h4 class="text-xl font-bold text-white mt-1">{{ selectedZone.recommendedTier | uppercase }}</h4>
-          <p class="text-xs text-slate-400 mt-2">Instant checkout allocation holds seat position for 10 minutes.</p>
-        </div>
-        <button (click)="updateQty(selectedZone.recommendedTier, 1); switchTab('events')" class="w-full py-3.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-black font-black text-xs transition shadow-lg shadow-emerald-400/20">
-          + Book {{ selectedZone.recommendedTier | uppercase }} Pass
-        </button>
-      </div>
-    </div>
-  </div>
 
   <!-- ========================================================================= -->
-  <!-- TAB 5: HUSTLESASA CREATOR HUB & MERCH STORE                              -->
+
+
   <!-- ========================================================================= -->
-  <div *ngIf="activeTab === 'hustle'" class="space-y-10">
-    <div class="p-8 rounded-3xl bg-gradient-to-r from-red-950/60 via-slate-900 to-slate-950 border border-red-800/40">
-      <span class="px-3 py-1 rounded-full bg-red-500/10 border border-red-400/30 text-red-400 text-xs font-bold uppercase tracking-wider">
-        ⚡ HustleSasa Creator Commerce
-      </span>
-      <h2 class="text-3xl font-black text-white mt-2">Creator Merch Storefront &amp; Earnings Engine</h2>
-      <p class="text-xs text-slate-300 mt-1">HustleSasa platform calculator (4.925% commission) &amp; official event merchandise.</p>
-    </div>
 
-    <!-- HustleSasa Commission Calculator -->
-    <div class="p-8 rounded-3xl bg-slate-900/90 border border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-8 shadow-2xl">
-      <div class="space-y-4">
-        <h3 class="text-xl font-black text-white">Interactive Earnings &amp; Commission Calculator</h3>
-        <p class="text-xs text-slate-300">
-          HustleSasa charges an exact flat rate of <strong class="text-amber-400">4.925%</strong> for full merchant checkout, instant M-Pesa STK push, fraud screening, and creator payout settlement.
-        </p>
-        <div>
-          <label class="text-xs font-bold text-slate-400 block mb-1">Enter Estimated Gross Sales (KES)</label>
-          <input type="number" [(ngModel)]="hustleGrossInput" min="1000" step="1000" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-lg font-black text-white outline-none focus:border-red-500">
-        </div>
-      </div>
+  <!-- ========================================================================= -->
 
-      <div class="bg-slate-950 p-6 rounded-2xl border border-slate-800 flex flex-col justify-center space-y-4">
-        <div class="flex justify-between items-center pb-3 border-b border-slate-800">
-          <span class="text-xs text-slate-400">Gross Creator Sales</span>
-          <span class="text-sm font-bold text-white">KES {{ hustleGrossInput | number }}</span>
-        </div>
-        <div class="flex justify-between items-center pb-3 border-b border-slate-800">
-          <span class="text-xs text-slate-400">HustleSasa Fee (4.925%)</span>
-          <span class="text-sm font-bold text-red-400">- KES {{ hustleFee | number:'1.2-2' }}</span>
-        </div>
-        <div class="flex justify-between items-center pt-2">
-          <span class="text-xs font-black text-slate-300 uppercase">Net Payout to Bank/M-Pesa</span>
-          <span class="text-2xl font-black text-emerald-400">KES {{ hustlePayout | number:'1.2-2' }}</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- HustleSasa Official Merchandise Store -->
-    <div class="space-y-6">
-      <h3 class="text-2xl font-black text-white">Official Event Merchandise</h3>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div *ngFor="let item of merchList" class="p-6 rounded-3xl bg-slate-900 border border-slate-800 flex flex-col justify-between space-y-4 hover:border-red-500/40 transition shadow-xl">
-          <div>
-            <span class="px-2.5 py-1 rounded-full bg-red-500/20 text-red-400 text-[10px] font-extrabold uppercase">{{ item.badge }}</span>
-            <h4 class="text-lg font-bold text-white mt-3">{{ item.name }}</h4>
-            <p class="text-xs text-slate-400 mt-1">{{ item.desc }}</p>
-            <div class="text-2xl font-black text-white mt-4">
-              {{ currency === 'KES' ? 'KES ' + (item.priceKes | number) : '$' + item.priceUsd }}
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between bg-slate-950 p-2.5 rounded-2xl border border-slate-800">
-            <button (click)="updateMerchQty(item.id, -1)" class="w-9 h-9 rounded-xl bg-slate-800 text-white font-extrabold hover:bg-slate-700 transition">-</button>
-            <span class="text-base font-black text-red-400">{{ merchQuantities[item.id] || 0 }}</span>
-            <button (click)="updateMerchQty(item.id, 1)" class="w-9 h-9 rounded-xl bg-red-500 text-white font-extrabold hover:bg-red-400 transition">+</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <!-- ========================================================================= -->
   <!-- TAB 6: DIGITAL TICKET WALLET & ORDER RECOVERY                            -->
@@ -480,7 +332,7 @@
       <div *ngFor="let pass of savedPasses" (click)="viewPass(pass)" class="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500/40 cursor-pointer transition flex items-center justify-between">
         <div>
           <div class="text-xs font-bold text-white">{{ pass.tierName }}</div>
-          <div class="text-[11px] text-slate-400">{{ pass.eventTitle || 'Talanta Sports City' }} · {{ pass.designatedGate }}</div>
+          <div class="text-[11px] text-slate-400">{{ pass.eventTitle || 'Event ticket' }} · {{ pass.designatedGate }}</div>
         </div>
         <span class="px-2.5 py-1 rounded-full text-[10px] font-black uppercase"
           [ngClass]="pass.status === 'VALID' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'">
@@ -553,7 +405,7 @@
         ✓ Gate Scanner Verified
       </span>
       <h3 class="text-xl font-black text-white mt-2">{{ issuedDigitalPass.tierName }}</h3>
-      <p class="text-xs text-slate-400">{{ issuedDigitalPass.eventTitle || 'Talanta Sports City' }}</p>
+      <p class="text-xs text-slate-400">{{ issuedDigitalPass.eventTitle || 'Event ticket' }}</p>
     </div>
 
     <!-- QR Code Preview Block -->

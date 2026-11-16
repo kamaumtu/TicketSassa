@@ -2,7 +2,6 @@
 
 A full-stack, enterprise-grade event ticketing and arena management ecosystem combining:
 1. **Ticketsasa Event Engine**: [Time Attack - The Last Lap](https://ticketsasa.com/events/time-attack-the-last-lap) (Motorsport sprint ticketing, tiered pricing, fast checkout, live countdown, DMSC Season Finale).
-2. **Talanta Sports City**: [Official Stadium Portal](https://talantasportscity.com/) (Interactive 60,000-seater Raila Odinga International Stadium blueprint, trackside viewing angle preview, zone telemetry, gate logistics, luxury suites).
 3. **Ticketsasa Editorial & The Hype**: [Konshens Live in Kenya](https://bookings.ticketsasa.com/blog/events/150-jamaican-dancehall-star-konshens-back-in-kenya-for-the-hype) (Editorial magazine layout, artist interview quotes, lineup itinerary, stadium audio acoustics simulator, social buzz).
 
 ---
@@ -47,7 +46,6 @@ traffic/
 ### Endpoints
 * `GET /api/health` — API health check and status.
 * `GET /api/events/featured` — Get Time Attack & Konshens Live event specs.
-* `GET /api/zones` — Get Talanta Sports City stadium zones (North Stand, South Stand, Pit Lane, VVIP Suite).
 * `GET /api/tickets` — Get live ticket tiers and remaining allocations.
 * `POST /api/orders` creates a validated demo order using server prices.
 * `POST /api/payments/mpesa/stkpush` prepares a local demo payment.
@@ -101,6 +99,41 @@ The Angular application will launch on `http://localhost:4200`.
 
 Open **[http://localhost:8000](http://localhost:8000)** after starting the backend.
 
+Customers can create an account, sign in, and sign out from **Log In**.
+Accounts and expiring sessions require MongoDB. Use HTTPS for public
+deployments. Ticket lookup continues to require the order reference and
+checkout email.
+
+- Set `AUTH_PUBLIC_ORIGIN` to the public HTTPS storefront origin
+  (or `http://localhost:8000` for local testing).
+- In Google Cloud, create a Web application OAuth client. Add
+  `<AUTH_PUBLIC_ORIGIN>/api/auth/google/callback` as an authorized redirect URI
+  and set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`. Google sign-in
+  supports Gmail and Google Workspace accounts in a regular browser.
+- To send confirmation email, set `RESEND_API_KEY` and `AUTH_EMAIL_FROM`
+  using a verified sender domain. Customers confirm the email before signing
+  in with a password. The sign-in screen can request a replacement link.
+
+### Install the web app or distribute an APK
+
+Serve the Express app and its API together at a public HTTPS origin. Visitors
+can use **Install app** in a browser that supports the install prompt, or
+**Add to Home Screen** from their browser menu. Localhost is suitable for
+testing on this computer. Booking and wallet requests still need a connection.
+
+The `android/` project packages the same HTTPS storefront. Build it with
+JDK 17, Gradle 8.9, and Android SDK Platform 35. Set
+`TICKETSASA_WEB_ORIGIN` to your deployed origin, with no path. For a local
+Android smoke test run `gradle -p android :app:assembleDebug`. For release,
+configure `TICKETSASA_KEYSTORE`, `TICKETSASA_STORE_PASSWORD`,
+`TICKETSASA_KEY_ALIAS`, and `TICKETSASA_KEY_PASSWORD` in your build environment,
+then run `gradle -p android :app:prepareDownload`. Keep the keystore and its
+passwords outside the repository and reuse the signing key for updates.
+
+Deploy `dist/ticketsasa.apk` with the backend. The server serves it at
+`/downloads/ticketsasa.apk`, and the storefront displays **Android APK**
+when the file is available.
+
 ## Automatic Kenya event listings
 
 The backend refreshes upcoming Kenyan listings from
@@ -112,7 +145,7 @@ refresh leaves the previous listings available with a stale label.
 
 Set `TICKETS_DEV_KEY` in the server environment to add Tickets.dev results to
 the Kenya event catalog. `TICKETS_DEV_QUERIES` is a comma-separated list of
-search terms, defaulting to Nairobi and Talanta Sports City. The importer
+search terms, defaulting to Nairobi. The importer
 keeps upcoming events with a Kenyan venue and caches results in MongoDB.
 Use `tk_test_sandbox` for development with provider fixtures. Discovery
 does not create inventory or enable checkout for a listing.
@@ -162,12 +195,11 @@ Capacity is the total allocation dedicated to this site, including any
 units already bought through this site. Supply a fresh `validUntil` within
 one hour on each refresh. Sales close when an allocation is removed or
 expires. Events with active allocations link to checkout automatically.
-Talanta listings with an allocation also appear in the stadium ticket picker.
 Use `/organizer` for events outside the feed.
 
 ## Event checkout and inventory holds
 
-The demo sells general-admission tiers for Talanta Open Day. Ticket tiers can
+Ticket tiers can
 carry an event ID and title. The server stores the event title on order lines and
 issued passes.
 
@@ -188,9 +220,6 @@ over HTTPS in production.
 Set a private `ORGANIZER_KEY` on the server, restart the backend, and open
 `/organizer`. Dates entered there use East Africa Time. The published event
 appears on the Events page with its own ticket tiers during the sales window.
-Set the venue to Talanta Sports City or Raila Odinga International Stadium
-to list the event on the Talanta page too. Both pages sell from the same ticket
-inventory and use the same checkout.
 
 ### Live M-Pesa checkout
 

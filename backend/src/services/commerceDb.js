@@ -208,4 +208,35 @@ async function availability(product, capacity, session, exceptOrder = '') {
     return Math.max(0, capacity - (stock?.sold ?? 0) - (holds?.quantity ?? 0));
 }
 
-module.exports = { collection, createIndexes, transaction, stockKey, lockStock, availability, checkoutMode, demoEnabled };
+async function bulkAvailability(items) {
+    if (!items.length) return new Map();
+    const keys = items.map(item => stockKey(item.product));
+    const now = Date.now();
+    const [stockDocs, holdDocs] = await Promise.all([
+        collection('commerce_stock').find({ _id: { $in: keys } }).toArray(),
+        isConnected()
+            ? collection('commerce_holds').aggregate([
+                { $match: { product: { $in: keys }, expiresAt: { $gt: now } } },
+                { $group: { _id: '$product', quantity: { $sum: '$quantity' } } }
+            ]).toArray()
+            : Promise.resolve([])
+    ]);
+    const soldMap = new Map(stockDocs.map(doc => [doc._id, Number(doc.sold) || 0]));
+    const heldMap = new Map(holdDocs.map(doc => [doc._id, Number(doc.quantity) || 0]));
+    if (!isConnected()) {
+        const allHolds = await collection('commerce_holds').find({ expiresAt: { $gt: now } }).toArray();
+        for (const h of allHolds) {
+            heldMap.set(h.product, (heldMap.get(h.product) || 0) + (Number(h.quantity) || 0));
+        }
+    }
+    const result = new Map();
+    for (const item of items) {
+        const key = stockKey(item.product);
+        const sold = soldMap.get(key) || 0;
+        const held = heldMap.get(key) || 0;
+        result.set(item.product, Math.max(0, (Number(item.capacity) || 0) - sold - held));
+    }
+    return result;
+}
+
+module.exports = { collection, createIndexes, transaction, stockKey, lockStock, availability, bulkAvailability, checkoutMode, demoEnabled };

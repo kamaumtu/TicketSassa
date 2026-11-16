@@ -3,10 +3,10 @@ const { randomBytes } = require('node:crypto');
 const { collection, transaction, availability, lockStock, stockKey, demoEnabled, checkoutMode } = require('../services/commerceDb');
 const { getPromo } = require('../services/promos');
 const { getTicketCatalog } = require('./ticketController');
-const { getMerchCatalog } = require('./merchController');
 const Order = require('../models/Order');
 const DigitalPass = require('../models/DigitalPass');
 const { isConnected } = require('../config/db');
+const { confirmTravelReservation } = require('../services/travelSuppliers');
 
 // PayHero and NexusPay Payment Gateway Integration
 const { createPaymentGateways } = require('../services/payment-gateways');
@@ -47,13 +47,11 @@ function inventoryKey(kind, key) {
 }
 
 async function getInventory(includeClosed = false) {
-    const [tickets, merch] = await Promise.all([getTicketCatalog(), getMerchCatalog()]);
+    const tickets = await getTicketCatalog();
     const reserved = includeClosed ? await require('../routes/publishedEvents').reservedTiers().catch(() => []) : [];
     const sellable = includeClosed ? [...tickets, ...reserved] : tickets;
-    return new Map([
-        ...sellable.map(tier => [inventoryKey('ticket', tier.tierKey), { ...tier, stock: tier.remainingAllocation }]),
-        ...merch.map(product => [inventoryKey('merch', product.productKey), product])
-    ]);
+    return new Map(sellable.map(tier =>
+        [inventoryKey('ticket', tier.tierKey), { ...tier, stock: tier.remainingAllocation }]));
 }
 
 function getOrder(reference, session) {
@@ -92,7 +90,8 @@ async function completeOrder(session, order, receipt) {
     order.paymentStatus = 'COMPLETED';
     order.receipt = receipt;
     await saveOrder(order, session);
-    return { order, passes };
+    const travelReservation = await confirmTravelReservation(orderReference, receipt).catch(() => null);
+    return { order, passes, travelReservation };
 }
 
 function providers() {
@@ -128,12 +127,13 @@ exports.createOrder = handler(async (req, res) => {
     if (mode === 'live' && currency !== 'KES') reject(400, 'M-Pesa accepts Kenyan shillings only.');
     const promo = mode === 'demo' ? getPromo(promoCode) : null;
     if (promoCode && !promo) reject(400, 'Invalid promo code.');
-    if (!Array.isArray(items) || !items.length || items.length > 30) reject(400, 'Select at least one ticket or merchandise item.');
+    if (!Array.isArray(items) || !items.length || items.length > 30) reject(400, 'Select at least one item.');
 
     const inventory = await getInventory();
     const quantities = new Map();
     for (const item of items) {
         const kind = item?.kind ?? 'ticket';
+        if (!['ticket', 'flight', 'holiday'].includes(kind)) reject(400, 'This item type is unavailable.');
         if (['flight', 'holiday'].includes(kind)) {
             const customId = item?.id || item?.tierKey || item?.productKey || token('TRV-');
             const key = inventoryKey(kind, customId);
@@ -154,20 +154,6 @@ exports.createOrder = handler(async (req, res) => {
         }
         const id = item?.tierKey ?? item?.productKey;
         const key = inventoryKey(kind, id);
-        if (!inventory.has(key) && id) {
-            const fallbackPriceKes = Math.max(1, Math.round(Number(item?.unitPriceKes || item?.priceKes || 1000)));
-            inventory.set(key, {
-                tierKey: kind === 'ticket' ? id : undefined,
-                productKey: kind === 'merch' ? id : undefined,
-                title: String(item?.title || id).slice(0, 140),
-                eventTitle: String(item?.eventTitle || 'Ticketsasa Event').slice(0, 140),
-                designatedGate: item?.designatedGate || 'Gate A',
-                priceKes: fallbackPriceKes,
-                priceUsd: round(fallbackPriceKes / 125),
-                stock: 999,
-                published: true
-            });
-        }
         if (!inventory.has(key) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) reject(400, 'Invalid item or quantity.');
         quantities.set(key, (quantities.get(key) ?? 0) + item.quantity);
     }
@@ -255,6 +241,9 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
     const provider = isDemoRequest ? 'demo' : (requestedProvider && enabled.some(g => g.id === requestedProvider) ? requestedProvider : enabled[0]?.id);
     if (mode === 'live' && !enabled.some(gateway => gateway.id === provider)) reject(400, 'Choose a configured provider.');
 
+    const preview = await getOrder(orderReference);
+    if (!preview || preview.customer?.phone !== mobile) reject(404, 'Order not found for this mobile number.');
+    const stock = preview.paymentStatus === 'PENDING' ? await getInventory() : null;
     const { order, start } = await transaction(async session => {
         const stored = await getOrder(orderReference, session);
         if (!stored || stored.customer.phone !== mobile) reject(404, 'Order not found for this mobile number.');

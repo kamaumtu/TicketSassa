@@ -496,3 +496,6 @@ body {
     background: white;
 }
 .cart-line button:disabled { opacity: .5; cursor: default; }
+#install-app[hidden], #download-apk[hidden] {
+    display: none;
+}

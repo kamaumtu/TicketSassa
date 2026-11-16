@@ -12,19 +12,6 @@ export interface EventData {
   checkout: boolean;
 }
 
-export interface StadiumZone {
-  zoneKey: string;
-  name: string;
-  description: string;
-  capacity: number;
-  availablePercent: number;
-  gate: string;
-  includedPerks: string[];
-  recommendedTier: string;
-  previewImageUrl: string;
-  fieldOfViewAngle: string;
-}
-
 export interface TicketTier {
   eventId?: string;
   eventTitle?: string;
@@ -85,11 +72,6 @@ export class ApiService {
   // Events API
   getFeaturedEvent(): Observable<{ success: boolean; data: EventData | null }> {
     return this.http.get<{ success: boolean; data: EventData | null }>(`${this.baseUrl}/events/featured`);
-  }
-
-  // Talanta Stadium Zones API
-  getStadiumZones(): Observable<{ success: boolean; count: number; data: StadiumZone[] }> {
-    return this.http.get<{ success: boolean; count: number; data: StadiumZone[] }>(`${this.baseUrl}/zones`);
   }
 
   // Ticket Tiers API

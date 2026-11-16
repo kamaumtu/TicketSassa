@@ -2,7 +2,7 @@ import { Component, CUSTOM_ELEMENTS_SCHEMA, OnInit, inject } from '@angular/core
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom, timeout } from 'rxjs';
-import { ApiService, BookingPass, BookingResult, OrderPayload, StadiumZone, TicketTier, EventData } from './services/api.service';
+import { ApiService, BookingPass, BookingResult, OrderPayload, TicketTier, EventData } from './services/api.service';
 
 export interface FlightItem {
   id: string;
@@ -37,15 +37,6 @@ export interface HolidayItem {
   inclusions: string[];
 }
 
-export interface MerchItem {
-  id: string;
-  name: string;
-  desc: string;
-  priceKes: number;
-  priceUsd: number;
-  badge: string;
-}
-
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -58,7 +49,7 @@ export class AppComponent implements OnInit {
   private api = inject(ApiService);
 
   // Active Tab
-  activeTab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet' = 'events';
+  activeTab: 'events' | 'flights' | 'holidays' | 'wallet' = 'events';
 
   // Gateway Selector
   selectedGateway: 'payhero' | 'nexuspay' | 'demo' = 'nexuspay';
@@ -66,20 +57,12 @@ export class AppComponent implements OnInit {
   // Application State
   currency: 'KES' | 'USD' = 'KES';
   event: EventData | null = null;
-  zones: StadiumZone[] = [];
-  selectedZone: StadiumZone | null = null;
   ticketTiers: TicketTier[] = [];
   quantities: { [key: string]: number } = {
     regular: 0,
     paddock: 0,
     vip: 0,
     vvip: 0
-  };
-  merchQuantities: { [key: string]: number } = {
-    hoodie: 0,
-    tee: 0,
-    cap: 0,
-    lanyard: 0
   };
 
   // Flights State
@@ -224,54 +207,6 @@ export class AppComponent implements OnInit {
     }
   ];
 
-  // HustleSasa Merch List
-  merchList: MerchItem[] = [
-    {
-      id: 'hoodie',
-      name: 'Konshens Official Tour Hoodie',
-      desc: 'Heavyweight 380gsm cotton with reflective 3M concert graphics.',
-      priceKes: 4500,
-      priceUsd: 35,
-      badge: 'Official Tour Merch'
-    },
-    {
-      id: 'tee',
-      name: 'Time Attack Trackside Team Tee',
-      desc: 'Breathable motorsport racing jersey with DMSC season finale sponsors.',
-      priceKes: 2200,
-      priceUsd: 18,
-      badge: 'Limited Sprint Edition'
-    },
-    {
-      id: 'cap',
-      name: 'Talanta Speed Snapback',
-      desc: 'Structured high-crown 6-panel cap with 3D stadium embroidery.',
-      priceKes: 1500,
-      priceUsd: 12,
-      badge: 'Talanta Official'
-    },
-    {
-      id: 'lanyard',
-      name: 'DMSC Pit Lane Drift Lanyard',
-      desc: 'Nylon weave with metal swivel clasp and paddock pass sleeve.',
-      priceKes: 600,
-      priceUsd: 5,
-      badge: 'Paddock Pass Holder'
-    }
-  ];
-
-  // HustleSasa Calculator State
-  hustleGrossInput = 50000;
-  readonly hustleCommissionRate = 0.04925; // 4.925% exactly
-
-  get hustleFee(): number {
-    return this.hustleGrossInput * this.hustleCommissionRate;
-  }
-
-  get hustlePayout(): number {
-    return Math.max(0, this.hustleGrossInput - this.hustleFee);
-  }
-
   // Checkout & Customer Data
   isCheckoutOpen = false;
   isPassModalOpen = false;
@@ -300,16 +235,6 @@ export class AppComponent implements OnInit {
       error: () => { this.event = null; }
     });
 
-    // 2. Load Zones
-    this.api.getStadiumZones().subscribe({
-      next: (res) => {
-        this.zones = res.data;
-        if (this.zones.length > 0) {
-          this.selectedZone = this.zones[0];
-        }
-      }
-    });
-
     // 3. Load Ticket Tiers
     this.api.getTicketTiers().subscribe({
       next: (res) => {
@@ -320,7 +245,7 @@ export class AppComponent implements OnInit {
     });
   }
 
-  switchTab(tab: 'events' | 'flights' | 'holidays' | 'talanta' | 'hustle' | 'wallet') {
+  switchTab(tab: 'events' | 'flights' | 'holidays' | 'wallet') {
     this.activeTab = tab;
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -329,28 +254,15 @@ export class AppComponent implements OnInit {
     this.currency = this.currency === 'KES' ? 'USD' : 'KES';
   }
 
-  selectZone(zoneKey: string) {
-    const found = this.zones.find(z => z.zoneKey === zoneKey);
-    if (found) {
-      this.selectedZone = found;
-    }
-  }
-
   updateQty(tierKey: string, change: number) {
     const current = this.quantities[tierKey] || 0;
     const stock = this.ticketTiers.find(tier => tier.tierKey === tierKey)?.remainingAllocation ?? 100;
     this.quantities[tierKey] = Math.min(stock, 100, Math.max(0, current + change));
   }
 
-  updateMerchQty(merchId: string, change: number) {
-    const current = this.merchQuantities[merchId] || 0;
-    this.merchQuantities[merchId] = Math.max(0, current + change);
-  }
-
   get totalTicketsCount(): number {
     const tickets = Object.values(this.quantities).reduce((acc, q) => acc + q, 0);
-    const merch = Object.values(this.merchQuantities).reduce((acc, q) => acc + q, 0);
-    return tickets + merch;
+    return tickets;
   }
 
   get cartTotal(): number {
@@ -358,11 +270,6 @@ export class AppComponent implements OnInit {
     for (const tier of this.ticketTiers) {
       const q = this.quantities[tier.tierKey] || 0;
       const unit = this.currency === 'KES' ? tier.priceKes : tier.priceUsd;
-      total += q * unit;
-    }
-    for (const item of this.merchList) {
-      const q = this.merchQuantities[item.id] || 0;
-      const unit = this.currency === 'KES' ? item.priceKes : item.priceUsd;
       total += q * unit;
     }
     return total;
@@ -467,7 +374,6 @@ export class AppComponent implements OnInit {
     }
     this.closeCheckout();
     this.quantities = { regular: 0, paddock: 0, vip: 0, vvip: 0 };
-    this.merchQuantities = { hoodie: 0, tee: 0, cap: 0, lanyard: 0 };
   }
 
   async lookupOrder() {

@@ -8,12 +8,12 @@ const { connectDB, isConnected } = require('./config/db');
 
 // Import Route Handlers
 const eventRoutes = require('./routes/eventRoutes');
-const zoneRoutes = require('./routes/zoneRoutes');
 const ticketRoutes = require('./routes/ticketRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const passRoutes = require('./routes/passRoutes');
-const merchRoutes = require('./routes/merchRoutes');
+const travelRoutes = require('./routes/travelRoutes');
+const { router: authRoutes, createAuthIndexes } = require('./routes/auth');
 
 const app = express();
 app.locals.eventCatalog = eventRoutes.catalog;
@@ -22,13 +22,22 @@ const PORT = process.env.PORT || 8000;
 // Start event catalog refresh immediately (with MongoDB or fallback store)
 app.locals.eventCatalog.start().catch(err => console.warn('Initial catalog refresh warning:', err.message));
 
-// Connect to MongoDB Atlas (with graceful fallback)
-connectDB().then(async () => {
-    if (isConnected()) await createIndexes();
-    await app.locals.eventCatalog.start();
-}).catch(error => {
-    console.error('Could not initialize booking storage:', error.message);
-});
+async function initializeDatabase() {
+    await connectDB();
+    if (!isConnected()) {
+        if (process.env.MONGODB_URI) setTimeout(initializeDatabase, 15000).unref();
+        return;
+    }
+    try {
+        await Promise.all([createIndexes(), createAuthIndexes()]);
+        await app.locals.eventCatalog.refresh();
+    } catch (error) {
+        console.error('Could not initialize booking storage:', error.message);
+        setTimeout(initializeDatabase, 15000).unref();
+    }
+}
+
+void initializeDatabase();
 
 // Middleware
 app.use(cors({
@@ -51,14 +60,12 @@ app.use((req, res, next) => {
 app.get('/api/health', (req, res) => {
     res.status(200).json({
         status: 'UP',
-        service: 'Talanta × Ticketsasa × HustleSasa Unified Backend API',
+        service: 'Ticketsassa Backend API',
         environment: process.env.NODE_ENV || 'development',
         database: isConnected() ? 'connected' : 'disconnected',
         checkout: { mode: checkoutMode(), livePayments: checkoutMode() === 'live' },
         capabilities: [
-            'Ticketsasa Event & Pass Ticketing',
-            'Talanta seating previews',
-            'HustleSasa Creator Storefront & Merch Bundles',
+            'Ticketsassa Event & Pass Ticketing',
             'Turnstile Gate Scanner Verification'
         ],
         timestamp: new Date().toISOString()
@@ -66,17 +73,31 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/events', eventRoutes);
-app.use('/api/zones', zoneRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/passes', passRoutes);
-app.use('/api/merch', merchRoutes);
+app.use('/api/travel', travelRoutes);
 
 // Serve the standalone client and its public assets from the API origin.
 const publicRoot = resolve(__dirname, '../..');
 app.get('/', (req, res) => res.sendFile('index.html', { root: publicRoot }));
+app.get(['/manifest.webmanifest', '/offline.html', '/install-app.js', '/service-worker.js'], (req, res) => {
+    if (req.path === '/manifest.webmanifest') res.type('application/manifest+json');
+    if (req.path === '/service-worker.js') res.set('Cache-Control', 'no-cache');
+    res.sendFile(req.path.slice(1), { root: publicRoot });
+});
+app.get('/downloads/ticketsasa.apk', (req, res, next) => {
+    res.download(resolve(publicRoot, 'dist/ticketsasa.apk'), 'ticketsasa.apk', {
+        headers: { 'Content-Type': 'application/vnd.android.package-archive' }
+    }, error => {
+        if (!error) return;
+        if (error.status === 404 && !res.headersSent) return res.sendStatus(404);
+        next(error);
+    });
+});
 function privateTool(keyName, realm) {
     return (req, res, next) => {
         res.set('Cache-Control', 'private, no-store');
@@ -150,7 +171,7 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
     console.log(`
 =====================================================================
-🚀 TALANTA × TICKETSASA × HUSTLESASA BACKEND RUNNING
+🚀 TICKETSASSA BACKEND RUNNING
 📡 Local Address: http://localhost:${PORT}
 🩺 Health Check: http://localhost:${PORT}/api/health
 🌐 MongoDB connection status: /api/health

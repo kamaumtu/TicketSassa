@@ -79,7 +79,7 @@ function App() {
 
     return <div className={dark ? 'shell dark' : 'shell'}>
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
-            <div className="brand"><strong>Ticketsasa</strong><span>Administration</span></div>
+            <div className="brand"><strong>Ticketsassa</strong><span>Administration</span></div>
             <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show menu' : 'Hide menu'}</button>
             <nav aria-label="Admin navigation">{sections.map(item => <button key={item} aria-current={section === item ? 'page' : undefined} onClick={() => {
                 setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);

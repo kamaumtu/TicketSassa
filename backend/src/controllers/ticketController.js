@@ -1,123 +1,41 @@
-const TicketTier = require('../models/TicketTier');
+const { bulkAvailability, demoEnabled, collection } = require('../services/commerceDb');
 const { isConnected } = require('../config/db');
-const { availability, demoEnabled, collection } = require('../services/commerceDb');
-const { ticketsasaTiers } = require('../config/ticketsasaEvents');
 const { ENDPOINT: QUICKET_ENDPOINT } = require('../services/quicketEvents');
-
-const defaultTiers = [
-    {
-        tierKey: 'regular',
-        title: 'Regular Arena Stand',
-        category: 'General Admission',
-        description: 'Access to East & West Grandstands, main food village, and concert viewing area.',
-        priceKes: 1500,
-        priceUsd: 12,
-        features: [
-            'Grandstand unreserved seating',
-            'Full race heats & sprint viewing',
-            'Konshens concert soundstage',
-            'Mobile QR gate entry pass'
-        ],
-        totalAllocation: 30000,
-        remainingAllocation: 8400,
-        designatedGate: 'Gate C & D',
-        isPopular: false
-    },
-    {
-        tierKey: 'paddock',
-        title: 'Speed Paddock Stand',
-        category: 'Motorsport Enthusiast',
-        description: 'Elevated North Curve speed apex view + restricted pit perimeter access.',
-        priceKes: 3000,
-        priceUsd: 24,
-        features: [
-            'Trackside North Hairpin seating',
-            'Official DMSC event lanyard & badge',
-            'Paddock perimeter inspection access',
-            'Fast-track Gate B entry'
-        ],
-        totalAllocation: 10000,
-        remainingAllocation: 2450,
-        designatedGate: 'Gate B',
-        isPopular: false
-    },
-    {
-        tierKey: 'vip',
-        title: 'VIP Pit & Hype Pass',
-        category: 'VIP All Access',
-        description: 'Direct pit lane hospitality lounge + golden circle front-row stage for Konshens.',
-        priceKes: 5000,
-        priceUsd: 40,
-        features: [
-            'Golden Circle stage front at concert',
-            'Pit Lane walk with drivers & hypercars',
-            '2 Complimentary craft cocktail tokens',
-            'Dedicated VIP restrooms & express bar'
-        ],
-        totalAllocation: 3000,
-        remainingAllocation: 240,
-        designatedGate: 'Gate B / VIP',
-        isPopular: true
-    },
-    {
-        tierKey: 'vvip',
-        title: 'VVIP Royal Box Suite',
-        category: 'Ultra Luxury',
-        description: 'Air-conditioned stadium suite, 5-course gourmet dining, and private artist lounge.',
-        priceKes: 15000,
-        priceUsd: 120,
-        features: [
-            'Presidential Suite elevated balcony',
-            'Open premium bar & gourmet catering',
-            'Exclusive artist meet & greet pass',
-            'Reserved VIP parking inside Gate A'
-        ],
-        totalAllocation: 250,
-        remainingAllocation: 18,
-        designatedGate: 'Gate A (VIP Jamhuri)',
-        isPopular: false
-    }
-];
-
-const demoEvent = {
-    id: 'talanta-open-day-demo',
-    title: 'Talanta Open Day',
-    description: 'A sample general-admission event for testing the ticket purchase and entry flow.'
-};
+const { isRemovedVenue } = require('../services/eventVisibility');
 
 async function getTicketCatalog() {
-    const tiers = isConnected() ? await TicketTier.find({ isActive: true }).lean().catch(() => []) : [];
-    const baseTiers = (tiers.length ? tiers : defaultTiers).map(t => ({ ...t, published: true }));
     const { publishedTiers } = require('../routes/publishedEvents');
-    const pub = await publishedTiers().catch(() => []);
-    const quicketDoc = await collection('event_catalogs').findOne({ _id: QUICKET_ENDPOINT }).catch(() => null);
-    const quicketTiers = (quicketDoc?.events || []).flatMap(ev => Array.isArray(ev.tiers) ? ev.tiers : []);
-    const seen = new Set();
-    const combined = [];
-    for (const tier of [...pub, ...ticketsasaTiers, ...quicketTiers, ...baseTiers]) {
-        if (!tier?.tierKey || seen.has(tier.tierKey)) continue;
-        seen.add(tier.tierKey);
-        combined.push({
-            ...tier,
-            published: true,
-            eventId: tier.eventId || demoEvent.id,
-            eventTitle: tier.eventTitle || demoEvent.title
-        });
-    }
-    return combined;
+    const published = await publishedTiers();
+    if (!isConnected()) return published;
+    const quicket = await collection('event_catalogs').findOne({ _id: QUICKET_ENDPOINT });
+    const quicketTiers = (quicket?.events ?? [])
+        .filter(event => !isRemovedVenue(event) && Date.parse(event.startsAt) > Date.now())
+        .flatMap(event => Array.isArray(event.tiers) ? event.tiers : []);
+    const byKey = new Map([...quicketTiers, ...published]
+        .filter(tier => tier?.tierKey).map(tier => [tier.tierKey, { ...tier, published: true }]));
+    return [...byKey.values()];
 }
 
 exports.getTicketCatalog = getTicketCatalog;
-exports.demoEvent = demoEvent;
 
 exports.getAllTiers = async (req, res, next) => {
     try {
-        const data = await Promise.all((await getTicketCatalog()).map(async item => ({
+        const catalog = await getTicketCatalog();
+        const availMap = await bulkAvailability(
+            catalog.map(item => ({ product: 'ticket:' + item.tierKey, capacity: item.remainingAllocation }))
+        );
+        const data = catalog.map(item => ({
             ...item,
-            remainingAllocation: await availability('ticket:' + item.tierKey, item.remainingAllocation)
-        })));
+            remainingAllocation: availMap.get('ticket:' + item.tierKey) ?? item.remainingAllocation
+        }));
         res.json({ success: true, count: data.length, data });
     } catch (error) {
         next(error);
     }
+};
+
+exports.validatePromo = (req, res) => {
+    const promo = demoEnabled() && require('../services/promos').getPromo(req.body?.code);
+    if (!promo) return res.status(400).json({ success: false, message: 'Promo code is unavailable.' });
+    res.json({ success: true, ...promo });
 };

@@ -1,0 +1,15 @@
+{
+  "id": "/",
+  "name": "Ticketsassa",
+  "short_name": "Ticketsassa",
+  "description": "Discover events and manage your tickets.",
+  "start_url": "/?view=events",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f172a",
+  "icons": [
+    { "src": "/assets/app/icon-192.png", "type": "image/png", "sizes": "192x192", "purpose": "any" },
+    { "src": "/assets/app/icon-512.png", "type": "image/png", "sizes": "512x512", "purpose": "any maskable" }
+  ]
+}

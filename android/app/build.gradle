@@ -1,0 +1,66 @@
+plugins {
+    id 'com.android.application' version '8.7.3'
+}
+
+def configuredOrigin = providers.environmentVariable('TICKETSASA_WEB_ORIGIN').orNull
+if (!configuredOrigin || !(configuredOrigin ==~ 'https://[A-Za-z0-9.-]+(:[0-9]+)?/?')) {
+    throw new GradleException('Set TICKETSASA_WEB_ORIGIN to the public HTTPS origin of this app.')
+}
+def origin = new URI(configuredOrigin)
+if (!origin.host || !origin.host.contains('.') || origin.host.toLowerCase().endsWith('.localhost') ||
+        origin.host ==~ '[0-9.]+') {
+    throw new GradleException('TICKETSASA_WEB_ORIGIN must use a public DNS hostname.')
+}
+def startUrl = configuredOrigin.replaceAll('/$', '') + '/?view=events'
+
+def store = providers.environmentVariable('TICKETSASA_KEYSTORE').orNull
+def storePasswordValue = providers.environmentVariable('TICKETSASA_STORE_PASSWORD').orNull
+def aliasValue = providers.environmentVariable('TICKETSASA_KEY_ALIAS').orNull
+def keyPasswordValue = providers.environmentVariable('TICKETSASA_KEY_PASSWORD').orNull
+def signedRelease = [store, storePasswordValue, aliasValue, keyPasswordValue].every { it }
+
+android {
+    namespace 'com.ticketsasa.app'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.ticketsasa.app'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+        buildConfigField 'String', 'START_URL', '"' + startUrl + '"'
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    if (signedRelease) {
+        signingConfigs {
+            release {
+                storeFile file(store)
+                storePassword storePasswordValue
+                keyAlias aliasValue
+                keyPassword keyPasswordValue
+            }
+        }
+        buildTypes.release.signingConfig signingConfigs.release
+    }
+}
+
+tasks.register('prepareDownload') {
+    dependsOn 'assembleRelease'
+    doLast {
+        if (!signedRelease) {
+            throw new GradleException('Configure the release keystore before preparing a downloadable APK.')
+        }
+        def apk = layout.buildDirectory.file('outputs/apk/release/app-release.apk').get().asFile
+        if (!apk.isFile()) throw new GradleException('The signed release APK was not found.')
+        copy {
+            from apk
+            into rootProject.layout.projectDirectory.dir('../dist')
+            rename { 'ticketsasa.apk' }
+        }
+    }
+}

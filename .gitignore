@@ -27,3 +27,7 @@ Thumbs.db
 # Archives & Temporary exports
 *.zip
 scripts/archive/
+android/.gradle/
+android/local.properties
+*.jks
+*.keystore

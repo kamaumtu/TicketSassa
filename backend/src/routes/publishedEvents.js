@@ -1,3 +1,4 @@
+const { isRemovedVenue } = require('../services/eventVisibility');
 const express = require('express');
 const { randomUUID, timingSafeEqual } = require('node:crypto');
 const { organizerIdentity } = require('../services/organizerAccess');
@@ -34,7 +35,7 @@ async function events() {
     }));
     const byId = new Map(defaultPublished.map(e => [e.id, e]));
     for (const ev of dbEvents) byId.set(ev.id, ev);
-    return [...byId.values()];
+    return [...byId.values()].filter(event => !isRemovedVenue(event));
 }
 
 function visible(event) {
@@ -66,6 +67,7 @@ router.post('/', express.json({ limit: '2mb' }), route(async (req, res) => {
         ? organizerIdentity(authorization) : null;
     if (!legacy && !actor) return res.status(403).json({ message: 'Organizer authorization required.' });
     const { title, venue, description, startsAt, salesOpen, salesClose, tiers, image } = req.body;
+    if (isRemovedVenue({ venue })) return res.status(400).json({ message: 'This venue is unavailable.' });
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
     const dates = [salesOpen, salesClose, startsAt].map(value => Date.parse(value));
     if (!validText(title, 120) || !validText(venue, 160) || !validText(description, 4000) ||
