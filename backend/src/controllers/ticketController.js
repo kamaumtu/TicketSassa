@@ -1,7 +1,8 @@
 const TicketTier = require('../models/TicketTier');
 const { isConnected } = require('../config/db');
-const { availability, demoEnabled } = require('../services/commerceDb');
+const { availability, demoEnabled, collection } = require('../services/commerceDb');
 const { ticketsasaTiers } = require('../config/ticketsasaEvents');
+const { ENDPOINT: QUICKET_ENDPOINT } = require('../services/quicketEvents');
 
 const defaultTiers = [
     {
@@ -85,14 +86,15 @@ const demoEvent = {
 };
 
 async function getTicketCatalog() {
-    if (!isConnected()) return [...ticketsasaTiers, ...defaultTiers.map(t => ({ ...t, published: true }))];
-    const tiers = await TicketTier.find({ isActive: true }).lean().catch(() => []);
+    const tiers = isConnected() ? await TicketTier.find({ isActive: true }).lean().catch(() => []) : [];
     const baseTiers = (tiers.length ? tiers : defaultTiers).map(t => ({ ...t, published: true }));
     const { publishedTiers } = require('../routes/publishedEvents');
     const pub = await publishedTiers().catch(() => []);
+    const quicketDoc = await collection('event_catalogs').findOne({ _id: QUICKET_ENDPOINT }).catch(() => null);
+    const quicketTiers = (quicketDoc?.events || []).flatMap(ev => Array.isArray(ev.tiers) ? ev.tiers : []);
     const seen = new Set();
     const combined = [];
-    for (const tier of [...pub, ...ticketsasaTiers, ...baseTiers]) {
+    for (const tier of [...pub, ...ticketsasaTiers, ...quicketTiers, ...baseTiers]) {
         if (!tier?.tierKey || seen.has(tier.tierKey)) continue;
         seen.add(tier.tierKey);
         combined.push({

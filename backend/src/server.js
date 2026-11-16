@@ -19,6 +19,9 @@ const app = express();
 app.locals.eventCatalog = eventRoutes.catalog;
 const PORT = process.env.PORT || 8000;
 
+// Start event catalog refresh immediately (with MongoDB or fallback store)
+app.locals.eventCatalog.start().catch(err => console.warn('Initial catalog refresh warning:', err.message));
+
 // Connect to MongoDB Atlas (with graceful fallback)
 connectDB().then(async () => {
     if (isConnected()) await createIndexes();

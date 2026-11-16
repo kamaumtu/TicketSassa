@@ -83,10 +83,9 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
     }
 
     function refresh() {
-        if (!isConnected()) return Promise.resolve();
         const queries = (process.env.TICKETS_DEV_QUERIES || 'Nairobi,Talanta Sports City')
             .split(',').map(query => query.trim()).filter(Boolean).slice(0, 5);
-        const eventIds = (process.env.QUICKET_EVENT_IDS || '').split(',').map(id => id.trim()).filter(Boolean).slice(0, 10);
+        const eventIds = (process.env.QUICKET_EVENT_IDS || '').split(',').map(id => id.trim()).filter(Boolean).slice(0, 20);
         pending ??= Promise.all([
             refreshDiscovery(TICKETS_DEV, 'Tickets.dev', process.env.TICKETS_DEV_KEY?.trim(),
                 options => fetchTicketsDevEvents({ ...options, queries })),
@@ -110,9 +109,7 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
                     console.warn('Ticket allocation sync failed:', error.message);
                 }
             } catch (error) {
-                if (isConnected()) {
-                    await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
-                }
+                await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
                 console.warn('SoldOut Africa refresh failed:', error.message);
             }
         })()]).finally(() => { pending = null; });
@@ -125,12 +122,12 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
             return refresh();
         },
         async get() {
-            const snapshot = isConnected() ? await collection('event_catalogs').findOne({ _id: SOURCE }) : null;
-            const discovery = process.env.TICKETS_DEV_KEY?.trim() && isConnected()
+            const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE });
+            const discovery = process.env.TICKETS_DEV_KEY?.trim()
                 ? await collection('event_catalogs').findOne({ _id: TICKETS_DEV }) : null;
-            const ticketmaster = process.env.TICKETMASTER_API_KEY?.trim() && isConnected()
+            const ticketmaster = process.env.TICKETMASTER_API_KEY?.trim()
                 ? await collection('event_catalogs').findOne({ _id: TICKETMASTER }) : null;
-            const quicket = process.env.QUICKET_API_KEY?.trim() && isConnected()
+            const quicket = process.env.QUICKET_API_KEY?.trim()
                 ? await collection('event_catalogs').findOne({ _id: QUICKET }) : null;
             const now = new Date().toISOString();
             const allocated = snapshot ? await collection('commerce_events').find({
