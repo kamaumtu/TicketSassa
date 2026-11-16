@@ -2001,7 +2001,7 @@
         </div>
     </footer>
 
-    <script src="/app.js?v=account-auth-4"></script>
+    <script src="/app.js?v=checkout-admin-1"></script>
     <script type="module" src="frontend-angular/src/kenya-event-catalog.js"></script>
 
     <!-- Floating "Let's Chat" Live Support Widget (Exact from Images 1, 2, 3, 6) -->
@@ -2083,14 +2083,6 @@
                     <input id="cust-email" type="email" required autocomplete="email" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-base">
                 </div>
 
-                <div>
-                    <label for="payment-provider" class="block text-xs font-bold text-slate-700 mb-1">Payment Gateway</label>
-                    <select id="payment-provider" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold bg-white focus:border-rose-600 focus:outline-none">
-                        <option value="nexuspay" selected>⚡ Nexus Pay / Makamesco STK Push (Live)</option>
-                        <option value="payhero">⚡ PayHero M-Pesa STK Push (Live)</option>
-                        <option value="demo">🧪 Demo Checkout (Simulation - No Real Charge)</option>
-                    </select>
-                </div>
 
                 <div>
                     <label for="cust-phone" class="block text-xs font-bold text-slate-700 mb-1">Kenyan mobile number</label>
@@ -2311,14 +2303,6 @@
                         <label class="text-[11px] font-bold text-slate-600">M-Pesa Phone Number *</label>
                         <input type="tel" id="fbm-phone" required placeholder="07XX XXX XXX" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
                     </div>
-                    <div class="space-y-1">
-                        <label class="text-[11px] font-bold text-slate-600">Payment Gateway</label>
-                        <select id="fbm-payment-provider" class="w-full h-11 px-3 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
-                            <option value="nexuspay" selected>⚡ Nexus Pay STK</option>
-                            <option value="payhero">⚡ PayHero M-Pesa STK</option>
-                            <option value="demo">🧪 Demo Save</option>
-                        </select>
-                    </div>
                 </div>
 
                 <!-- Ancillaries & Add-ons -->
@@ -2462,14 +2446,6 @@
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-600">M-Pesa Phone Number *</label>
                         <input type="tel" id="hbm-guest-phone" required placeholder="07XX XXX XXX" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[11px] font-bold text-slate-600">Payment Gateway</label>
-                        <select id="hbm-payment-provider" class="w-full h-11 px-3 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
-                            <option value="nexuspay" selected>⚡ Nexus Pay STK</option>
-                            <option value="payhero">⚡ PayHero M-Pesa STK</option>
-                            <option value="demo">🧪 Demo Save</option>
-                        </select>
                     </div>
                 </div>
 
@@ -2679,14 +2655,6 @@
                         </div>
 
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-                            <div>
-                                <label for="ts-payment-provider" class="block text-xs font-bold text-slate-700 mb-1">Payment Method / Gateway</label>
-                                <select id="ts-payment-provider" class="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-xs font-bold bg-white focus:border-[#D81A21] focus:outline-none">
-                                    <option value="nexuspay" selected>⚡ Nexus Pay / Makamesco STK Push (Live)</option>
-                                    <option value="payhero">⚡ PayHero M-Pesa STK Push (Live)</option>
-                                    <option value="demo">🧪 Demo Checkout (Instant Simulation)</option>
-                                </select>
-                            </div>
                             <div class="space-y-1.5 text-xs text-slate-600 pt-2">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" required checked class="rounded text-[#D81A21]">

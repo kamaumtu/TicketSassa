@@ -51,9 +51,6 @@ export class AppComponent implements OnInit {
   // Active Tab
   activeTab: 'events' | 'flights' | 'holidays' | 'wallet' = 'events';
 
-  // Gateway Selector
-  selectedGateway: 'payhero' | 'nexuspay' | 'demo' = 'nexuspay';
-
   // Application State
   currency: 'KES' | 'USD' = 'KES';
   event: EventData | null = null;
@@ -325,7 +322,7 @@ export class AppComponent implements OnInit {
       const reference = this.pendingOrder.reference;
       this.orderReference = reference;
       this.orderEmail = this.customerEmail;
-      const payment = await firstValueFrom(this.api.initiateMpesaStkPush(reference, this.customerPhone, this.selectedGateway).pipe(timeout(30000)));
+      const payment = await firstValueFrom(this.api.initiateMpesaStkPush(reference, this.customerPhone).pipe(timeout(30000)));
       let result!: BookingResult;
       if (payment.mode === 'demo') {
         result = await firstValueFrom(this.api.confirmDemo(reference, payment.CheckoutRequestID || payment.checkoutRequestId || '').pipe(timeout(15000)));

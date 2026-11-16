@@ -4,13 +4,19 @@ import './style.css';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
-type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string };
+type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string };
 type Import = { id: string; title: string; venue: string; startsAt: string; source?: string };
 type Audit = { action: string; target: string; timestamp: string };
-type Data = { events: Event[]; orders: Order[]; imports: { events: Import[]; status: string; updatedAt: string | null } };
+type PaymentSettings = { provider: string | null; options: { id: string; name: string; configured: boolean }[] };
+type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
+type Data = { payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: { events: Import[]; status: string; updatedAt: string | null } };
 
-const sections = ['Overview', 'Events', 'Automatic imports', 'Tickets', 'Customers', 'Transactions', 'Audit log'] as const;
+const sections = ['Overview', 'Events', 'Automatic imports', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
 type Section = typeof sections[number];
+const paymentLabels: Record<string, string> = {
+    COMPLETED: 'Completed', FAILED: 'Failed', PROCESSING: 'Awaiting confirmation', PENDING: 'Awaiting payment'
+};
+const paymentLabel = (status: string) => paymentLabels[status] ?? status;
 const money = (value: number) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(value);
 const date = (value: string) => new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi' }).format(new Date(value));
 
@@ -56,6 +62,7 @@ function App() {
         const [overview, logs] = await Promise.all([request<Data>('/overview'), request<{ data: Audit[] }>('/audit')]);
         setData(overview);
         setAudit(logs.data);
+        setSelected(current => current && overview.orders.find(order => order.orderReference === current.orderReference));
     }
 
     async function run(action: () => Promise<void>) {
@@ -65,7 +72,13 @@ function App() {
         finally { setBusy(false); }
     }
 
-    useEffect(() => { void run(load); }, []);
+    useEffect(() => {
+        void run(load);
+        const interval = window.setInterval(() => {
+            if (!document.hidden) void load().catch(() => {});
+        }, 30000);
+        return () => window.clearInterval(interval);
+    }, []);
 
     const events = data?.events ?? [];
     const orders = data?.orders ?? [];
@@ -96,17 +109,22 @@ function App() {
             {!data && <p className="panel" role="status">{busy ? 'Loading dashboard…' : 'Dashboard data unavailable.'}</p>}
             {data && section === 'Overview' && <>
                 <div className="metrics">{[
+                    ['Ticket revenue today (EAT)', money(data.ticketRevenue.todayKes)],
+                    ['Ticket revenue this week (EAT)', money(data.ticketRevenue.weekKes)],
                     ['Organizer events', events.length],
                     ['Published events', events.filter(event => eventStatus(event) === 'published').length],
                     ['Upcoming events', events.filter(event => Date.parse(event.startsAt) > Date.now()).length],
                     ['Expired events', events.filter(event => Date.parse(event.startsAt) <= Date.now()).length],
                     ['Verified live tickets sold', completed.reduce((sum, order) => sum + order.totalTickets, 0)],
-                    ['Verified live revenue', money(completed.reduce((sum, order) => sum + order.totalKes, 0))],
+                    ['Verified ticket revenue', money(data.ticketRevenue.totalKes)],
                     ['Customers with orders', customers.length],
                     ['Discovered events', data.imports.events.length]
                 ].map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
+                {data.ticketRevenue.undatedPayments > 0 && <p className="notice" role="note">
+                    {data.ticketRevenue.undatedPayments} older payment(s) have no recorded confirmation date and are excluded from daily and weekly totals.
+                </p>}
                 <section className="panel"><h2>Recent orders</h2>{orders.length ? orders.slice(0, 5).map(order =>
-                    <p key={order.orderReference}>{order.customer.name} · {money(order.totalKes)} · {order.paymentStatus}</p>)
+                    <p key={order.orderReference}>{order.customer.name} · {money(order.totalKes)} · {paymentLabel(order.paymentStatus)}</p>)
                     : <p>No live orders yet.</p>}</section>
             </>}
             {data && section === 'Events' && <section className="panel">
@@ -151,16 +169,32 @@ function App() {
                 <button disabled={!filteredOrders.length} onClick={() => exportOrders(filteredOrders)}>Download CSV</button></div>
                 {!filteredOrders.length && <p>No matching live transactions.</p>}
                 <div className="scroll"><table><thead><tr><th>Reference</th><th>Customer</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map(order =>
-                    <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td>{order.paymentStatus}</td>
+                    <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td>{paymentLabel(order.paymentStatus)}</td>
                     <td>{money(order.totalKes)}</td><td><button onClick={() => setSelected(order)}>View order</button></td></tr>)}</tbody></table></div>
                 {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.email}</p>
+                    <p>Payment status: {paymentLabel(selected.paymentStatus)}{selected.paidAt ? ' · ' + date(selected.paidAt) : ''}</p>
                     <ul>{selected.items.map((item, index) => <li key={index}>{item.quantity} × {item.title}</li>)}</ul>{selected.paymentStatus === 'PROCESSING' && <button disabled={busy} onClick={() => void run(async () => {
                         const result = await request<{ paymentStatus: string }>(
                             '/orders/' + encodeURIComponent(selected.orderReference) + '/check-payment', 'POST');
                         setSelected({ ...selected, paymentStatus: result.paymentStatus });
-                        setNotice('Payment status: ' + result.paymentStatus);
+                        setNotice('Payment status: ' + paymentLabel(result.paymentStatus));
                         await load();
                     })}>Check M-Pesa status</button>}<button onClick={() => setSelected(undefined)}>Close details</button></section>}
+            </section>}
+            {data && section === 'Payment settings' && <section className="panel">
+                <h2>M-Pesa provider</h2>
+                <p>Current provider: {data.payments.options.find(option => option.id === data.payments.provider)?.name ?? 'Unavailable'}</p>
+                <div className="actions">
+                    {data.payments.options.map(option => <button key={option.id}
+                        disabled={busy || !option.configured || data.payments.provider === option.id}
+                        onClick={() => void run(async () => {
+                            const payments = await request<PaymentSettings>('/payments/settings', 'PUT', { provider: option.id });
+                            setData(previous => previous && { ...previous, payments });
+                            setNotice(option.name + ' will handle new M-Pesa requests.');
+                        })}>
+                        {option.name}{data.payments.provider === option.id ? ' (selected)' : !option.configured ? ' (setup required)' : ''}
+                    </button>)}
+                </div>
             </section>}
             {data && section === 'Audit log' && <section className="panel">{audit.length ? <div className="scroll"><table><thead><tr><th>Action</th><th>Event ID</th><th>Time</th></tr></thead><tbody>{audit.map((entry, index) =>
                 <tr key={index}><td>{entry.action}</td><td>{entry.target}</td><td>{date(entry.timestamp)}</td></tr>)}</tbody></table></div> : <p>No event status changes recorded.</p>}</section>}

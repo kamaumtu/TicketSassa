@@ -1,11 +1,8 @@
 const { isRemovedVenue } = require('../services/eventVisibility');
 const { collection } = require('../services/commerceDb');
-const { isConnected } = require('./db');
 const { syncAllocations } = require('../services/eventAllocations');
 const { ticketsasaEvents, ticketsasaSliders } = require('./ticketsasaEvents');
-const { ENDPOINT: TICKETS_DEV, fetchTicketsDevEvents } = require('../services/ticketsDevEvents');
-const { ENDPOINT: TICKETMASTER, fetchTicketmasterEvents } = require('../services/ticketmasterEvents');
-const { ENDPOINT: QUICKET, fetchQuicketEvents } = require('../services/quicketEvents');
+const { defaultProviders, syncSingleProvider, mergeDeduplicatedEvents } = require('../services/providers/eventSyncService');
 
 const SOURCE = 'https://soldoutafrica.com/events';
 const REFRESH_MS = 15 * 60 * 1000;
@@ -67,53 +64,34 @@ function parseListings(html, now = Date.now()) {
     throw new Error('SoldOut Africa event list missing from source response.');
 }
 
-function createEventCatalog({ fetchPage = fetch } = {}) {
+function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } = {}) {
     let pending;
 
-    async function refreshDiscovery(endpoint, label, key, fetchEvents) {
-        if (!key) return;
-        try {
-            const events = await fetchEvents({ key, fetchPage });
-            await collection('event_catalogs').replaceOne({ _id: endpoint }, {
-                events, updatedAt: new Date().toISOString(), stale: false
-            }, { upsert: true });
-        } catch (error) {
-            await collection('event_catalogs').updateOne({ _id: endpoint }, { $set: { stale: true } }).catch(() => {});
-            console.warn(label + ' discovery refresh failed:', error.message);
-        }
-    }
-
     function refresh() {
-        const queries = (process.env.TICKETS_DEV_QUERIES || 'Nairobi')
-            .split(',').map(query => query.trim()).filter(Boolean).slice(0, 5);
-        const eventIds = (process.env.QUICKET_EVENT_IDS || '').split(',').map(id => id.trim()).filter(Boolean).slice(0, 20);
         pending ??= Promise.all([
-            refreshDiscovery(TICKETS_DEV, 'Tickets.dev', process.env.TICKETS_DEV_KEY?.trim(),
-                options => fetchTicketsDevEvents({ ...options, queries })),
-            refreshDiscovery(TICKETMASTER, 'Ticketmaster', process.env.TICKETMASTER_API_KEY?.trim(), fetchTicketmasterEvents),
-            refreshDiscovery(QUICKET, 'Quicket', process.env.QUICKET_API_KEY?.trim(),
-                options => fetchQuicketEvents({ ...options, eventIds })),
+            ...providers.map(provider => syncSingleProvider(provider, { fetchPage })),
             (async () => {
-            try {
-                const response = await fetchPage(SOURCE, {
-                    headers: { Accept: 'text/html' },
-                    signal: AbortSignal.timeout(15000)
-                });
-                if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
-                const events = parseListings(await response.text());
-                await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
-                    events, updatedAt: new Date().toISOString(), stale: false
-                }, { upsert: true });
                 try {
-                    await syncAllocations(events, fetchPage);
+                    const response = await fetchPage(SOURCE, {
+                        headers: { Accept: 'text/html' },
+                        signal: AbortSignal.timeout(15000)
+                    });
+                    if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
+                    const events = parseListings(await response.text());
+                    await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
+                        events, updatedAt: new Date().toISOString(), stale: false
+                    }, { upsert: true });
+                    try {
+                        await syncAllocations(events, fetchPage);
+                    } catch (error) {
+                        console.warn('Ticket allocation sync failed:', error.message);
+                    }
                 } catch (error) {
-                    console.warn('Ticket allocation sync failed:', error.message);
+                    await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
+                    console.warn('SoldOut Africa refresh failed:', error.message);
                 }
-            } catch (error) {
-                await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
-                console.warn('SoldOut Africa refresh failed:', error.message);
-            }
-        })()]).finally(() => { pending = null; });
+            })()
+        ]).finally(() => { pending = null; });
         return pending;
     }
 
@@ -124,51 +102,63 @@ function createEventCatalog({ fetchPage = fetch } = {}) {
         },
         async get() {
             const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE });
-            const discovery = process.env.TICKETS_DEV_KEY?.trim()
-                ? await collection('event_catalogs').findOne({ _id: TICKETS_DEV }) : null;
-            const ticketmaster = process.env.TICKETMASTER_API_KEY?.trim()
-                ? await collection('event_catalogs').findOne({ _id: TICKETMASTER }) : null;
-            const quicket = process.env.QUICKET_API_KEY?.trim()
-                ? await collection('event_catalogs').findOne({ _id: QUICKET }) : null;
+            const providerSnapshots = await Promise.all(
+                providers.map(async provider => {
+                    const enabled = provider.isEnabled(process.env);
+                    const doc = enabled ? await collection('event_catalogs').findOne({ _id: provider.endpointKey }) : null;
+                    return { provider, enabled, doc };
+                })
+            );
+
             const now = new Date().toISOString();
             const allocated = snapshot ? await collection('commerce_events').find({
                 source: 'SoldOut Africa', startsAt: { $gt: now }, allocationExpiresAt: { $gt: now },
                 salesOpen: { $lte: now }, salesClose: { $gt: now },
                 $or: [{ status: { $exists: false } }, { status: 'published' }]
             }, { projection: { _id: 1, tiers: 1 } }).toArray() : [];
-            const sales = new Map(allocated.map(event => [event._id,
-                event.tiers]));
+            const sales = new Map(allocated.map(event => [event._id, event.tiers]));
             const remoteEvents = (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
-                ...event, checkout: sales.has(event.id),
+                ...event,
+                checkout: sales.has(event.id),
                 price: sales.has(event.id) ? { amount: Math.min(...sales.get(event.id).map(tier => tier.priceKes)), currency: 'KES' } : event.price,
                 tiers: sales.get(event.id) ?? []
             }));
+
             function eventWithTickets(event) {
                 const tiers = Array.isArray(event.tiers) ? event.tiers : [];
-                const onSale = tiers.length > 0;
+                const onSale = tiers.length > 0 && event.status !== 'cancelled';
                 return { ...event, tiers, checkout: onSale, onSale };
             }
-            const mergedMap = new Map();
-            for (const ev of ticketsasaEvents) {
-                mergedMap.set(ev.id, eventWithTickets(ev));
+
+            const cancelledSet = new Set();
+            const providerEvents = [];
+            const providerStatuses = {};
+            const updatedAts = [snapshot?.updatedAt];
+
+            for (const { provider, enabled, doc } of providerSnapshots) {
+                providerStatuses[provider.id] = !enabled
+                    ? 'unconfigured'
+                    : !doc ? 'unavailable' : doc.stale ? 'stale' : 'live';
+                if (doc?.updatedAt) updatedAts.push(doc.updatedAt);
+                for (const cid of (doc?.cancelledIds || [])) cancelledSet.add(cid);
+                const future = (doc?.events || []).filter(ev => ev.startsAt > now).map(eventWithTickets);
+                providerEvents.push(future);
             }
-            for (const ev of remoteEvents) {
-                if (!mergedMap.has(ev.id)) mergedMap.set(ev.id, eventWithTickets(ev));
-            }
-            for (const event of [...(discovery?.events ?? []), ...(ticketmaster?.events ?? []), ...(quicket?.events ?? [])]) {
-                if (event.startsAt > now && !mergedMap.has(event.id)) mergedMap.set(event.id, eventWithTickets(event));
-            }
+
+            const mergedEvents = mergeDeduplicatedEvents(
+                [ticketsasaEvents.map(eventWithTickets), remoteEvents.map(eventWithTickets), ...providerEvents],
+                cancelledSet
+            ).filter(event => !isRemovedVenue(event));
+
             return {
-                events: [...mergedMap.values()].filter(event => !isRemovedVenue(event)),
-                sliders: ticketsasaSliders.filter(slider => !isRemovedVenue(slider) && !isRemovedVenue(mergedMap.get(slider.eventId))),
-                updatedAt: [snapshot?.updatedAt, discovery?.updatedAt, ticketmaster?.updatedAt, quicket?.updatedAt]
-                    .filter(Boolean).sort().at(-1) ?? null,
-                ticketsDevStatus: !process.env.TICKETS_DEV_KEY?.trim() ? 'unconfigured'
-                    : !discovery ? 'unavailable' : discovery.stale ? 'stale' : 'live',
-                ticketmasterStatus: !process.env.TICKETMASTER_API_KEY?.trim() ? 'unconfigured'
-                    : !ticketmaster ? 'unavailable' : ticketmaster.stale ? 'stale' : 'live',
-                quicketStatus: !process.env.QUICKET_API_KEY?.trim() ? 'unconfigured'
-                    : !quicket ? 'unavailable' : quicket.stale ? 'stale' : 'live',
+                events: mergedEvents,
+                sliders: ticketsasaSliders.filter(slider => !isRemovedVenue(slider)),
+                updatedAt: updatedAts.filter(Boolean).sort().at(-1) ?? null,
+                providerStatuses,
+                tktStatus: providerStatuses.tkt || 'unconfigured',
+                egoticketsStatus: providerStatuses.egotickets || 'unconfigured',
+                ticketsDevStatus: providerStatuses.ticketsdev || 'unconfigured',
+                quicketStatus: providerStatuses.quicket || 'unconfigured',
                 status: 'live'
             };
         },

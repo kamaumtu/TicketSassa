@@ -236,29 +236,7 @@ function updateCartDisplay() {
     }
 }
 
-async function loadPaymentOptions() {
-    const select = document.getElementById('payment-provider');
-    if (!select) return;
-    const previous = select.value || 'nexuspay';
-    const { gateways = [] } = await commerceRequest('/payments/gateways').catch(() => ({}));
-    const enabled = gateways.filter(gateway => gateway.configured);
-    if (!enabled.length) return;
-    const options = [
-        ...enabled.map(g => new Option(
-            g.id === 'nexuspay' ? '⚡ Nexus Pay / Makamesco STK Push (Live)'
-                : g.id === 'payhero' ? '⚡ PayHero M-Pesa STK Push (Live)'
-                : g.name,
-            g.id
-        )),
-        ...(enabled.some(g => g.id === 'demo') ? [] : [new Option('🧪 Demo Checkout (Simulation - No Real Charge)', 'demo')])
-    ];
-    select.replaceChildren(...options);
-    if ([...select.options].some(opt => opt.value === previous)) select.value = previous;
-}
-
-// Checkout Modal
 function openCheckoutModal() {
-    void loadPaymentOptions();
     const isDirectCheckout = Boolean(state.checkout && state.checkout.itemKey);
 
     if (!isDirectCheckout) {
@@ -736,9 +714,7 @@ async function handleMpesaSubmit(event) {
         return;
     }
     if (mode === 'live') payload.currency = 'KES';
-    const select = document.getElementById('payment-provider');
-    const provider = select?.value || undefined;
-    const fingerprint = JSON.stringify({ ...payload, provider, ts: Date.now() });
+    const fingerprint = JSON.stringify(payload);
     status.textContent = 'Preparing your order…';
     try {
         if (state.checkout?.fingerprint !== fingerprint) {
@@ -751,7 +727,7 @@ async function handleMpesaSubmit(event) {
         document.getElementById('wallet-reference').value = orderReference;
         document.getElementById('wallet-email').value = customer.email;
         status.textContent = 'Starting M-Pesa payment. Order ' + orderReference + '…';
-        const payment = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: customer.phone, provider });
+        const payment = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: customer.phone });
         let result;
         if (payment.mode === 'demo') {
             result = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payment.CheckoutRequestID });
@@ -799,7 +775,7 @@ async function handleMpesaSubmit(event) {
         openTicketWallet();
         loadCommerceCatalog();
     } catch (error) {
-        if ([410, 422].includes(error.status)) state.checkout = null;
+        if ([409, 410, 422].includes(error.status)) state.checkout = null;
         status.textContent = error.message;
     } finally {
         checkoutSubmitting = false;
@@ -1471,7 +1447,6 @@ async function handleFlightBookingSubmit(event) {
     const passport = document.getElementById('fbm-passport')?.value?.trim() || '';
     const email = document.getElementById('fbm-email')?.value?.trim() || '';
     const phone = document.getElementById('fbm-phone')?.value?.trim() || '';
-    const provider = document.getElementById('fbm-payment-provider')?.value || 'payhero';
     const totals = calculateFlightTotal() || { totalKes: flight.priceKes };
     const statusEl = document.getElementById('fbm-status');
     const submitBtn = document.getElementById('btn-fbm-submit');
@@ -1487,7 +1462,6 @@ async function handleFlightBookingSubmit(event) {
         passport,
         email,
         phone,
-        provider,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
     if (!phone || !email) return;
@@ -1521,7 +1495,7 @@ async function handleFlightBookingSubmit(event) {
             totalKes: Math.round(totals.totalKes || flight.priceKes)
         });
         const pnr = holdRes?.reservation?.reservationRef || 'HELD';
-        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone, provider });
+        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone });
         if (payRes.mode === 'demo') {
             const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
             const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
@@ -2041,7 +2015,6 @@ async function handleHolidayBookingSubmit(event) {
     const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || 'Guest';
     const guestEmail = document.getElementById('hbm-guest-email')?.value?.trim() || '';
     const guestPhone = document.getElementById('hbm-guest-phone')?.value?.trim() || '';
-    const provider = document.getElementById('hbm-payment-provider')?.value || 'payhero';
     const totals = calculateHolidayTotal() || { totalKes: currentHolidayBooking.rate };
     saveTravelPlan('holiday', 'hbm-status', {
         title: currentHolidayBooking.title,
@@ -2051,7 +2024,6 @@ async function handleHolidayBookingSubmit(event) {
         guestName,
         guestEmail,
         guestPhone,
-        provider,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
     if (!guestPhone || !guestEmail) return;
@@ -2085,7 +2057,7 @@ async function handleHolidayBookingSubmit(event) {
             totalKes: Math.round(totals.totalKes || currentHolidayBooking.rate)
         });
         const bookingRef = holdRes?.reservation?.reservationRef || 'HELD';
-        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: guestPhone, provider });
+        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: guestPhone });
         if (payRes.mode === 'demo') {
             const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
             const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
@@ -2591,6 +2563,7 @@ const eventDateFormatter = new Intl.DateTimeFormat('en-KE', {
 let currentTicketTiers = [];
 const ticketsasaCatalogMap = new Map();
 let activeTicketsasaDetailEvent = null;
+let pendingDetailOrder;
 
 window.onTicketsasaCatalogLoaded = function (eventsList) {
     if (!Array.isArray(eventsList)) return;
@@ -2905,7 +2878,6 @@ async function handleTicketsasaDetailCheckout(event) {
     const nameVal = document.getElementById('ts-cust-name')?.value.trim() || '';
     const emailVal = document.getElementById('ts-cust-email')?.value.trim() || '';
     const phoneVal = document.getElementById('ts-cust-phone')?.value.trim() || '';
-    const providerVal = document.getElementById('ts-payment-provider')?.value || 'payhero';
     const statusEl = document.getElementById('ts-checkout-status');
     const bookBtn = document.getElementById('ts-btn-book-now');
 
@@ -2925,24 +2897,26 @@ async function handleTicketsasaDetailCheckout(event) {
     }
 
     if (bookBtn) bookBtn.disabled = true;
-    if (statusEl) statusEl.textContent = `Creating order & sending M-Pesa STK Push to ${phoneVal} via ${providerVal.toUpperCase()}...`;
+    if (statusEl) statusEl.textContent = `Creating order & sending M-Pesa STK Push to ${phoneVal}...`;
 
     try {
-        const orderRes = await commerceRequest('/orders', {
+        const payload = {
             customer: { name: nameVal, email: emailVal, phone: phoneVal },
-            items: selectedItems,
-            currency: 'KES',
-            paymentMethod: 'MPESA'
-        });
-        const orderReference = orderRes.data.orderReference;
+            items: selectedItems, currency: 'KES', paymentMethod: 'MPESA'
+        };
+        const fingerprint = JSON.stringify(payload);
+        if (pendingDetailOrder?.fingerprint !== fingerprint) {
+            const orderRes = await commerceRequest('/orders', payload);
+            pendingDetailOrder = { fingerprint, orderReference: orderRes.data.orderReference };
+        }
+        const { orderReference } = pendingDetailOrder;
         document.getElementById('wallet-reference').value = orderReference;
         document.getElementById('wallet-email').value = emailVal;
 
         if (statusEl) statusEl.textContent = `Initiating M-Pesa prompt on ${phoneVal} (Order ${orderReference})...`;
         const payment = await commerceRequest('/payments/mpesa/stkpush', {
             orderReference,
-            phone: phoneVal,
-            provider: providerVal
+            phone: phoneVal
         });
 
         if (payment.mode === 'demo') {
@@ -2952,6 +2926,7 @@ async function handleTicketsasaDetailCheckout(event) {
             });
             for (const t of eventTiers) state.quantities[t.tierKey] = 0;
             updateCartDisplay();
+            pendingDetailOrder = undefined;
             rememberOrder(conf.data, conf.passes);
             closeTicketsasaEventModal();
             openTicketWallet();
@@ -2971,19 +2946,23 @@ async function handleTicketsasaDetailCheckout(event) {
             if (check?.status === 'COMPLETED') {
                 for (const t of eventTiers) state.quantities[t.tierKey] = 0;
                 updateCartDisplay();
+                pendingDetailOrder = undefined;
                 rememberOrder(check.order, check.passes);
                 closeTicketsasaEventModal();
                 openTicketWallet();
                 return;
             }
             if (check?.status === 'FAILED') {
+                pendingDetailOrder = undefined;
                 throw new Error(check.reason || 'Payment was declined or cancelled on your mobile phone.');
             }
             if (statusEl) {
-                statusEl.textContent = `M-Pesa STK Push sent to ${phoneVal}. Awaiting PIN confirmation (${attempt + 1}/15)... Order: ${orderReference}`;
+                statusEl.textContent = `Awaiting M-Pesa confirmation (${attempt + 1}/15)... Order: ${orderReference}`;
             }
         }
+        if (statusEl) statusEl.textContent = 'Payment still pending. Check My tickets with order ' + orderReference + '.';
     } catch (err) {
+        if ([409, 410, 422].includes(err.status)) pendingDetailOrder = undefined;
         if (statusEl) statusEl.textContent = err.message || 'Could not start M-Pesa payment. Please check your phone number and try again.';
     } finally {
         if (bookBtn) bookBtn.disabled = false;

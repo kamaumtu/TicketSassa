@@ -2,6 +2,9 @@ const express = require('express');
 const { collection, transaction } = require('../services/commerceDb');
 const router = express.Router();
 const { route } = require('../services/http');
+const { getPaymentSettings, setPaymentProvider } = require('../services/paymentSettings');
+const { revenueSummary, realCompletedOrder, isLiveTicket } = require('../services/ticketRevenue');
+const { publishEvent } = require('./publishedEvents');
 
 router.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.get('X-Admin-Action') !== 'dashboard') {
@@ -11,21 +14,35 @@ router.use((req, res, next) => {
 });
 
 router.post('/orders/:reference/check-payment', require('../controllers/commerceController').adminCheckPayment);
+router.post('/events', route(publishEvent));
+
+router.put('/payments/settings', route(async (req, res) => {
+    const { provider } = req.body ?? {};
+    try {
+        res.json(await setPaymentProvider(provider, req.organizerId));
+    } catch (error) {
+        if (error.status !== 400) throw error;
+        res.status(400).json({ success: false, message: error.message });
+    }
+}));
 
 router.get('/overview', async (req, res, next) => {
     try {
+        const payments = await getPaymentSettings();
         const events = await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray();
         const liveOrders = await collection('commerce_orders').find({ mode: 'live' }).sort({ createdAt: -1 }).toArray();
         const orders = liveOrders
-            .map(({ orderReference, customer, items, totalTickets, totalKes, paymentStatus, provider, receipt }) => ({
-                orderReference, customer: { name: customer?.name, email: customer?.email }, items, totalTickets, totalKes, paymentStatus, provider, receipt
+            .filter(order => order.provider !== 'demo' && !/^DEMO-/i.test(order.receipt ?? ''))
+            .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt }) => ({
+                orderReference, customer: { name: customer?.name, email: customer?.email }, items,
+                totalTickets: (items ?? []).filter(isLiveTicket).reduce((sum, item) => sum + item.quantity, 0),
+                totalKes, paymentStatus, provider, receipt, paidAt
             }));
 
         const sold = new Map();
-        for (const order of orders) {
-            if (order.paymentStatus !== 'COMPLETED') continue;
-            for (const item of order.items) {
-                if (item.kind === 'ticket') sold.set(item.tierKey, (sold.get(item.tierKey) ?? 0) + item.quantity);
+        for (const order of liveOrders.filter(realCompletedOrder)) {
+            for (const item of order.items ?? []) {
+                if (isLiveTicket(item)) sold.set(item.tierKey, (sold.get(item.tierKey) ?? 0) + item.quantity);
             }
         }
         for (const event of events) {
@@ -33,7 +50,7 @@ router.get('/overview', async (req, res, next) => {
         }
 
         const imports = discoveryStatus(await req.app.locals.eventCatalog.get());
-        res.json({ events, orders, imports });
+        res.json({ events, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
     } catch (error) {
         next(error);
     }

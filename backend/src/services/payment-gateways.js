@@ -106,14 +106,6 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       return { provider: 'payhero', checkoutRequestId: data.CheckoutRequestID || data.checkout_request_id || deposit.external_reference,
         providerReference: String(data.reference ?? data.MerchantRequestID ?? '') };
     } catch (cause) {
-      if (provider === 'payhero' && env.NEXUSPAY_API_KEY?.trim()) {
-        try {
-          const nexusConfig = configuration('nexuspay');
-          return await initiateNexusPay(nexusConfig.baseURL, deposit);
-        } catch {
-          // Fall through to original error handling if fallback also fails
-        }
-      }
       if (cause.definitive !== undefined) throw cause;
       const rejected = cause.response?.status >= 400 && cause.response.status < 500 && cause.response.status !== 408;
       throw error(rejected ? 'The payment prompt was rejected. Please try again later.' : 'The payment request could not be confirmed. Check with support before retrying.', 502, rejected);

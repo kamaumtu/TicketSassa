@@ -6,6 +6,7 @@ const { getTicketCatalog } = require('./ticketController');
 const Order = require('../models/Order');
 const DigitalPass = require('../models/DigitalPass');
 const { isConnected } = require('../config/db');
+const { getPaymentSettings } = require('../services/paymentSettings');
 const { confirmTravelReservation } = require('../services/travelSuppliers');
 
 // PayHero and NexusPay Payment Gateway Integration
@@ -88,24 +89,14 @@ async function completeOrder(session, order, receipt) {
         passes.map(pass => ({ ...pass, _id: pass.qrCodeToken })), { session });
     await collection('commerce_holds').deleteMany({ orderReference }, { session });
     order.paymentStatus = 'COMPLETED';
+    order.paidAt = new Date();
     order.receipt = receipt;
     await saveOrder(order, session);
     const travelReservation = await confirmTravelReservation(orderReference, receipt).catch(() => null);
     return { order, passes, travelReservation };
 }
 
-function providers() {
-    return [...paymentGateways.available(),
-        { id: 'daraja', name: 'Safaricom Daraja', configured: Boolean(mpesa.config()) }];
-}
-
 exports.getCheckoutMode = (req, res) => res.json({ mode: checkoutMode() });
-exports.getPaymentGateways = handler(async (req, res) => {
-    const mode = checkoutMode();
-    res.json({ success: true, gateways: mode === 'demo'
-        ? [{ id: 'demo', name: 'Demo payment', configured: true }]
-        : providers().map(gateway => ({ ...gateway, configured: mode === 'live' && gateway.configured })) });
-});
 
 exports.getPayHeroBalance = handler(async (req, res) => {
     if (!require('../services/organizerAccess').organizerIdentity(req.get('Authorization'))) {
@@ -234,12 +225,7 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
     const { orderReference, phone } = req.body;
     if (typeof orderReference !== 'string') reject(400, 'Order reference is required.');
     const mobile = phoneNumber(phone);
-    const enabled = providers().filter(gateway => gateway.configured);
-    const requestedProvider = req.body.provider;
-    const isDemoRequest = serverMode === 'demo' || requestedProvider === 'demo';
-    const mode = isDemoRequest ? 'demo' : 'live';
-    const provider = isDemoRequest ? 'demo' : (requestedProvider && enabled.some(g => g.id === requestedProvider) ? requestedProvider : enabled[0]?.id);
-    if (mode === 'live' && !enabled.some(gateway => gateway.id === provider)) reject(400, 'Choose a configured provider.');
+    const mode = serverMode;
 
     const preview = await getOrder(orderReference);
     if (!preview || preview.customer?.phone !== mobile) reject(404, 'Order not found for this mobile number.');
@@ -247,61 +233,58 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
     const { order, start } = await transaction(async session => {
         const stored = await getOrder(orderReference, session);
         if (!stored || stored.customer.phone !== mobile) reject(404, 'Order not found for this mobile number.');
-        if (stored.paymentStatus === 'COMPLETED') reject(409, 'This order has already been paid.');
+        if (stored.mode !== mode) reject(409, 'This order uses a different checkout mode.');
         if (stored.paymentStatus === 'FAILED') reject(409, 'This order is no longer payable.');
-        if (stored.paymentStatus === 'PENDING' && stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
-        const wasPending = stored.paymentStatus === 'PENDING';
-        stored.mode = mode;
-        stored.paymentStatus = 'PROCESSING';
-        stored.provider = provider;
-        if (mode === 'live' && wasPending) {
+        // Existing payments keep their original provider, including after an admin changes the setting.
+        if (stored.paymentStatus !== 'PENDING') return { order: stored, start: false };
+        if (stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
+        if (stored.items.some(item => item.key?.startsWith('ticket:') && !stock?.has(item.key))) {
+            reject(409, 'An item is no longer available. Start a new checkout.');
+        }
+        if (mode === 'live') {
+            const settings = await getPaymentSettings();
+            if (!settings.options.some(option => option.id === settings.provider && option.configured)) {
+                reject(503, 'M-Pesa is currently unavailable.');
+            }
+            stored.provider = settings.provider;
             await lockStock(stored.items.map(item => item.key), session);
             const holds = await collection('commerce_holds').updateMany({ orderReference, expiresAt: { $gt: Date.now() } },
                 { $set: { expiresAt: Number.MAX_SAFE_INTEGER }, $unset: { purgeAt: '' } }, { session });
             if (holds.matchedCount !== stored.items.length) reject(410, 'Your ticket hold expired. Start a new checkout.');
-        } else if (mode === 'demo') {
+        } else {
+            stored.provider = 'demo';
             stored.checkoutRequestId = token('DEMO-');
         }
+        stored.paymentStatus = 'PROCESSING';
         await saveOrder(stored, session);
         return { order: stored, start: mode === 'live' };
     });
 
     if (start) {
         try {
-            if (provider === 'daraja') {
-                const result = await mpesa.initiate(order);
-                if (String(result.ResponseCode) !== '0' || typeof result.CheckoutRequestID !== 'string') {
-                    throw Object.assign(new Error('Daraja did not return a checkout reference'), {
-                        definitelyRejected: result.ResponseCode != null && String(result.ResponseCode) !== '0'
-                    });
-                }
-                order.checkoutRequestId = result.CheckoutRequestID;
-            } else {
-                const result = await paymentGateways.initiate(provider, providerDetails(order), order.customer.name);
-                if (result.provider) order.provider = result.provider;
-                order.checkoutRequestId = result.checkoutRequestId;
-                order.providerReference = result.providerReference;
-            }
+            const result = await paymentGateways.initiate(order.provider, providerDetails(order), order.customer.name);
+            order.checkoutRequestId = result.checkoutRequestId;
+            order.providerReference = result.providerReference;
             await saveOrder(order);
         } catch (error) {
-            console.error(`[-] M-Pesa STK initiation error (${provider}) for order ${orderReference}:`, error.message);
+            console.error('M-Pesa initiation did not complete for order', orderReference);
             if (error.definitelyRejected || error.definitive) {
                 await settle(orderReference, { status: 'failed' });
-                reject(422, error.message || 'M-Pesa could not start this payment. Please try again.');
+                reject(422, 'M-Pesa could not start this payment. Please try again.');
             }
-            reject(502, error.message || 'The payment gateway did not confirm the STK push request. Please try again.');
+            // An unknown outcome keeps the hold and never sends a second prompt.
         }
     }
     res.json({
         success: true,
         mode,
-        provider: order.provider,
         CheckoutRequestID: order.checkoutRequestId,
         checkoutRequestId: order.checkoutRequestId,
         checkoutStarted: Boolean(order.checkoutRequestId),
-        CustomerMessage: mode === 'live'
-            ? `M-Pesa STK prompt sent to ${mobile} via ${provider === 'nexuspay' ? 'Nexus Pay' : 'PayHero'}. Enter your M-Pesa PIN on your phone.`
-            : 'Demo checkout ready.'
+        CustomerMessage: mode === 'demo' ? 'Demo checkout ready.'
+            : order.paymentStatus === 'COMPLETED' ? 'Your payment is confirmed.'
+            : order.checkoutRequestId ? 'Approve the M-Pesa prompt on your phone.'
+            : 'Waiting for M-Pesa to confirm the request.'
     });
 });
 
@@ -356,6 +339,25 @@ async function reconcile(order) {
     return query;
 }
 
+let checkingPendingPayments = false;
+
+exports.reconcilePendingPayments = async () => {
+    if (checkingPendingPayments || !isConnected()) return;
+    checkingPendingPayments = true;
+    try {
+        const orders = collection('commerce_orders');
+        const pending = await orders.find({ mode: 'live', paymentStatus: 'PROCESSING',
+            checkoutRequestId: { $type: 'string', $ne: '' } })
+            .sort({ lastPaymentCheckAt: 1, createdAt: 1 }).limit(12).toArray();
+        for (const order of pending) {
+            await orders.updateOne({ _id: order._id }, { $set: { lastPaymentCheckAt: new Date() } });
+            await reconcile(order);
+        }
+    } finally {
+        checkingPendingPayments = false;
+    }
+};
+
 exports.getPaymentStatus = handler(async (req, res) => {
     const reference = req.params.orderReference.trim().toUpperCase();
     const order = await getOrder(reference);
@@ -401,6 +403,7 @@ exports.nexuspayCallback = callback('nexuspay', body => ({
 }));
 
 exports.confirmDemo = handler(async (req, res) => {
+    if (!demoEnabled()) reject(503, 'Demo checkout is unavailable.');
     const { orderReference, checkoutRequestId } = req.body;
     if (typeof orderReference !== 'string' || typeof checkoutRequestId !== 'string') reject(400, 'Order and checkout references are required.');
     const inventory = await getInventory(true);

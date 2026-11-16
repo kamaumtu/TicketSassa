@@ -1,9 +1,32 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Publish an event</title>
 <style>
-body{font:1rem/1.5 system-ui,sans-serif;background:#f8fafc;color:#172033}main{max-width:44rem;margin:2rem auto;padding:1rem}form,fieldset{display:grid;gap:1rem}label{display:grid;gap:.25rem}input,textarea,select,button{font:inherit;padding:.5rem;box-sizing:border-box;max-width:100%}button{cursor:pointer}fieldset{margin:0}
+* { box-sizing: border-box; }
+body { margin: 0; font: 1rem/1.5 system-ui, sans-serif; background: #eef2f7; color: #172033; }
+main { max-width: 49rem; margin: clamp(12px, 5vw, 48px) auto; padding: 0 16px; }
+header { color: white; background: #101b30; border-radius: 16px 16px 0 0; padding: clamp(18px, 4vw, 32px); }
+header a { color: #ffbac9; font-weight: 700; }
+h1 { margin: 12px 0 4px; line-height: 1.15; }
+header p { margin: 0; color: #c9d3e4; }
+form { background: white; border: 1px solid #d2dce9; border-top: 4px solid #ba1745; border-radius: 0 0 16px 16px; padding: clamp(18px, 4vw, 32px); }
+form, fieldset, #tiers { display: grid; gap: 16px; }
+label { display: grid; gap: 5px; font-weight: 650; }
+input, textarea, select, button { font: inherit; padding: 9px 12px; min-height: 44px; max-width: 100%; border: 1px solid #acb9cc; border-radius: 8px; color: inherit; background: white; }
+textarea { min-height: 104px; resize: vertical; }
+fieldset { margin: 0; padding: 16px; border: 1px solid #c6d2e2; border-radius: 10px; background: #f6f8fc; }
+legend { font-weight: 750; padding: 0 5px; }
+button { cursor: pointer; font-weight: 700; }
+button:disabled { opacity: .6; cursor: default; }
+button[type=submit] { background: #a4163e; color: white; border-color: #a4163e; }
+button[type=submit]:hover:not(:disabled) { background: #881133; }
+output:empty { display: none; }
+output { padding: 12px 14px; border-radius: 8px; background: #eef2f7; }
+output[data-state=error] { color: #9f1239; background: #fff1f2; }
+output[data-state=success] { color: #075d46; background: #ecfdf5; }
+output a { color: inherit; font-weight: 700; }
+:focus-visible { outline: 3px solid #bb1746; outline-offset: 2px; }
 </style><script defer src="/organizer.js"></script></head>
-<body><main><a href="/">Events</a><h1>Publish an event</h1>
+<body><main><header><a href="/admin">Back to admin</a><h1>Publish an event</h1><p>Set your event details, ticket tiers and sales dates.</p></header>
 <form id="publish">
 <label>Event name <input name="title" maxlength="120" required></label>
 <label>Venue <input name="venue" maxlength="160" required></label>

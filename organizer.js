@@ -23,6 +23,15 @@ function addTier() {
 add.addEventListener('click', addTier);
 addTier();
 
+const starts = form.elements.startsAt;
+const opens = form.elements.salesOpen;
+const closes = form.elements.salesClose;
+opens.value = new Date(Date.now() + 3 * 3600000).toISOString().slice(0, 16);
+starts.addEventListener('change', () => {
+    if (!closes.value || closes.value > starts.value) closes.value = starts.value;
+    closes.max = starts.value;
+});
+
 form.addEventListener('submit', async event => {
     event.preventDefault();
     submit.disabled = true;
@@ -37,9 +46,15 @@ form.addEventListener('submit', async event => {
             reader.onerror = () => reject(new Error('Could not read the photo.'));
             reader.readAsDataURL(file);
         }) : null;
-        const localTime = field => data.get(field) + ':00+03:00';
-        const response = await fetch('/api/published-events', {
+        const localTime = field => data.get(field) + '+03:00';
+        if (!(Date.parse(localTime('salesOpen')) < Date.parse(localTime('salesClose')) &&
+              Date.parse(localTime('salesClose')) <= Date.parse(localTime('startsAt')) &&
+              Date.parse(localTime('startsAt')) > Date.now())) {
+            throw new Error('Set a future event start. Sales must open before closing, and close by the event start.');
+        }
+        const response = await fetch('/api/admin/events', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Action': 'dashboard' },
             body: JSON.stringify({
                 title: data.get('title'), venue: data.get('venue'), description: data.get('description'),
@@ -52,13 +67,19 @@ form.addEventListener('submit', async event => {
                 }))
             })
         });
-        const result = await response.json();
-        if (!response.ok) throw new Error(result.message || 'Publication failed.');
+        const result = await response.json().catch(() => null);
+        if (response.status === 401 || response.status === 403) {
+            throw new Error('Sign in through Admin again, then retry publishing.');
+        }
+        if (!response.ok) throw new Error(result?.message ||
+            (response.status === 413 ? 'The event photo is too large.' : 'The event could not be published. Try again.'));
         const link = document.createElement('a');
         link.href = '/?view=events&event=' + encodeURIComponent(result.data.id);
         link.textContent = 'View published event';
-        status.replaceChildren(link);
+        status.dataset.state = 'success';
+        status.replaceChildren('Event published. ', link);
     } catch (error) {
+        status.dataset.state = 'error';
         status.textContent = error.message;
     } finally {
         submit.disabled = false;

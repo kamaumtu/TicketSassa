@@ -56,27 +56,32 @@ router.get('/', route(async (req, res) => {
         .map(event => ({ ...event, onSale: onSale(event) })) });
 }));
 
-router.post('/', express.json({ limit: '2mb' }), route(async (req, res) => {
+async function publishEvent(req, res) {
     const authorization = req.get('Authorization') || '';
     const secret = process.env.ORGANIZER_KEY;
     const expected = Buffer.from('Bearer ' + secret);
     const supplied = Buffer.from(authorization);
     const legacy = !process.env.ORGANIZER_ACCOUNTS && secret &&
         expected.length === supplied.length && timingSafeEqual(expected, supplied);
-    const actor = req.get('X-Admin-Action') === 'dashboard'
-        ? organizerIdentity(authorization) : null;
+    const actor = req.organizerId || (req.get('X-Admin-Action') === 'dashboard'
+        ? organizerIdentity(authorization) : null);
     if (!legacy && !actor) return res.status(403).json({ message: 'Organizer authorization required.' });
-    const { title, venue, description, startsAt, salesOpen, salesClose, tiers, image } = req.body;
+    if (!isConnected()) return res.status(503).json({ message: 'Publishing is temporarily unavailable because the database is offline.' });
+    const { title, venue, description, startsAt, salesOpen, salesClose, tiers, image } = req.body ?? {};
     if (isRemovedVenue({ venue })) return res.status(400).json({ message: 'This venue is unavailable.' });
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
     const dates = [salesOpen, salesClose, startsAt].map(value => Date.parse(value));
-    if (!validText(title, 120) || !validText(venue, 160) || !validText(description, 4000) ||
-        !(dates[0] < dates[1] && dates[1] <= dates[2] && dates[2] > Date.now()) ||
-        !Array.isArray(tiers) || !tiers.length || tiers.length > 20 ||
+    if (!validText(title, 120) || !validText(venue, 160) || !validText(description, 4000)) {
+        return res.status(400).json({ message: 'Enter an event name, venue and description.' });
+    }
+    if (!(dates[0] < dates[1] && dates[1] <= dates[2] && dates[2] > Date.now())) {
+        return res.status(400).json({ message: 'Set a future event start. Sales must open before closing, and close by the event start.' });
+    }
+    if (!Array.isArray(tiers) || !tiers.length || tiers.length > 20 ||
         tiers.some(tier => !validText(tier?.title, 80) || !Number.isSafeInteger(tier.priceKes) ||
             tier.priceKes < 1 || tier.priceKes > 1000000 || !Number.isSafeInteger(tier.capacity) ||
             tier.capacity < 1 || tier.capacity > 100000 || !/^Gate [A-D]$/.test(tier.gate))) {
-        return res.status(400).json({ message: 'Check event details, sales dates, prices and capacities.' });
+        return res.status(400).json({ message: 'Each ticket tier needs a name, a whole-KES price, a capacity and a gate.' });
     }
     if (image && (typeof image !== 'string' || image.length > 1400000 ||
         !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image))) {
@@ -84,7 +89,7 @@ router.post('/', express.json({ limit: '2mb' }), route(async (req, res) => {
     }
     const id = randomUUID();
     const event = {
-        id, title: title.trim(), venue: venue.trim(), description: description.trim(),
+        id, title: title.trim(), venue: venue.trim(), description: description.trim(), status: 'published',
         salesOpen: new Date(dates[0]).toISOString(), salesClose: new Date(dates[1]).toISOString(),
         startsAt: new Date(dates[2]).toISOString(), image: image || null,
         tiers: tiers.map((tier, index) => ({
@@ -100,7 +105,9 @@ router.post('/', express.json({ limit: '2mb' }), route(async (req, res) => {
         }, { session });
     });
     res.status(201).json({ data: event });
-}));
+}
+
+router.post('/', express.json({ limit: '2mb' }), route(publishEvent));
 
 async function publishedTiers() {
     return (await events()).filter(event => onSale(event)).flatMap(event => event.tiers);
@@ -110,4 +117,4 @@ async function reservedTiers() {
     return (await events()).flatMap(event => event.tiers);
 }
 
-module.exports = { router, publishedTiers, reservedTiers, events, visible, onSale };
+module.exports = { router, publishEvent, publishedTiers, reservedTiers, events, visible, onSale };

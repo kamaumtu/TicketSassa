@@ -38,6 +38,10 @@ async function initializeDatabase() {
 }
 
 void initializeDatabase();
+const { reconcilePendingPayments } = require('./controllers/commerceController');
+setInterval(() => {
+    reconcilePendingPayments().catch(error => console.error('Payment status refresh failed:', error.name));
+}, 30000).unref();
 
 // Middleware
 app.use(cors({
@@ -46,6 +50,7 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use('/api/published-events', require('./routes/publishedEvents').router);
+app.post('/api/admin/events', adminOnly, express.json({ limit: '2mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

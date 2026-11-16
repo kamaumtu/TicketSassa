@@ -3,7 +3,6 @@ const commerce = require('../controllers/commerceController');
 const router = express.Router();
 
 router.get('/mode', commerce.getCheckoutMode);
-router.get('/gateways', commerce.getPaymentGateways);
 router.get('/payhero/balance', commerce.getPayHeroBalance);
 router.post('/mpesa/stkpush', commerce.initiateMpesaStkPush);
 router.get('/status/:orderReference', commerce.getPaymentStatus);

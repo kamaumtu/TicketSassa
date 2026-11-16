@@ -96,9 +96,9 @@ export class ApiService {
     return this.http.post<{ data: BookingOrder }>(`${this.baseUrl}/orders`, payload);
   }
 
-  // Gateway M-Pesa STK Push (PayHero / NexusPay / Demo)
-  initiateMpesaStkPush(orderReference: string, phone: string, provider: string = 'payhero') {
-    return this.http.post<{ mode: 'demo' | 'live'; CheckoutRequestID?: string; checkoutRequestId?: string; CustomerMessage?: string; provider?: string }>(`${this.baseUrl}/payments/mpesa/stkpush`, { orderReference, phone, provider });
+  // M-Pesa payment prompt
+  initiateMpesaStkPush(orderReference: string, phone: string) {
+    return this.http.post<{ mode: 'demo' | 'live'; CheckoutRequestID?: string; checkoutRequestId?: string; CustomerMessage?: string; provider?: string }>(`${this.baseUrl}/payments/mpesa/stkpush`, { orderReference, phone });
   }
 
   confirmDemo(orderReference: string, checkoutRequestId: string) {

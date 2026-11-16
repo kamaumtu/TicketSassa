@@ -1,17 +1,20 @@
 const { bulkAvailability, demoEnabled, collection } = require('../services/commerceDb');
-const { isConnected } = require('../config/db');
-const { ENDPOINT: QUICKET_ENDPOINT } = require('../services/quicketEvents');
 const { isRemovedVenue } = require('../services/eventVisibility');
+const { defaultProviders } = require('../services/providers/eventSyncService');
 
 async function getTicketCatalog() {
     const { publishedTiers } = require('../routes/publishedEvents');
     const published = await publishedTiers();
-    if (!isConnected()) return published;
-    const quicket = await collection('event_catalogs').findOne({ _id: QUICKET_ENDPOINT });
-    const quicketTiers = (quicket?.events ?? [])
-        .filter(event => !isRemovedVenue(event) && Date.parse(event.startsAt) > Date.now())
+    const providerDocs = await Promise.all(
+        defaultProviders
+            .filter(p => p.isEnabled(process.env))
+            .map(p => collection('event_catalogs').findOne({ _id: p.endpointKey }).catch(() => null))
+    );
+    const providerTiers = providerDocs
+        .flatMap(doc => doc?.events ?? [])
+        .filter(event => !isRemovedVenue(event) && event.status !== 'cancelled' && Date.parse(event.startsAt) > Date.now() && event.checkout)
         .flatMap(event => Array.isArray(event.tiers) ? event.tiers : []);
-    const byKey = new Map([...quicketTiers, ...published]
+    const byKey = new Map([...providerTiers, ...published]
         .filter(tier => tier?.tierKey).map(tier => [tier.tierKey, { ...tier, published: true }]));
     return [...byKey.values()];
 }

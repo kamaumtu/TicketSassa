@@ -141,28 +141,16 @@ The backend refreshes upcoming Kenyan listings from
 15 minutes. It caches the last successful result in MongoDB. A failed
 refresh leaves the previous listings available with a stale label.
 
-### Tickets.dev discovery
+### Modular Event Providers & Automatic Synchronisation
 
-Set `TICKETS_DEV_KEY` in the server environment to add Tickets.dev results to
-the Kenya event catalog. `TICKETS_DEV_QUERIES` is a comma-separated list of
-search terms, defaulting to Nairobi. The importer
-keeps upcoming events with a Kenyan venue and caches results in MongoDB.
-Use `tk_test_sandbox` for development with provider fixtures. Discovery
-does not create inventory or enable checkout for a listing.
+Event imports are handled through isolated provider adapters in `backend/src/services/providers/`:
+- **TKT API** (`tktEvents.js`): Set `TKT_API_KEY` (and optional `TKT_API_BASE_URL`) to import authorized TKT events, posters, descriptions, and ticket tiers.
+- **eGotickets Partner API** (`egoticketsEvents.js`): Set `EGOTICKETS_API_KEY` (and optional `EGOTICKETS_BASE_URL`) to import East Africa partner events and authorized allocations.
+- **Quicket Kenya** (`quicketEvents.js`): Disabled by default; set `QUICKET_ENABLED=true` together with `QUICKET_API_KEY` (and optional `QUICKET_EVENT_IDS`) to enable.
+- **Tickets.dev** (`ticketsDevEvents.js`): Set `TICKETS_DEV_KEY` and `TICKETS_DEV_QUERIES` (defaults to `Nairobi`) to import upcoming Kenyan discovery listings.
+- **Direct Organiser Submissions** (`publishedEvents.js`): Organisers publish directly via `/organizer` or `/api/published-events`.
 
-Set `TICKETMASTER_API_KEY` to also import Ticketmaster Discovery events.
-The importer requests Kenyan venues and saves a separate MongoDB snapshot.
-Ticketmaster listings also require an authorized allocation or booking
-integration before checkout can be offered.
-
-### Quicket discovery
-
-Set `QUICKET_API_KEY` in the backend environment to import upcoming Kenyan
-events from Quicket. The importer checks up to three pages of recently
-modified public listings. Set `QUICKET_EVENT_IDS` to a comma-separated list
-of numeric event IDs from Quicket URLs to import those specific events
-instead. Results are cached in MongoDB. Public listings do not enable
-checkout or grant permission to sell tickets.
+The sync engine (`eventSyncService.js`) runs on startup and every 15 minutes with duplicate detection, automatic poster/description/price updates, and cancellation detection. Only authorized, non-cancelled inventory is enabled for checkout.
 
 ### Automatic checkout for imported events
 
