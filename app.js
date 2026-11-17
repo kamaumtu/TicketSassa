@@ -733,7 +733,7 @@ async function handleMpesaSubmit(event) {
             result = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payment.CheckoutRequestID });
         } else {
             status.textContent = (payment.checkoutStarted ? 'Approve the M-Pesa prompt on your phone.'
-                : 'Waiting for the payment provider to confirm the request.') + ' Order ' + orderReference + '.';
+                : 'Waiting for M-Pesa to confirm the request.') + ' Order ' + orderReference + '.';
             for (let attempt = 0; attempt < 15; attempt++) {
                 await new Promise(resolve => setTimeout(resolve, 3500));
                 const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(customer.email)).catch(() => null);
@@ -2564,12 +2564,21 @@ let currentTicketTiers = [];
 const ticketsasaCatalogMap = new Map();
 let activeTicketsasaDetailEvent = null;
 let pendingDetailOrder;
+let linkedEventId = new URLSearchParams(location.search).get('event');
+
+function openLinkedEvent() {
+    if (!linkedEventId || !ticketsasaCatalogMap.has(linkedEventId)) return;
+    const id = linkedEventId;
+    linkedEventId = null;
+    openTicketsasaEventModal(id);
+}
 
 window.onTicketsasaCatalogLoaded = function (eventsList) {
     if (!Array.isArray(eventsList)) return;
     for (const ev of eventsList) {
         if (ev?.id) ticketsasaCatalogMap.set(ev.id, ev);
     }
+    openLinkedEvent();
 };
 
 async function loadPublishedEvents() {
@@ -2586,6 +2595,7 @@ async function loadPublishedEvents() {
                 });
             }
         }
+        openLinkedEvent();
         section.querySelectorAll('[data-published-search]').forEach(card => card.remove());
         publishedOptions.clear();
         document.getElementById('published-status').textContent = data.length ? '' : 'No events currently have tickets on this site.';
@@ -2656,6 +2666,11 @@ async function loadPublishedEvents() {
 
 function renderPublishedTiers(tiers) {
     currentTicketTiers = tiers;
+    const modal = document.getElementById('ticketsasa-event-modal');
+    if (activeTicketsasaDetailEvent && !activeTicketsasaDetailEvent.tiers.length &&
+        modal && !modal.classList.contains('hidden') && tiers.some(tier => tier.eventId === activeTicketsasaDetailEvent.id)) {
+        openTicketsasaEventModal(activeTicketsasaDetailEvent.id);
+    }
     for (const [id, options] of publishedOptions) {
         const eventTiers = tiers.filter(tier => tier.eventId === id);
         renderDemoTicketOptions(eventTiers, options);

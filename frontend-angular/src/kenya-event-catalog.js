@@ -45,6 +45,7 @@ class KenyaEventCatalog extends HTMLElement {
             .price-text span { font-weight: 500; color: #64748b; font-size: .75rem; margin-right: .2rem; }
             .book-link { display: inline-flex; align-items: center; justify-content: center; background: #D81A21; color: white; text-decoration: none; font-size: .75rem; font-weight: 700; padding: .4rem .75rem; border-radius: .45rem; transition: background .15s; }
             .book-link:hover { background: #b9151b; }
+            .book-link.disabled { background: #aaa; color: #666; cursor: default; pointer-events: none; }
             .pagination-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: .5rem; margin-top: 2rem; }
             button { min-height: 40px; border: 1px solid #cbd5e1; padding: .45rem .9rem; border-radius: .5rem; background: white; font: inherit; font-size: .85rem; font-weight: 700; color: #334155; cursor: pointer; transition: all .15s; }
             button:hover { border-color: #D81A21; color: #D81A21; }
@@ -164,7 +165,9 @@ class KenyaEventCatalog extends HTMLElement {
             this.pagination.append(showAllBtn);
         }
 
-        const signature = JSON.stringify(visible.map(e => e.id)) + ':' + this.page + ':' + this.limit;
+        const signature = JSON.stringify(visible.map(event => [event.id, event.title, event.startsAt, event.venue,
+            event.locationFull, event.imageUrl, event.remoteImageUrl, event.category, event.isFree, event.startingPrice,
+            event.price?.amount, event.checkout, event.formattedDate, event.dateOnly])) + ':' + this.page + ':' + this.limit;
         if (this.signature !== signature) {
             this.signature = signature;
             this.grid.replaceChildren(...visible.map(event => this.card(event)));
@@ -225,7 +228,9 @@ class KenyaEventCatalog extends HTMLElement {
 
         const url = new URL(this.storefront ?? location.href);
         url.search = new URLSearchParams({ view: 'events', event: event.id }).toString();
-        const link = element('a', event.checkout ? 'View tickets' : 'View event', { href: url.href, class: 'book-link' });
+        const link = event.checkout ?
+            element('a', 'View tickets', { href: url.href, class: 'book-link' }) :
+            element('span', 'View event', { class: 'book-link disabled' });
         priceRow.append(link);
         details.append(priceRow);
         card.append(details);
