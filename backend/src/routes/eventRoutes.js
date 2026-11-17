@@ -11,6 +11,18 @@ router.get('/kenya', route(async (req, res) => {
     res.set('Cache-Control', 'no-store').json(await catalog.get());
 }));
 
+router.get('/quicket', route(async (req, res) => {
+    const data = await catalog.get();
+    const quicketEvents = data.events.filter(ev => ev.source === 'Quicket');
+    res.set('Cache-Control', 'no-store').json({
+        success: true,
+        application: "ticketsasas's App",
+        quicketStatus: data.quicketStatus,
+        count: quicketEvents.length,
+        events: quicketEvents
+    });
+}));
+
 async function upcomingEvents() {
     const [catalogData, managed] = await Promise.all([catalog.get(), events()]);
     const entries = new Map(catalogData.events.map(event => [event.id,

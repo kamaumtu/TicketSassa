@@ -132,18 +132,36 @@ async function request(url, fetchPage, signal) {
     return body;
 }
 
-async function fetchQuicketEvents({ key, eventIds = [], fetchPage = fetch, now = Date.now() }) {
+async function fetchQuicketEvents({ key, userToken = process.env.QUICKET_USER_TOKEN?.trim(), eventIds = [], fetchPage = fetch, now = Date.now() }) {
     const listings = new Map();
     const deadline = AbortSignal.timeout(25000);
     const idsToFetch = eventIds.length
         ? [...new Set([...eventIds, ...DEFAULT_KENYA_EVENT_IDS])]
         : DEFAULT_KENYA_EVENT_IDS;
 
+    // 1. If a Quicket usertoken is configured, also import the organizer's own events (/api/users/me/events)
+    if (userToken) {
+        try {
+            const meUrl = new URL('https://api.quicket.co.za/api/users/me/events');
+            meUrl.searchParams.set('api_key', key);
+            meUrl.searchParams.set('usertoken', userToken);
+            const meBody = await request(meUrl, fetchPage, deadline);
+            for (const event of (meBody?.results || [])) {
+                const listing = kenyaListing(event, now);
+                if (listing) listings.set(listing.id, listing);
+            }
+        } catch {
+            // Fall through to public event lookup
+        }
+    }
+
+    // 2. Fetch configured/curated Kenyan Quicket event IDs with ?api_key=...
     if (idsToFetch.length) {
         const results = await Promise.allSettled(idsToFetch.map(async id => {
             if (!/^\d{1,12}$/.test(String(id).trim())) return null;
             const url = new URL(ENDPOINT + '/' + String(id).trim());
             url.searchParams.set('api_key', key);
+            if (userToken) url.searchParams.set('usertoken', userToken);
             const body = await request(url, fetchPage, deadline);
             const event = body.result ?? body;
             return kenyaListing(event, now);
@@ -153,23 +171,28 @@ async function fetchQuicketEvents({ key, eventIds = [], fetchPage = fetch, now =
                 listings.set(res.value.id, res.value);
             }
         }
-        if (listings.size > 0) return [...listings.values()];
     }
 
-    for (let page = 1; page <= 3; page++) {
-        const url = new URL(ENDPOINT);
-        url.search = new URLSearchParams({
-            api_key: key, page: String(page), pageSize: '25',
-            lastModified: new Date(now - 30 * DAY).toISOString()
-        });
-        const body = await request(url, fetchPage, deadline);
-        if (!Array.isArray(body.results)) throw new Error('Invalid Quicket events response');
-        for (const event of body.results) {
-            const listing = kenyaListing(event, now);
-            if (listing) listings.set(listing.id, listing);
+    // 3. Also scan recently modified public Quicket events for any new Kenyan events
+    try {
+        for (let page = 1; page <= 2; page++) {
+            const url = new URL(ENDPOINT);
+            url.search = new URLSearchParams({
+                api_key: key, page: String(page), pageSize: '50',
+                lastModified: new Date(now - 30 * DAY).toISOString()
+            });
+            const body = await request(url, fetchPage, deadline);
+            if (!Array.isArray(body.results)) break;
+            for (const event of body.results) {
+                const listing = kenyaListing(event, now);
+                if (listing) listings.set(listing.id, listing);
+            }
+            if (!(page < body.pages)) break;
         }
-        if (!(page < body.pages)) break;
+    } catch {
+        if (listings.size === 0) throw new Error('Quicket events fetch failed');
     }
+
     return [...listings.values()];
 }
 
