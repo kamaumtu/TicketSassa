@@ -143,9 +143,9 @@ refresh leaves the previous listings available with a stale label.
 
 ### Modular Event Providers & Automatic Synchronisation
 
-Event imports are handled through isolated provider adapters in `backend/src/services/providers/`:
-- **TKT API** (`tktEvents.js`): Set `TKT_API_KEY` (and optional `TKT_API_BASE_URL`) to import authorized TKT events, posters, descriptions, and ticket tiers.
-- **eGotickets Partner API** (`egoticketsEvents.js`): Set `EGOTICKETS_API_KEY` (and optional `EGOTICKETS_BASE_URL`) to import East Africa partner events and authorized allocations.
+Event imports are handled through provider adapters in `backend/src/services/providers/`:
+- **TKT API** (`tktEvents.js`): Set `TKT_API_KEY` (and optional `TKT_API_BASE_URL`) to import TKT events, posters and descriptions.
+- **eGotickets Partner API** (`egoticketsEvents.js`): Set `EGOTICKETS_API_KEY` (and optional `EGOTICKETS_BASE_URL`) to import East Africa partner events.
 - **Quicket Kenya** (`quicketEvents.js`): Disabled by default; set `QUICKET_ENABLED=true` together with `QUICKET_API_KEY` (and optional `QUICKET_EVENT_IDS`) to enable.
 - **Tickets.dev** (`ticketsDevEvents.js`): Set `TICKETS_DEV_KEY` and `TICKETS_DEV_QUERIES` (defaults to `Nairobi`) to import upcoming Kenyan discovery listings.
 - **Direct Organiser Submissions** (`publishedEvents.js`): Organisers publish directly via `/organizer` or `/api/published-events`.
@@ -178,7 +178,9 @@ format directly or expose an adapter with the same contract:
 }
 ```
 
-Use an exact ID from `GET /api/events/kenya` and keep tier IDs stable.
+The allocation feed can cover any synced provider. Use stable event IDs from
+`GET /api/events/kenya` (such as `quicket:406815`) and keep tier IDs stable.
+An optional `description` overrides the imported event description.
 Capacity is the total allocation dedicated to this site, including any
 units already bought through this site. Supply a fresh `validUntil` within
 one hour on each refresh. Sales close when an allocation is removed or

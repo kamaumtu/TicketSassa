@@ -70,28 +70,11 @@ function kenyaListing(event, now) {
     if (!effectiveStartMs) return null;
 
     const rawTickets = Array.isArray(event.tickets) ? event.tickets : [];
-    const validTickets = rawTickets.filter(t => t && typeof t.name === 'string' && !t.soldOut);
-    const tiers = (validTickets.length ? validTickets : rawTickets).map((t, idx) => {
-        const rawPrice = Number(t.price);
-        const priceKes = Number.isFinite(rawPrice) && rawPrice > 0 ? Math.round(rawPrice) : 1500;
-        return {
-            tierKey: `quicket-${event.id}-${t.id || idx + 1}`,
-            id: t.id || idx + 1,
-            title: t.name.trim(),
-            eventId: 'quicket:' + event.id,
-            eventTitle: event.name.trim().slice(0, 200),
-            priceKes,
-            priceUsd: Math.max(1, Math.round((priceKes / 125) * 100) / 100),
-            remainingAllocation: t.soldOut ? 0 : 250,
-            designatedGate: idx === 0 ? 'Gate A' : 'Gate B',
-            formattedSaleEnd: t.salesEnd ? new Date(t.salesEnd).toDateString() : 'Event Day',
-            published: true
-        };
-    });
-
-    const minPrice = tiers.length
-        ? Math.min(...tiers.map(t => t.priceKes).filter(p => p > 0))
-        : 1500;
+    const advertisedPrices = rawTickets.filter(ticket => ticket && !ticket.soldOut &&
+        String(ticket.currencyCode ?? ticket.currency ?? event.currencyCode ?? event.currency).toUpperCase() === 'KES' &&
+        /^\d+(?:\.\d+)?$/.test(String(ticket.price)))
+        .map(ticket => Number(ticket.price)).filter(Number.isFinite);
+    const minPrice = advertisedPrices.length ? Math.min(...advertisedPrices) : null;
     const imageUrl = normalizeQuicketImage(event.imageUrl);
     const city = levelThree || levelTwo || 'Nairobi';
     const locationFull = [venueName, city, 'Kenya'].filter(Boolean).join(', ');
@@ -104,18 +87,16 @@ function kenyaListing(event, now) {
         venue: venueName || city,
         city,
         locationFull,
-        description: stripHtml(event.description) || `${event.name.trim()} at ${locationFull}. Book official Quicket Kenya tickets with instant M-Pesa confirmation.`,
+        description: stripHtml(event.description) || `${event.name.trim()} at ${locationFull}.`,
         host: event.organiser?.name || 'Quicket Kenya Official Organizer',
         category: event.categories?.[0]?.name || 'Quicket Live Event',
         imageUrl,
         remoteImageUrl: imageUrl,
         sourceUrl: url.href,
         source: 'Quicket',
-        startingPrice: Number.isFinite(minPrice) ? minPrice : 1500,
-        price: { amount: Number.isFinite(minPrice) ? minPrice : 1500, currency: 'KES' },
-        checkout: true,
-        onSale: true,
-        tiers
+        startingPrice: minPrice,
+        price: minPrice === null ? null : { amount: minPrice, currency: 'KES' },
+        checkout: false
     };
 }
 

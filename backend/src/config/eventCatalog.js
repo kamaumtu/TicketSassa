@@ -1,8 +1,11 @@
 const { isRemovedVenue } = require('../services/eventVisibility');
+const { randomUUID } = require('node:crypto');
+const { isConnected } = require('./db');
 const { collection } = require('../services/commerceDb');
 const { syncAllocations } = require('../services/eventAllocations');
 const { ticketsasaEvents, ticketsasaSliders } = require('./ticketsasaEvents');
 const { defaultProviders, syncSingleProvider, mergeDeduplicatedEvents } = require('../services/providers/eventSyncService');
+const { onSale } = require('../routes/publishedEvents');
 
 const SOURCE = 'https://soldoutafrica.com/events';
 const REFRESH_MS = 15 * 60 * 1000;
@@ -50,6 +53,8 @@ function parseListings(html, now = Date.now()) {
             listings.set(url.pathname, {
                 id: 'soldoutafrica:' + url.pathname,
                 title,
+                description: typeof event.description === 'string'
+                    ? event.description.replace(/<[^>]*>/g, '').trim().slice(0, 4000) : '',
                 startsAt: new Date(startsAt).toISOString(),
                 venue: event.location.name?.trim(),
                 city: address.addressLocality?.trim(),
@@ -66,11 +71,23 @@ function parseListings(html, now = Date.now()) {
 
 function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } = {}) {
     let pending;
+    let allocationStatus = 'pending';
+    let activeRun = null;
+    let nextRunAt = null;
 
-    function refresh() {
-        pending ??= Promise.all([
-            ...providers.map(provider => syncSingleProvider(provider, { fetchPage })),
-            (async () => {
+    function refresh(trigger = 'startup') {
+        if (pending) return pending;
+        const run = { id: randomUUID(), trigger, startedAt: new Date().toISOString(), stage: 'Reading event sources', sources: {} };
+        activeRun = run;
+        async function track(id, work) {
+            run.sources[id] = { status: 'checking', count: 0, removed: 0 };
+            const result = await work();
+            run.sources[id] = { status: result.status, count: result.events?.length ?? 0, removed: result.cancelledIds?.length ?? 0 };
+            return result;
+        }
+        pending = Promise.all([
+            ...providers.map(provider => track(provider.id, () => syncSingleProvider(provider, { fetchPage }))),
+            track('soldoutafrica', async () => {
                 try {
                     const response = await fetchPage(SOURCE, {
                         headers: { Accept: 'text/html' },
@@ -81,24 +98,48 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                     await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
                         events, updatedAt: new Date().toISOString(), stale: false
                     }, { upsert: true });
-                    try {
-                        await syncAllocations(events, fetchPage);
-                    } catch (error) {
-                        console.warn('Ticket allocation sync failed:', error.message);
-                    }
+                    return { status: 'live', events };
                 } catch (error) {
                     await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
                     console.warn('SoldOut Africa refresh failed:', error.message);
+                    return { status: 'unavailable' };
                 }
-            })()
-        ]).finally(() => { pending = null; });
+            })
+        ]).then(async results => {
+            run.stage = 'Checking supplier inventory';
+            try {
+                allocationStatus = await syncAllocations(results.flatMap(result => result?.events ?? []), fetchPage);
+            } catch (error) {
+                allocationStatus = 'unavailable';
+                console.warn('Ticket allocation sync failed:', error.message);
+            }
+        }).finally(async () => {
+            run.finishedAt = new Date().toISOString();
+            run.allocationStatus = allocationStatus;
+            run.stage = 'Finished';
+            if (isConnected()) {
+                await collection('event_sync_runs').insertOne({ ...run, expireAt: new Date(Date.now() + 7 * 86400000) })
+                    .catch(() => console.warn('Could not save event sync history.'));
+            }
+            activeRun = null;
+            pending = null;
+        });
         return pending;
     }
 
     return {
         start() {
-            setInterval(refresh, REFRESH_MS).unref();
+            nextRunAt = new Date(Date.now() + REFRESH_MS).toISOString();
+            setInterval(() => {
+                nextRunAt = new Date(Date.now() + REFRESH_MS).toISOString();
+                void refresh('scheduled');
+            }, REFRESH_MS).unref();
             return refresh();
+        },
+        async activity() {
+            const history = isConnected() ? await collection('event_sync_runs').find({}, { projection: { _id: 0, expireAt: 0 } })
+                .sort({ startedAt: -1 }).limit(20).toArray() : [];
+            return { activeRun, nextRunAt, history };
         },
         async get() {
             const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE });
@@ -111,28 +152,36 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             );
 
             const now = new Date().toISOString();
-            const allocated = snapshot ? await collection('commerce_events').find({
-                source: 'SoldOut Africa', startsAt: { $gt: now }, allocationExpiresAt: { $gt: now },
-                salesOpen: { $lte: now }, salesClose: { $gt: now },
-                $or: [{ status: { $exists: false } }, { status: 'published' }]
-            }, { projection: { _id: 1, tiers: 1 } }).toArray() : [];
-            const sales = new Map(allocated.map(event => [event._id, event.tiers]));
-            const remoteEvents = (snapshot?.events ?? []).filter(event => event.startsAt > now).map(event => ({
-                ...event,
-                checkout: sales.has(event.id),
-                price: sales.has(event.id) ? { amount: Math.min(...sales.get(event.id).map(tier => tier.priceKes)), currency: 'KES' } : event.price,
-                tiers: sales.get(event.id) ?? []
-            }));
-
-            function eventWithTickets(event) {
-                const tiers = Array.isArray(event.tiers) ? event.tiers : [];
-                const onSale = tiers.length > 0 && event.status !== 'cancelled';
-                return { ...event, tiers, checkout: onSale, onSale };
+            const allocated = await collection('commerce_events').find({
+                allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
+            }).toArray();
+            const allocations = new Map(allocated.map(event => [event.id, event]));
+            function importedEvent(event) {
+                const allocation = allocations.get(event.id);
+                const tiers = allocation && onSale(allocation)
+                    ? allocation.tiers.filter(tier => tier.remainingAllocation > 0) : [];
+                const startingPrice = tiers.length ? Math.min(...tiers.map(tier => tier.priceKes)) : event.price?.amount ?? null;
+                let ticketStatus = 'on-sale';
+                if (!allocation) ticketStatus = 'awaiting-allocation';
+                else if (allocation.status && allocation.status !== 'published') ticketStatus = 'paused';
+                else if (allocation.allocationExpiresAt <= now) ticketStatus = 'allocation-expired';
+                else if (allocation.salesOpen > now) ticketStatus = 'scheduled';
+                else if (allocation.salesClose <= now) ticketStatus = 'sales-closed';
+                else if (!tiers.length) ticketStatus = 'no-allocation-left';
+                return {
+                    ...event, description: allocation?.description || event.description ||
+                        [event.title, event.locationFull || event.venue || event.city].filter(Boolean).join(' · '),
+                    checkout: tiers.length > 0, onSale: tiers.length > 0, tiers, startingPrice,
+                    price: tiers.length ? { amount: startingPrice, currency: 'KES' } : event.price,
+                    ticketStatus
+                };
             }
+            const remoteEvents = (snapshot?.events ?? []).filter(event => event.startsAt > now).map(importedEvent);
 
             const cancelledSet = new Set();
             const providerEvents = [];
             const providerStatuses = {};
+            providerStatuses.soldoutafrica = !snapshot ? 'unavailable' : snapshot.stale ? 'stale' : 'live';
             const updatedAts = [snapshot?.updatedAt];
 
             for (const { provider, enabled, doc } of providerSnapshots) {
@@ -141,12 +190,12 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                     : !doc ? 'unavailable' : doc.stale ? 'stale' : 'live';
                 if (doc?.updatedAt) updatedAts.push(doc.updatedAt);
                 for (const cid of (doc?.cancelledIds || [])) cancelledSet.add(cid);
-                const future = (doc?.events || []).filter(ev => ev.startsAt > now).map(eventWithTickets);
+                const future = (doc?.events || []).filter(ev => ev.startsAt > now).map(importedEvent);
                 providerEvents.push(future);
             }
 
             const mergedEvents = mergeDeduplicatedEvents(
-                [ticketsasaEvents.map(eventWithTickets), remoteEvents.map(eventWithTickets), ...providerEvents],
+                [ticketsasaEvents.map(event => ({ ...event, checkout: Boolean(event.tiers?.length) })), remoteEvents, ...providerEvents],
                 cancelledSet
             ).filter(event => !isRemovedVenue(event));
 
@@ -155,6 +204,7 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                 sliders: ticketsasaSliders.filter(slider => !isRemovedVenue(slider)),
                 updatedAt: updatedAts.filter(Boolean).sort().at(-1) ?? null,
                 providerStatuses,
+                allocationStatus,
                 tktStatus: providerStatuses.tkt || 'unconfigured',
                 egoticketsStatus: providerStatuses.egotickets || 'unconfigured',
                 ticketsDevStatus: providerStatuses.ticketsdev || 'unconfigured',

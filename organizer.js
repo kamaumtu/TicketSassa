@@ -3,6 +3,16 @@ const tiers = document.querySelector('#tiers');
 const add = document.querySelector('#add-tier');
 const status = form.querySelector('output');
 const submit = form.querySelector('[type=submit]');
+const quickTicket = document.querySelector('#quick-ticket');
+const customTickets = document.querySelector('#custom-tickets');
+let requestId;
+
+form.elements.ticketSetup.addEventListener('change', () => {
+    const quick = form.elements.ticketSetup.value === 'quick';
+    quickTicket.hidden = quickTicket.disabled = !quick;
+    customTickets.hidden = customTickets.disabled = quick;
+});
+form.addEventListener('input', () => { requestId = undefined; });
 
 function updateControls() {
     add.disabled = tiers.children.length >= 20;
@@ -35,37 +45,44 @@ starts.addEventListener('change', () => {
 form.addEventListener('submit', async event => {
     event.preventDefault();
     submit.disabled = true;
+    const data = new FormData(form);
+    const quick = data.get('ticketSetup') === 'quick';
+    delete status.dataset.state;
     status.textContent = 'Publishing...';
     try {
-        const data = new FormData(form);
+        const localTime = field => data.get(field) + '+03:00';
+        const startsAt = localTime('startsAt');
+        const payload = { title: data.get('title'), venue: data.get('venue'), description: data.get('description'), startsAt };
+        if (quick) {
+            requestId ??= crypto.randomUUID();
+            payload.requestId = requestId;
+            payload.quickTicket = {
+                priceKes: Number(data.get('quickPrice')), capacity: Number(data.get('quickCapacity')),
+                gate: data.get('quickGate')
+            };
+        } else {
+            payload.salesOpen = localTime('salesOpen');
+            payload.salesClose = localTime('salesClose');
+            payload.tiers = Array.from(tiers.children, tier => ({
+                title: tier.querySelector('[name=tierTitle]').value,
+                priceKes: Number(tier.querySelector('[name=price]').value),
+                capacity: Number(tier.querySelector('[name=capacity]').value),
+                gate: tier.querySelector('[name=gate]').value
+            }));
+        }
         const file = data.get('image');
         if (file.size > 1000000) throw new Error('Choose an image under 1 MB.');
-        const image = file.size ? await new Promise((resolve, reject) => {
+        payload.image = file.size ? await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
             reader.onerror = () => reject(new Error('Could not read the photo.'));
             reader.readAsDataURL(file);
         }) : null;
-        const localTime = field => data.get(field) + '+03:00';
-        if (!(Date.parse(localTime('salesOpen')) < Date.parse(localTime('salesClose')) &&
-              Date.parse(localTime('salesClose')) <= Date.parse(localTime('startsAt')) &&
-              Date.parse(localTime('startsAt')) > Date.now())) {
-            throw new Error('Set a future event start. Sales must open before closing, and close by the event start.');
-        }
         const response = await fetch('/api/admin/events', {
             method: 'POST',
             credentials: 'same-origin',
             headers: { 'Content-Type': 'application/json', 'X-Admin-Action': 'dashboard' },
-            body: JSON.stringify({
-                title: data.get('title'), venue: data.get('venue'), description: data.get('description'),
-                startsAt: localTime('startsAt'), salesOpen: localTime('salesOpen'), salesClose: localTime('salesClose'), image,
-                tiers: Array.from(tiers.children, tier => ({
-                    title: tier.querySelector('[name=tierTitle]').value,
-                    priceKes: Number(tier.querySelector('[name=price]').value),
-                    capacity: Number(tier.querySelector('[name=capacity]').value),
-                    gate: tier.querySelector('[name=gate]').value
-                }))
-            })
+            body: JSON.stringify(payload)
         });
         const result = await response.json().catch(() => null);
         if (response.status === 401 || response.status === 403) {

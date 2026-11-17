@@ -204,9 +204,9 @@ class KenyaEventCatalog extends HTMLElement {
         const priceAmount = event.startingPrice !== undefined ? event.startingPrice : event.price?.amount;
         const priceFormatted = isFree
             ? 'Free Entry'
-            : priceAmount !== undefined
+            : priceAmount != null
                 ? `KES ${Number(priceAmount).toLocaleString('en-KE')}`
-                : 'Available';
+                : 'Price unavailable';
 
         details.append(
             element('time', dateLabel, { datetime: event.startsAt }),
@@ -216,20 +216,17 @@ class KenyaEventCatalog extends HTMLElement {
 
         const priceRow = element('div', '', { class: 'price-row' });
         const priceNode = element('div', '', { class: 'price-text' });
-        if (!isFree) {
+        if (!isFree && priceAmount != null) {
             priceNode.append(element('span', 'Starting '), document.createTextNode(priceFormatted));
         } else {
-            priceNode.textContent = 'Free';
+            priceNode.textContent = priceFormatted;
         }
         priceRow.append(priceNode);
 
-        if (event.checkout) {
-            const url = new URL(this.storefront ?? location.href);
-            url.search = new URLSearchParams({ view: 'events', event: event.id }).toString();
-            const link = element('a', 'View tickets', { href: url.href, class: 'book-link' });
-            link.addEventListener('click', openDetail);
-            priceRow.append(link);
-        }
+        const url = new URL(this.storefront ?? location.href);
+        url.search = new URLSearchParams({ view: 'events', event: event.id }).toString();
+        const link = element('a', event.checkout ? 'View tickets' : 'View event', { href: url.href, class: 'book-link' });
+        priceRow.append(link);
         details.append(priceRow);
         card.append(details);
         return card;

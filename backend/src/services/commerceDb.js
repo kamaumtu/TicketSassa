@@ -162,7 +162,9 @@ async function createIndexes() {
         collection('commerce_holds').createIndex({ orderReference: 1 }),
         collection('commerce_holds').createIndex({ purgeAt: 1 }, { expireAfterSeconds: 0 }),
         collection('commerce_passes').createIndex({ orderReference: 1 }),
-        collection('commerce_passes').createIndex({ passReference: 1 }, { unique: true })
+        collection('commerce_passes').createIndex({ passReference: 1 }, { unique: true }),
+        collection('event_sync_runs').createIndex({ expireAt: 1 }, { expireAfterSeconds: 0 }),
+        collection('event_sync_runs').createIndex({ startedAt: -1 })
     ]);
 }
 

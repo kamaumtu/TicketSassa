@@ -110,11 +110,14 @@ function mergeDeduplicatedEvents(eventGroups = [], cancelledIdSet = new Set()) {
                 const primaryId = bySignature.get(sig);
                 const primary = byId.get(primaryId);
                 if (primary) {
-                    byId.set(primaryId, {
-                        ...primary,
-                        imageUrl: primary.imageUrl || event.imageUrl,
-                        description: primary.description || event.description,
-                        tiers: primary.tiers?.length ? primary.tiers : (event.tiers || [])
+                    const preferred = !primary.checkout && event.checkout ? event : primary;
+                    const secondary = preferred === event ? primary : event;
+                    byId.delete(primaryId);
+                    bySignature.set(sig, preferred.id);
+                    byId.set(preferred.id, {
+                        ...preferred,
+                        imageUrl: preferred.imageUrl || secondary.imageUrl,
+                        description: preferred.description || secondary.description
                     });
                 }
                 continue;

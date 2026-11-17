@@ -5,24 +5,32 @@ import './style.css';
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
 type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string };
-type Import = { id: string; title: string; venue: string; startsAt: string; source?: string };
+type Import = { id: string; title: string; venue: string; startsAt: string; source?: string; ticketStatus: string; startingPrice: number | null };
 type Audit = { action: string; target: string; timestamp: string };
 type PaymentSettings = { provider: string | null; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
-type Data = { payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: { events: Import[]; status: string; updatedAt: string | null } };
+type Imports = { events: Import[]; allocationStatus: string; updatedAt: string | null; providerStatuses: Record<string, string> };
+type SyncRun = { id: string; startedAt: string; finishedAt?: string; trigger: string; stage: string; allocationStatus?: string;
+    sources: Record<string, { status: string; count: number; removed: number }> };
+type Lobby = Imports & { activeRun: SyncRun | null; nextRunAt: string | null; history: SyncRun[] };
+type Data = { payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: Imports };
 
-const sections = ['Overview', 'Events', 'Automatic imports', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
+const sections = ['Overview', 'Events', 'Publishing lobby', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
 type Section = typeof sections[number];
 const paymentLabels: Record<string, string> = {
     COMPLETED: 'Completed', FAILED: 'Failed', PROCESSING: 'Awaiting confirmation', PENDING: 'Awaiting payment'
 };
 const paymentLabel = (status: string) => paymentLabels[status] ?? status;
+
+function PaymentBadge({ status }: { status: string }) {
+    return <span className="payment-badge" data-status={status}>{paymentLabel(status)}</span>;
+}
 const money = (value: number) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(value);
 const date = (value: string) => new Intl.DateTimeFormat('en-KE', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Africa/Nairobi' }).format(new Date(value));
 
-async function request<T>(path: string, method = 'GET', body?: object): Promise<T> {
+async function request<T>(path: string, method = 'GET', body?: object, signal?: AbortSignal): Promise<T> {
     const response = await fetch('/api/admin' + path, {
-        method, credentials: 'same-origin',
+        method, credentials: 'same-origin', signal,
         headers: method === 'GET' ? undefined : { 'Content-Type': 'application/json', 'X-Admin-Action': 'dashboard' },
         body: body ? JSON.stringify(body) : undefined
     });
@@ -31,6 +39,83 @@ async function request<T>(path: string, method = 'GET', body?: object): Promise<
         throw new Error(payload?.message || ('Request failed (' + response.status + ')'));
     }
     return response.json();
+}
+
+const sourceLabels: Record<string, string> = { soldoutafrica: 'SoldOut Africa', quicket: 'Quicket Kenya', ticketsdev: 'Tickets.dev', tkt: 'TKT', egotickets: 'eGotickets' };
+const syncLabels: Record<string, string> = { live: 'Connected', stale: 'Using last import', checking: 'Checking', unconfigured: 'Setup required',
+    unavailable: 'Unavailable', 'database-offline': 'Database offline', pending: 'Waiting for first sync',
+    startup: 'Server startup', 'database-ready': 'Database connected', scheduled: 'Scheduled', manual: 'Manual' };
+const saleLabels: Record<string, string> = { 'on-sale': 'On sale', 'awaiting-allocation': 'Awaiting supplier inventory', paused: 'Paused by admin',
+    'allocation-expired': 'Supplier inventory expired or withdrawn', scheduled: 'Sale scheduled', 'sales-closed': 'Sales window closed',
+    'no-allocation-left': 'No supplier allocation left' };
+
+function PublishingLobby() {
+    const [lobby, setLobby] = useState<Lobby>();
+    const [error, setError] = useState('');
+    const [syncing, setSyncing] = useState(false);
+    const [search, setSearch] = useState('');
+    const [saleStatus, setSaleStatus] = useState('all');
+
+    useEffect(() => {
+        const controller = new AbortController();
+        let pending = false;
+        async function poll() {
+            if (document.hidden || pending) return;
+            pending = true;
+            try {
+                setLobby(await request<Lobby>('/imports/lobby', 'GET', undefined, controller.signal));
+                setError('');
+            } catch (err) {
+                if (!controller.signal.aborted) setError(err instanceof Error ? err.message : 'Could not load publishing activity.');
+            } finally { pending = false; }
+        }
+        void poll();
+        const interval = window.setInterval(poll, 5000);
+        return () => { controller.abort(); window.clearInterval(interval); };
+    }, []);
+
+    async function sync() {
+        setSyncing(true);
+        setError('');
+        try { setLobby(await request<Lobby>('/imports/sync', 'POST', {})); }
+        catch (err) { setError(err instanceof Error ? err.message : 'Could not run sync.'); }
+        finally { setSyncing(false); }
+    }
+
+    if (!lobby) return <p className="panel" role="status">{error || 'Loading publishing activity…'}</p>;
+    const onSale = lobby.events.filter(event => event.ticketStatus === 'on-sale').length;
+    const visible = lobby.events.filter(event => (saleStatus === 'all' || event.ticketStatus === saleStatus) &&
+        [event.title, event.venue, event.source].join(' ').toLowerCase().includes(search.trim().toLowerCase()));
+    const activity = lobby.activeRun;
+    return <div className="publishing-lobby">
+        {error && <p className="notice" role="status">{error}</p>}
+        <section className="panel">
+            <div className="lobby-toolbar"><div><h2>{activity?.stage ?? (syncing ? 'Starting sync' : 'Sync status')}</h2>
+                <p role="status">{activity ? `Started ${date(activity.startedAt)}` : `Next scheduled run ${lobby.nextRunAt ? date(lobby.nextRunAt) : 'unavailable'}`}</p></div>
+                <button className="primary" disabled={syncing || Boolean(activity)} onClick={() => void sync()}>Sync now</button></div>
+            <dl className="lobby-summary">
+                <div><dt>Imported events</dt><dd>{lobby.events.length}</dd></div><div><dt>On sale</dt><dd>{onSale}</dd></div>
+                <div><dt>Supplier inventory feed</dt><dd>{syncLabels[lobby.allocationStatus] ?? lobby.allocationStatus}</dd></div>
+                <div><dt>Last successful source refresh</dt><dd>{lobby.updatedAt ? date(lobby.updatedAt) : 'Unavailable'}</dd></div>
+            </dl>
+            <ul className="lobby-sources">{Object.entries(lobby.providerStatuses).map(([id, status]) => {
+                const current = activity?.sources[id];
+                return <li key={id}><strong>{sourceLabels[id] ?? id}</strong><span className="sync-badge" data-state={current?.status ?? status}>{syncLabels[current?.status ?? status] ?? status}{current?.status === 'live' ? ` · ${current.count} listings` : ''}</span></li>;
+            })}</ul>
+        </section>
+        <section className="panel"><h2>Event decisions</h2>
+            <div className="actions"><input aria-label="Search imported events" placeholder="Search title, venue or source" value={search} onChange={event => setSearch(event.target.value)}/>
+                <select aria-label="Filter by ticket status" value={saleStatus} onChange={event => setSaleStatus(event.target.value)}><option value="all">All statuses</option>{Object.entries(saleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            {visible.length ? <div className="scroll lobby-events"><table><thead><tr><th>Event</th><th>Source</th><th>Starts (EAT)</th><th>Price from</th><th>Ticket decision</th></tr></thead>
+                <tbody>{visible.map(event => <tr key={event.id}><td><a href={'/?view=events&event=' + encodeURIComponent(event.id)}>{event.title}</a><small>{event.venue}</small></td><td>{event.source}</td><td>{date(event.startsAt)}</td>
+                    <td>{event.startingPrice == null ? 'Unavailable' : money(event.startingPrice)}</td><td><span className="sync-badge" data-state={event.ticketStatus}>{saleLabels[event.ticketStatus]}</span></td></tr>)}</tbody></table></div> : <p>No imported events match this view.</p>}
+        </section>
+        <section className="panel"><h2>Recent sync runs</h2>{lobby.history.length ? lobby.history.map(run => <details className="sync-run" key={run.id}>
+            <summary>{date(run.startedAt)} · {syncLabels[run.trigger] ?? run.trigger} · Supplier inventory {syncLabels[run.allocationStatus ?? 'pending']?.toLowerCase()}</summary>
+            {run.finishedAt && <p>Finished {date(run.finishedAt)}</p>}
+            <ul>{Object.entries(run.sources).map(([id, source]) => <li key={id}>{sourceLabels[id] ?? id} · {syncLabels[source.status] ?? source.status}{source.status === 'live' ? ` · ${source.count} synced · ${source.removed} removed` : ''}</li>)}</ul>
+        </details>) : <p>No completed runs have been saved yet.</p>}</section>
+    </div>;
 }
 
 function exportOrders(orders: Order[]) {
@@ -46,7 +131,8 @@ function exportOrders(orders: Order[]) {
 }
 
 function App() {
-    const [section, setSection] = useState<Section>('Overview');
+    const [section, setSection] = useState<Section>(location.pathname === '/admin/publishing' ? 'Publishing lobby' : 'Overview');
+    const inLobby = section === 'Publishing lobby';
     const [data, setData] = useState<Data>();
     const [audit, setAudit] = useState<Audit[]>([]);
     const [query, setQuery] = useState('');
@@ -73,12 +159,13 @@ function App() {
     }
 
     useEffect(() => {
+        if (inLobby) return;
         void run(load);
         const interval = window.setInterval(() => {
             if (!document.hidden) void load().catch(() => {});
         }, 30000);
         return () => window.clearInterval(interval);
-    }, []);
+    }, [inLobby]);
 
     const events = data?.events ?? [];
     const orders = data?.orders ?? [];
@@ -94,7 +181,10 @@ function App() {
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
             <div className="brand"><strong>Ticketsassa</strong><span>Administration</span></div>
             <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show menu' : 'Hide menu'}</button>
-            <nav aria-label="Admin navigation">{sections.map(item => <button key={item} aria-current={section === item ? 'page' : undefined} onClick={() => {
+            <nav aria-label="Admin navigation">{sections.map(item => item === 'Publishing lobby'
+                ? <a key={item} href="/admin/publishing" aria-current={inLobby ? 'page' : undefined}>{item}</a>
+                : <button key={item} aria-current={section === item ? 'page' : undefined} onClick={() => {
+                if (inLobby) history.replaceState(null, '', '/admin');
                 setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);
             }}>{item}</button>)}</nav>
             <a href="/">Back to storefront</a>
@@ -102,11 +192,12 @@ function App() {
         <main>
             <header><div><p className="eyebrow">Ticketing operations</p><h1>{section}</h1></div>
                 <div className="actions"><button onClick={() => setDark(!dark)}>{dark ? 'Light mode' : 'Dark mode'}</button>
-                <button disabled={busy} onClick={() => void run(load)}>Refresh</button>
+                {!inLobby && <button disabled={busy} onClick={() => void run(load)}>Refresh</button>}
                 <a className="primary" href="/organizer">Publish an event</a></div>
             </header>
             {notice && <p className="notice" role="status">{notice}</p>}
-            {!data && <p className="panel" role="status">{busy ? 'Loading dashboard…' : 'Dashboard data unavailable.'}</p>}
+            {inLobby && <PublishingLobby />}
+            {!inLobby && !data && <p className="panel" role="status">{busy ? 'Loading dashboard…' : 'Dashboard data unavailable.'}</p>}
             {data && section === 'Overview' && <>
                 <div className="metrics">{[
                     ['Ticket revenue today (EAT)', money(data.ticketRevenue.todayKes)],
@@ -124,7 +215,7 @@ function App() {
                     {data.ticketRevenue.undatedPayments} older payment(s) have no recorded confirmation date and are excluded from daily and weekly totals.
                 </p>}
                 <section className="panel"><h2>Recent orders</h2>{orders.length ? orders.slice(0, 5).map(order =>
-                    <p key={order.orderReference}>{order.customer.name} · {money(order.totalKes)} · {paymentLabel(order.paymentStatus)}</p>)
+                    <p className="recent-order" key={order.orderReference}><strong>{order.customer.name}</strong><span>{money(order.totalKes)}</span><PaymentBadge status={order.paymentStatus}/></p>)
                     : <p>No live orders yet.</p>}</section>
             </>}
             {data && section === 'Events' && <section className="panel">
@@ -144,16 +235,6 @@ function App() {
                 <div className="actions"><button disabled={eventPage === 0} onClick={() => setPage(eventPage - 1)}>Previous</button><span>Page {eventPage + 1}</span>
                 <button disabled={(eventPage + 1) * 10 >= filteredEvents.length} onClick={() => setPage(eventPage + 1)}>Next</button></div>
             </section>}
-            {data && section === 'Automatic imports' && <section className="panel"><div className="actions"><h2>SoldOut Africa</h2>
-                <button disabled={busy} onClick={() => void run(async () => {
-                    const result = await request<Data['imports']>('/imports/sync', 'POST', {}); setData({ ...data, imports: result });
-                    setNotice(result.status === 'live' ? 'Listings refreshed.' : 'Source unavailable. Showing the last successful import if available.');
-                })}>Sync now</button></div>
-                <p>Status {data.imports.status} · Last success {data.imports.updatedAt ? date(data.imports.updatedAt) : 'Unavailable'}</p>
-                <p>Discovery listings are informational.</p>
-                {!data.imports.events.length && <p>No live-source listings available.</p>}
-                <ul>{data.imports.events.map(event => <li key={event.id}>{event.title} · {event.venue} · {date(event.startsAt)}</li>)}</ul>
-            </section>}
             {data && section === 'Tickets' && <section className="panel"><h2>Inventory by tier</h2>
                 {events.length ? <div className="scroll"><table><thead><tr><th>Event</th><th>Tier</th><th>Price</th><th>Live tickets sold</th><th>Configured capacity</th></tr></thead>
                 <tbody>{events.flatMap(event => event.tiers.map(tier => <tr key={tier.tierKey}><td>{event.title}</td><td>{tier.title}</td><td>{money(tier.priceKes)}</td><td>{tier.sold}</td><td>{tier.remainingAllocation}</td></tr>))}</tbody></table></div> : <p>Publish an event to create ticket tiers.</p>}
@@ -169,7 +250,7 @@ function App() {
                 <button disabled={!filteredOrders.length} onClick={() => exportOrders(filteredOrders)}>Download CSV</button></div>
                 {!filteredOrders.length && <p>No matching live transactions.</p>}
                 <div className="scroll"><table><thead><tr><th>Reference</th><th>Customer</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map(order =>
-                    <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td>{paymentLabel(order.paymentStatus)}</td>
+                    <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td><PaymentBadge status={order.paymentStatus}/></td>
                     <td>{money(order.totalKes)}</td><td><button onClick={() => setSelected(order)}>View order</button></td></tr>)}</tbody></table></div>
                 {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.email}</p>
                     <p>Payment status: {paymentLabel(selected.paymentStatus)}{selected.paidAt ? ' · ' + date(selected.paidAt) : ''}</p>

@@ -1,22 +1,8 @@
-const { bulkAvailability, demoEnabled, collection } = require('../services/commerceDb');
-const { isRemovedVenue } = require('../services/eventVisibility');
-const { defaultProviders } = require('../services/providers/eventSyncService');
+const { bulkAvailability, demoEnabled } = require('../services/commerceDb');
 
 async function getTicketCatalog() {
     const { publishedTiers } = require('../routes/publishedEvents');
-    const published = await publishedTiers();
-    const providerDocs = await Promise.all(
-        defaultProviders
-            .filter(p => p.isEnabled(process.env))
-            .map(p => collection('event_catalogs').findOne({ _id: p.endpointKey }).catch(() => null))
-    );
-    const providerTiers = providerDocs
-        .flatMap(doc => doc?.events ?? [])
-        .filter(event => !isRemovedVenue(event) && event.status !== 'cancelled' && Date.parse(event.startsAt) > Date.now() && event.checkout)
-        .flatMap(event => Array.isArray(event.tiers) ? event.tiers : []);
-    const byKey = new Map([...providerTiers, ...published]
-        .filter(tier => tier?.tierKey).map(tier => [tier.tierKey, { ...tier, published: true }]));
-    return [...byKey.values()];
+    return publishedTiers();
 }
 
 exports.getTicketCatalog = getTicketCatalog;

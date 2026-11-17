@@ -1,10 +1,13 @@
 const { createHash } = require('node:crypto');
-const { collection, transaction } = require('./commerceDb');
+const mongoose = require('mongoose');
+const { isConnected } = require('../config/db');
+const { isRemovedVenue } = require('./eventVisibility');
 
 async function syncAllocations(listings, fetchPage = fetch) {
     const endpoint = process.env.EVENT_ALLOCATION_FEED_URL;
     const token = process.env.EVENT_ALLOCATION_FEED_TOKEN;
-    if (!endpoint && !token) return;
+    if (!endpoint && !token) return 'unconfigured';
+    if (!isConnected()) return 'database-offline';
     const url = new URL(endpoint);
     if (url.protocol !== 'https:' || url.username || url.password || !token) {
         throw new Error('The ticket allocation feed requires an HTTPS URL and bearer token.');
@@ -20,7 +23,8 @@ async function syncAllocations(listings, fetchPage = fetch) {
     if (!Array.isArray(feed.events) || feed.events.length > 1000 ||
         !(expiry > now && expiry <= now + 3600000)) throw new Error('Invalid ticket allocation snapshot.');
 
-    const byId = new Map(listings.map(event => [event.id, event]));
+    const byId = new Map(listings.filter(event => !isRemovedVenue(event) && Date.parse(event.startsAt) > now)
+        .map(event => [event.id, event]));
     const imported = new Map();
     for (const allocation of feed.events) {
         const event = byId.get(allocation?.eventId);
@@ -49,19 +53,23 @@ async function syncAllocations(listings, fetchPage = fetch) {
         });
         imported.set(id, {
             id, source: event.source, title: event.title, venue: event.venue || event.city || 'Kenya',
-            description: '', image: event.imageUrl, startsAt: event.startsAt, tiers,
+            description: typeof allocation.description === 'string' && allocation.description.trim()
+                ? allocation.description.trim().slice(0, 4000)
+                : event.description || [event.title, event.locationFull || event.venue || event.city].filter(Boolean).join(' · '),
+            image: event.imageUrl || null, startsAt: event.startsAt, tiers,
             salesOpen: new Date(salesOpen).toISOString(), salesClose: new Date(salesClose).toISOString(),
             allocationExpiresAt: new Date(expiry).toISOString()
         });
     }
-    await transaction(async session => {
-        const events = collection('commerce_events');
-        await events.updateMany({ source: 'SoldOut Africa', _id: { $nin: [...imported.keys()] } },
+    const events = mongoose.connection.db.collection('commerce_events');
+    await mongoose.connection.transaction(async session => {
+        await events.updateMany({ allocationExpiresAt: { $gt: new Date(now).toISOString() }, _id: { $nin: [...imported.keys()] } },
             { $set: { allocationExpiresAt: new Date(now).toISOString() } }, { session });
         for (const [id, event] of imported) {
-            await events.updateOne({ _id: id }, { $set: event }, { upsert: true, session });
+            await events.updateOne({ _id: id }, { $set: event, $setOnInsert: { status: 'published' } }, { upsert: true, session });
         }
     });
+    return 'live';
 }
 
 module.exports = { syncAllocations };

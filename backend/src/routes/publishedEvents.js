@@ -1,8 +1,9 @@
 const { isRemovedVenue } = require('../services/eventVisibility');
 const express = require('express');
-const { randomUUID, timingSafeEqual } = require('node:crypto');
+const { createHash, randomUUID, timingSafeEqual } = require('node:crypto');
+const mongoose = require('mongoose');
 const { organizerIdentity } = require('../services/organizerAccess');
-const { collection, transaction } = require('../services/commerceDb');
+const { collection } = require('../services/commerceDb');
 const router = express.Router();
 const { isConnected } = require('../config/db');
 const { route } = require('../services/http');
@@ -44,7 +45,8 @@ function visible(event) {
 
 function onSale(event, now = Date.now()) {
     return !event.discoveryOnly && visible(event) && withinSalesWindow(event, now) &&
-        (!event.source || Date.parse(event.allocationExpiresAt) > now);
+        (!event.source || (Date.parse(event.startsAt) > now && Date.parse(event.allocationExpiresAt) > now &&
+            event.tiers.some(tier => tier.remainingAllocation > 0)));
 }
 
 function withinSalesWindow(event, now) {
@@ -52,7 +54,9 @@ function withinSalesWindow(event, now) {
 }
 
 router.get('/', route(async (req, res) => {
-    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > Date.now())
+    const now = Date.now();
+    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > now &&
+        (!event.source || Date.parse(event.allocationExpiresAt) > now))
         .map(event => ({ ...event, onSale: onSale(event) })) });
 }));
 
@@ -67,14 +71,24 @@ async function publishEvent(req, res) {
         ? organizerIdentity(authorization) : null);
     if (!legacy && !actor) return res.status(403).json({ message: 'Organizer authorization required.' });
     if (!isConnected()) return res.status(503).json({ message: 'Publishing is temporarily unavailable because the database is offline.' });
-    const { title, venue, description, startsAt, salesOpen, salesClose, tiers, image } = req.body ?? {};
+    const { title, venue, description, startsAt, image, quickTicket, requestId } = req.body ?? {};
+    let { salesOpen, salesClose, tiers } = req.body ?? {};
+    const now = Date.now();
+    if (quickTicket !== undefined) {
+        if (!/^[a-f0-9-]{36}$/i.test(requestId ?? '') || !quickTicket || tiers !== undefined) {
+            return res.status(400).json({ message: 'Enter one ticket price, capacity and entrance for quick publishing.' });
+        }
+        salesOpen = new Date(now).toISOString();
+        salesClose = startsAt;
+        tiers = [{ ...quickTicket, title: 'General Admission' }];
+    }
     if (isRemovedVenue({ venue })) return res.status(400).json({ message: 'This venue is unavailable.' });
     const validText = (value, max) => typeof value === 'string' && value.trim() && value.length <= max;
     const dates = [salesOpen, salesClose, startsAt].map(value => Date.parse(value));
     if (!validText(title, 120) || !validText(venue, 160) || !validText(description, 4000)) {
         return res.status(400).json({ message: 'Enter an event name, venue and description.' });
     }
-    if (!(dates[0] < dates[1] && dates[1] <= dates[2] && dates[2] > Date.now())) {
+    if (!(dates[0] < dates[1] && dates[1] <= dates[2] && dates[2] > now)) {
         return res.status(400).json({ message: 'Set a future event start. Sales must open before closing, and close by the event start.' });
     }
     if (!Array.isArray(tiers) || !tiers.length || tiers.length > 20 ||
@@ -87,7 +101,9 @@ async function publishEvent(req, res) {
         !/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(image))) {
         return res.status(400).json({ message: 'Choose a JPEG, PNG or WebP image under 1 MB.' });
     }
-    const id = randomUUID();
+    const id = quickTicket
+        ? createHash('sha256').update(JSON.stringify([actor || 'shared-admin', requestId])).digest('hex')
+        : randomUUID();
     const event = {
         id, title: title.trim(), venue: venue.trim(), description: description.trim(), status: 'published',
         salesOpen: new Date(dates[0]).toISOString(), salesClose: new Date(dates[1]).toISOString(),
@@ -98,19 +114,28 @@ async function publishEvent(req, res) {
             published: true, remainingAllocation: tier.capacity, designatedGate: tier.gate, features: []
         }))
     };
-    await transaction(async session => {
-        await collection('commerce_events').insertOne({ ...event, _id: id }, { session });
-        await collection('commerce_audit').insertOne({
-            action: 'publish', target: id, timestamp: new Date().toISOString(), actor: actor || 'shared-admin'
-        }, { session });
-    });
+    const db = mongoose.connection.db;
+    const eventCollection = db.collection('commerce_events');
+    try {
+        await mongoose.connection.transaction(async session => {
+            await eventCollection.insertOne({ ...event, _id: id }, { session });
+            await db.collection('commerce_audit').insertOne({
+                action: 'publish', target: id, timestamp: new Date(now).toISOString(), actor: actor || 'shared-admin'
+            }, { session });
+        });
+    } catch (error) {
+        if (!quickTicket || error.code !== 11000) throw error;
+        const existing = await eventCollection.findOne({ _id: id }, { projection: { _id: 0 } });
+        if (!existing) throw error;
+        return res.json({ data: existing });
+    }
     res.status(201).json({ data: event });
 }
 
 router.post('/', express.json({ limit: '2mb' }), route(publishEvent));
 
 async function publishedTiers() {
-    return (await events()).filter(event => onSale(event)).flatMap(event => event.tiers);
+    return (await events()).filter(event => onSale(event)).flatMap(event => event.tiers.filter(tier => tier.remainingAllocation > 0));
 }
 
 async function reservedTiers() {

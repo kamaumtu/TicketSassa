@@ -2856,7 +2856,7 @@ function renderTicketsasaRelatedEvents(excludeId) {
             <div class="p-2.5 space-y-1">
                 <div class="text-[10px] font-extrabold text-[#D81A21] uppercase truncate">${ev.formattedDate || ev.startAtLabel || ''}</div>
                 <div class="text-xs font-extrabold text-slate-900 line-clamp-1">${ev.title}</div>
-                <div class="text-[11px] font-bold text-slate-600">KES ${Number(ev.startingPrice || 1000).toLocaleString()}</div>
+                <div class="text-[11px] font-bold text-slate-600">${ev.startingPrice == null ? 'Price unavailable' : 'KES ' + Number(ev.startingPrice).toLocaleString()}</div>
             </div>
         `;
         card.addEventListener('click', () => openTicketsasaEventModal(ev.id));

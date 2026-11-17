@@ -14,6 +14,7 @@ label { display: grid; gap: 5px; font-weight: 650; }
 input, textarea, select, button { font: inherit; padding: 9px 12px; min-height: 44px; max-width: 100%; border: 1px solid #acb9cc; border-radius: 8px; color: inherit; background: white; }
 textarea { min-height: 104px; resize: vertical; }
 fieldset { margin: 0; padding: 16px; border: 1px solid #c6d2e2; border-radius: 10px; background: #f6f8fc; }
+[hidden] { display: none !important; }
 legend { font-weight: 750; padding: 0 5px; }
 button { cursor: pointer; font-weight: 700; }
 button:disabled { opacity: .6; cursor: default; }
@@ -25,19 +26,28 @@ output[data-state=error] { color: #9f1239; background: #fff1f2; }
 output[data-state=success] { color: #075d46; background: #ecfdf5; }
 output a { color: inherit; font-weight: 700; }
 :focus-visible { outline: 3px solid #bb1746; outline-offset: 2px; }
-</style><script defer src="/organizer.js"></script></head>
-<body><main><header><a href="/admin">Back to admin</a><h1>Publish an event</h1><p>Set your event details, ticket tiers and sales dates.</p></header>
+</style><script defer src="/organizer.js?v=quick-publish-1"></script></head>
+<body><main><header><a href="/admin">Back to admin</a><h1>Publish an event</h1><p>Enter the event details and publish tickets in one step.</p></header>
 <form id="publish">
 <label>Event name <input name="title" maxlength="120" required></label>
 <label>Venue <input name="venue" maxlength="160" required></label>
 <label>Description <textarea name="description" maxlength="4000" required></textarea></label>
 <label>Event starts (East Africa Time) <input name="startsAt" type="datetime-local" required></label>
+<label>Event photo (up to 1 MB) <input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
+<label>Ticket setup <select name="ticketSetup"><option value="quick">Automatic ticket setup</option><option value="custom">Custom tiers and sales dates</option></select></label>
+<fieldset id="quick-ticket"><legend>General Admission</legend>
+<div>Tickets go on sale when you publish. Sales close when the event starts.</div>
+<label>Price in KES <input name="quickPrice" type="number" min="1" max="1000000" required></label>
+<label>Tickets available <input name="quickCapacity" type="number" min="1" max="100000" required></label>
+<label>Entrance <select name="quickGate"><option>Gate A</option><option>Gate B</option><option>Gate C</option><option>Gate D</option></select></label>
+</fieldset>
+<fieldset id="custom-tickets" hidden disabled><legend>Custom ticket setup</legend>
 <label>Sales open (East Africa Time) <input name="salesOpen" type="datetime-local" required></label>
 <label>Sales close (East Africa Time) <input name="salesClose" type="datetime-local" required></label>
-<label>Event photo (up to 1 MB) <input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
 <div id="tiers"></div>
 <button type="button" id="add-tier">Add ticket tier</button>
-<button type="submit">Publish event</button><output role="status"></output>
+</fieldset>
+<button type="submit">Publish event and tickets</button><output role="status"></output>
 </form>
 <template id="tier"><fieldset><legend>Ticket tier</legend>
 <label>Name <input name="tierTitle" maxlength="80" required></label>

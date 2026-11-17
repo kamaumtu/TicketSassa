@@ -28,6 +28,7 @@ async function upcomingEvents() {
     const entries = new Map(catalogData.events.map(event => [event.id,
         { ...event, eventDate: event.startsAt, bannerImageUrl: event.imageUrl }]));
     for (const event of managed) {
+        if (event.source) continue;
         if (!visible(event) || Date.parse(event.startsAt) <= Date.now()) continue;
         entries.set(event.id, { ...entries.get(event.id), id: event.id, title: event.title,
             description: event.description, venue: event.venue, eventDate: event.startsAt,

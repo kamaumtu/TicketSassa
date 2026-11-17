@@ -81,17 +81,21 @@ router.get('/audit', route(async (req, res) => {
 }));
 
 function discoveryStatus(catalog) {
-    return catalog.status === 'local' ? { ...catalog, events: [] } : catalog;
+    const { events, updatedAt, providerStatuses, allocationStatus } = catalog;
+    return { events: events.filter(event => event.ticketStatus).map(({ id, title, venue, startsAt, source, ticketStatus, startingPrice }) =>
+        ({ id, title, venue, startsAt, source, ticketStatus, startingPrice })), updatedAt, providerStatuses, allocationStatus };
 }
 
-router.post('/imports/sync', async (req, res, next) => {
-    try {
-        const catalog = req.app.locals.eventCatalog;
-        await catalog.refresh();
-        res.json(discoveryStatus(await catalog.get()));
-    } catch (error) {
-        next(error);
-    }
-});
+async function publishingLobby(req, res) {
+    const catalog = req.app.locals.eventCatalog;
+    const [data, activity] = await Promise.all([catalog.get(), catalog.activity()]);
+    res.set('Cache-Control', 'no-store').json({ ...discoveryStatus(data), ...activity });
+}
+
+router.get('/imports/lobby', route(publishingLobby));
+router.post('/imports/sync', route(async (req, res) => {
+    await req.app.locals.eventCatalog.refresh('manual');
+    await publishingLobby(req, res);
+}));
 
 module.exports = router;
