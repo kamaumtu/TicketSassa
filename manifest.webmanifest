@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Ticketsassa",
-  "short_name": "Ticketsassa",
+  "name": "Ticketsasa",
+  "short_name": "Ticketsasa",
   "description": "Discover events and manage your tickets.",
   "start_url": "/?view=events",
   "scope": "/",
