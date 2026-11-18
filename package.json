@@ -9,8 +9,7 @@
     "seed": "npm --prefix backend run seed",
     "build:admin": "npm --prefix admin-ui run build",
     "build:angular": "npm --prefix frontend-angular run build",
-    "build:apk": "node scripts/build-apk.cjs",
-    "build": "npm run build:storefront && npm run build:admin && npm run build:angular && npm run build:apk",
+    "build": "npm run build:storefront && npm run build:admin && npm run build:angular",
     "test:health": "node -e \"const http=require('http'); http.get('http://localhost:8000/api/health', r=>{ console.log('HTTP', r.statusCode); r.pipe(process.stdout); }).on('error', e=>{ console.error('Error:', e.message); process.exit(1); });\"",
     "build:storefront": "tailwindcss -i storefront.css -o assets/storefront.css --minify && node scripts/copy-storefront-icons.cjs"
   },

@@ -15,8 +15,8 @@ RUN npm --prefix backend ci --omit=dev
 # Copy application source
 COPY . .
 
-# Build storefront CSS, Admin UI bundle, and signed Android APK
-RUN npm run build:storefront && npm run build:admin && npm run build:apk
+# Build storefront CSS and Admin UI bundle
+RUN npm run build:storefront && npm run build:admin
 
 ENV NODE_ENV=production
 ENV PORT=8000

@@ -89,7 +89,8 @@ async function completeOrder(session, order, receipt) {
     for (const item of [...order.items].sort((a, b) => a.key.localeCompare(b.key))) {
         await collection('commerce_stock').updateOne({ _id: stockKey(item.key, order.mode) },
             { $inc: { sold: item.quantity } }, { upsert: true, session });
-        if (!['ticket', 'flight', 'holiday'].includes(item.kind)) continue;
+        if (!['ticket', 'flight', 'holiday'].includes(item.kind) ||
+            (order.mode === 'live' && /^(flight|holiday):/.test(item.key))) continue;
         for (let index = 0; index < item.quantity; index++) {
             passes.push({ qrCodeToken: token('PASS-'), passReference: token('TSASA-'), orderReference,
                 attendeeName: order.customer.name, tierName: item.title, eventTitle: item.eventTitle,
@@ -139,6 +140,9 @@ exports.createOrder = handler(async (req, res) => {
         const kind = item?.kind ?? 'ticket';
         if (!['ticket', 'flight', 'holiday'].includes(kind)) reject(400, 'This item type is unavailable.');
         if (['flight', 'holiday'].includes(kind)) {
+            if (mode === 'live' && !require('../services/travelSuppliers').supplierStatus().flightReservationEnabled) {
+                reject(503, 'Travel checkout is unavailable until supplier reservations can be confirmed.');
+            }
             const customId = item?.id || item?.tierKey || item?.productKey || token('TRV-');
             const key = inventoryKey(kind, customId);
             const priceKes = Math.max(1, Math.round(Number(item?.unitPriceKes || item?.priceKes || 1000)));
@@ -268,6 +272,10 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
         // Existing payments keep their original provider, including after an admin changes the setting.
         if (stored.paymentStatus !== 'PENDING') return { order: stored, start: false };
         if (stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
+        if (mode === 'live' && stored.items.some(item => /^(flight|holiday):/.test(item.key)) &&
+            !require('../services/travelSuppliers').supplierStatus().flightReservationEnabled) {
+            reject(503, 'Travel checkout is unavailable until supplier reservations can be confirmed.');
+        }
         if (stored.items.some(item => item.key?.startsWith('ticket:') && !stock?.has(item.key))) {
             reject(409, 'An item is no longer available. Start a new checkout.');
         }
@@ -311,11 +319,7 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
                 await settle(orderReference, { status: 'failed' });
                 reject(422, 'M-Pesa could not start this payment. Please try again.');
             }
-            if (process.env.NODE_ENV !== 'production') {
-                order.checkoutRequestId = token('ws_CO_SANDBOX_');
-                order.providerReference = token('REF-');
-                await saveOrder(order);
-            }
+            // An unknown outcome keeps the hold and never sends a second prompt.
         }
     }
     res.json({
@@ -366,9 +370,7 @@ async function reconcile(order) {
     const query = (async () => {
         let result;
         try {
-            if (process.env.NODE_ENV !== 'production' && String(order.checkoutRequestId).startsWith('ws_CO_SANDBOX_')) {
-                result = { status: 'completed', receipt: 'SJK' + randomBytes(4).toString('hex').toUpperCase().slice(0, 7) };
-            } else if (!order.provider || order.provider === 'daraja') {
+            if (!order.provider || order.provider === 'daraja') {
                 const reply = await mpesa.query(order.checkoutRequestId);
                 if (reply.CheckoutRequestID !== order.checkoutRequestId) return order;
                 const code = String(reply.ResultCode);

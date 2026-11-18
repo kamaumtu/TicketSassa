@@ -173,24 +173,7 @@ async function fetchQuicketEvents({ key, userToken = process.env.QUICKET_USER_TO
             if (!(page < body.pages)) break;
         }
     } catch {
-        if (listings.size === 0) {
-            try {
-                const { readFileSync } = require('node:fs');
-                const { resolve } = require('node:path');
-                const { QUICKET_KNOWN_OFFERS } = require('./eventAllocations');
-                const saved = JSON.parse(readFileSync(resolve(__dirname, '../../data/quicket-catalog.json'), 'utf8'));
-                for (const ev of (saved.events || [])) {
-                    if (Date.parse(ev.startsAt) > now) {
-                        const offers = QUICKET_KNOWN_OFFERS[ev.id] || [];
-                        const price = ev.price || priceFromOffers(offers, priceSourceUrl(ev.sourceUrl), now);
-                        listings.set(ev.id, { ...ev, price, startingPrice: price?.amount ?? ev.startingPrice });
-                    }
-                }
-            } catch {
-                throw new Error('Quicket events fetch failed');
-            }
-            if (listings.size === 0) throw new Error('Quicket events fetch failed');
-        }
+        if (listings.size === 0) throw new Error('Quicket events fetch failed');
     }
 
     return [...listings.values()];

@@ -206,6 +206,7 @@ function demoEnabled() {
 }
 
 function checkoutMode() {
+    if (!isConnected() && !demoEnabled()) return 'unavailable';
     if (demoEnabled()) return 'demo';
     return process.env.PAYMENT_MODE === 'live' && createPaymentGateways().available().some(gateway => gateway.configured) ? 'live' : 'unavailable';
 }

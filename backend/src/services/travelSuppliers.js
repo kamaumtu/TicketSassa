@@ -4,11 +4,12 @@ const { collection, demoEnabled } = require('./commerceDb');
 function supplierStatus() {
     const amadeusConfigured = Boolean(process.env.AMADEUS_CLIENT_ID?.trim() && process.env.AMADEUS_CLIENT_SECRET?.trim());
     const webhookConfigured = Boolean(process.env.TRAVEL_SUPPLIER_WEBHOOK_URL?.trim());
+    const liveSupplierReady = amadeusConfigured || webhookConfigured;
     return {
-        amadeusGds: amadeusConfigured ? 'live' : 'partner_ledger',
-        supplierWebhook: webhookConfigured ? 'configured' : 'partner_ledger',
-        flightReservationEnabled: true,
-        holidayReservationEnabled: true
+        amadeusGds: amadeusConfigured ? 'live' : 'local_inventory',
+        supplierWebhook: webhookConfigured ? 'configured' : 'local_inventory',
+        flightReservationEnabled: demoEnabled() || liveSupplierReady,
+        holidayReservationEnabled: demoEnabled() || liveSupplierReady
     };
 }
 
@@ -94,6 +95,13 @@ async function confirmTravelReservation(orderReference, receipt, mode) {
     const existing = await resCol.findOne({ orderReference });
     if (!existing) return null;
     if (existing.status === 'CONFIRMED') return existing;
+    if (mode !== 'demo' && !process.env.TRAVEL_SUPPLIER_WEBHOOK_URL?.trim() &&
+        !(process.env.AMADEUS_CLIENT_ID?.trim() && process.env.AMADEUS_CLIENT_SECRET?.trim())) {
+        await resCol.updateOne({ _id: existing._id }, {
+            $set: { status: 'AWAITING_SUPPLIER', mpesaReceipt: receipt || null }
+        });
+        return { ...existing, status: 'AWAITING_SUPPLIER' };
+    }
 
     const confirmationCode = existing.kind === 'flight'
         ? `072-${randomBytes(5).toString('hex').toUpperCase()}`
