@@ -14,6 +14,7 @@ router.get('/status', (req, res) => {
 });
 
 router.post('/flights/reserve', route(async (req, res) => {
+    if (!supplierStatus().flightReservationEnabled) return res.status(503).json({ success: false, message: 'Flight reservations are currently unavailable.' });
     const { orderReference, flight, passenger, departureDate, returnDate, cabin, seatPref, addons, totalKes } = req.body || {};
     if (!orderReference || !passenger?.email || !passenger?.phone || !departureDate) {
         return res.status(400).json({ success: false, message: 'Order reference, passenger contact, and departure date are required.' });
@@ -33,6 +34,7 @@ router.post('/flights/reserve', route(async (req, res) => {
 }));
 
 router.post('/holidays/reserve', route(async (req, res) => {
+    if (!supplierStatus().holidayReservationEnabled) return res.status(503).json({ success: false, message: 'Holiday reservations are currently unavailable.' });
     const { orderReference, holiday, guest, checkin, checkout, adults, roomType, addons, totalKes } = req.body || {};
     if (!orderReference || !guest?.email || !guest?.phone || !checkin || !checkout || checkout <= checkin) {
         return res.status(400).json({ success: false, message: 'Order reference, guest contact, and valid check-in/check-out dates are required.' });

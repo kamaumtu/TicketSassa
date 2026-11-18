@@ -1,31 +1,34 @@
 const mongoose = require('mongoose');
 
 const isConnected = () => mongoose.connection.readyState === 1;
+let pendingConnection;
 
-const connectDB = async () => {
+const connectDB = () => {
     if (isConnected()) {
-        console.log('[*] MongoDB is already connected.');
-        return;
+        return Promise.resolve();
     }
+    if (pendingConnection) return pendingConnection;
 
     const uri = process.env.MONGODB_URI;
 
     if (!uri) {
         console.warn('[!] WARNING: MONGODB_URI is not set in backend/.env.');
-        return;
+        return Promise.resolve();
     }
 
-    try {
-        console.log('[*] Connecting to MongoDB...');
-        const conn = await mongoose.connect(uri, {
-            serverSelectionTimeoutMS: 5000,
-            bufferCommands: false
-        });
-
-        console.log(`[+] MongoDB Connected Successfully: ${conn.connection.host}`);
-    } catch (error) {
-        console.error(`[-] MongoDB Connection Failed: ${error.message}`);
-    }
+    console.log('[*] Connecting to MongoDB...');
+    pendingConnection = mongoose.connect(uri, {
+        serverSelectionTimeoutMS: 10000,
+        connectTimeoutMS: 10000,
+        heartbeatFrequencyMS: 10000,
+        maxIdleTimeMS: 60000,
+        bufferCommands: false
+    }).then(() => {
+        console.log('[+] MongoDB connected.');
+    }).catch(error => {
+        console.error('MongoDB connection failed:', error.name, error.code || 'network-or-access');
+    }).finally(() => { pendingConnection = undefined; });
+    return pendingConnection;
 };
 
 module.exports = { connectDB, isConnected };

@@ -5,18 +5,16 @@ const { createPaymentGateways } = require('./payment-gateways');
 const settingsKey = 'mpesa';
 
 function settingsCollection() {
-    if (!isConnected()) {
-        throw Object.assign(new Error('Payment settings are temporarily unavailable.'), { status: 503 });
-    }
     return collection('commerce_settings');
 }
 
 async function getPaymentSettings() {
-    const stored = await settingsCollection().findOne({ _id: settingsKey });
+    const storageAvailable = true;
+    const stored = storageAvailable ? await settingsCollection().findOne({ _id: settingsKey }) : null;
     const options = createPaymentGateways().available().map(option => ({
         ...option, name: option.id === 'nexuspay' ? 'Makamesco (Nexus Pay)' : option.name
     }));
-    return { provider: stored?.provider ?? options.find(option => option.configured)?.id ?? null, options };
+    return { provider: stored?.provider ?? options.find(option => option.configured)?.id ?? null, options, storageAvailable };
 }
 
 async function setPaymentProvider(provider, actor) {

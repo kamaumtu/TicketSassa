@@ -42,6 +42,19 @@ function fallbackCollection(name) {
             }
             return null;
         },
+        async findOneAndUpdate(filter = {}, update = {}, options = {}) {
+            await this.updateOne(filter, update, options);
+            return await this.findOne(filter._id !== undefined ? { _id: filter._id } : filter);
+        },
+        async findOneAndDelete(filter = {}) {
+            for (const [key, doc] of store.entries()) {
+                if (matchesFilter(doc, filter)) {
+                    store.delete(key);
+                    return { ...doc };
+                }
+            }
+            return null;
+        },
         find(filter = {}) {
             let results = [...store.values()].filter(doc => matchesFilter(doc, filter)).map(d => ({ ...d }));
             return {
@@ -124,6 +137,15 @@ function fallbackCollection(name) {
             }
             return { acknowledged: true, matchedCount, modifiedCount: matchedCount };
         },
+        async deleteOne(filter = {}) {
+            for (const [key, doc] of store.entries()) {
+                if (matchesFilter(doc, filter)) {
+                    store.delete(key);
+                    return { acknowledged: true, deletedCount: 1 };
+                }
+            }
+            return { acknowledged: true, deletedCount: 0 };
+        },
         async deleteMany(filter = {}) {
             let deletedCount = 0;
             for (const [key, doc] of store.entries()) {
@@ -184,7 +206,6 @@ function demoEnabled() {
 }
 
 function checkoutMode() {
-    if (!isConnected() && !demoEnabled()) return 'unavailable';
     if (demoEnabled()) return 'demo';
     return process.env.PAYMENT_MODE === 'live' && createPaymentGateways().available().some(gateway => gateway.configured) ? 'live' : 'unavailable';
 }

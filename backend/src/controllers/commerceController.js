@@ -8,6 +8,8 @@ const DigitalPass = require('../models/DigitalPass');
 const { isConnected } = require('../config/db');
 const { getPaymentSettings } = require('../services/paymentSettings');
 const { confirmTravelReservation } = require('../services/travelSuppliers');
+const { confirmImportedTiers } = require('../services/eventAllocations');
+const { sendOrderTicketsEmail } = require('../services/accountProviders');
 
 // PayHero and NexusPay Payment Gateway Integration
 const { createPaymentGateways } = require('../services/payment-gateways');
@@ -45,6 +47,15 @@ function phoneNumber(value) {
 
 function inventoryKey(kind, key) {
     return kind + ':' + key;
+}
+
+function priceChanged(catalog) {
+    void catalog?.refresh('price-change').catch(() => {});
+    reject(409, 'The supplier changed the ticket price. Refresh the event and review the new price before paying.');
+}
+
+function requireCurrentQuote(quote) {
+    if (quote.validUntil <= Date.now()) reject(409, 'The supplier quote expired. Refresh and select tickets again.');
 }
 
 async function getInventory(includeClosed = false) {
@@ -92,7 +103,8 @@ async function completeOrder(session, order, receipt) {
     order.paidAt = new Date();
     order.receipt = receipt;
     await saveOrder(order, session);
-    const travelReservation = await confirmTravelReservation(orderReference, receipt).catch(() => null);
+    const travelReservation = await confirmTravelReservation(orderReference, receipt, order.mode).catch(() => null);
+    void sendOrderTicketsEmail(order, passes, travelReservation).catch(() => null);
     return { order, passes, travelReservation };
 }
 
@@ -122,6 +134,7 @@ exports.createOrder = handler(async (req, res) => {
 
     const inventory = await getInventory();
     const quantities = new Map();
+    const displayedPrices = new Map();
     for (const item of items) {
         const kind = item?.kind ?? 'ticket';
         if (!['ticket', 'flight', 'holiday'].includes(kind)) reject(400, 'This item type is unavailable.');
@@ -146,7 +159,20 @@ exports.createOrder = handler(async (req, res) => {
         const id = item?.tierKey ?? item?.productKey;
         const key = inventoryKey(kind, id);
         if (!inventory.has(key) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) reject(400, 'Invalid item or quantity.');
+        const expectedPrice = item.unitPriceKes ?? inventory.get(key).priceKes;
+        if (displayedPrices.has(key) && displayedPrices.get(key) !== expectedPrice) reject(400, 'Ticket prices in the cart do not match.');
+        displayedPrices.set(key, expectedPrice);
         quantities.set(key, (quantities.get(key) ?? 0) + item.quantity);
+    }
+
+    const confirmed = mode === 'live'
+        ? await confirmImportedTiers([...quantities.keys()].map(key => inventory.get(key).tierKey)) : new Map();
+    if (confirmed.size) {
+        for (const [tierKey, quote] of confirmed) {
+            const key = inventoryKey('ticket', tierKey);
+            if (quote.priceKes !== displayedPrices.get(key)) priceChanged(req.app.locals.eventCatalog);
+            Object.assign(inventory.get(key), { priceKes: quote.priceKes, priceUsd: round(quote.priceKes / 125), stock: quote.capacity });
+        }
     }
 
     let totalTickets = 0;
@@ -182,6 +208,8 @@ exports.createOrder = handler(async (req, res) => {
     await transaction(async session => {
         await lockStock([...quantities.keys()], session);
         for (const line of lines) {
+            const quote = confirmed.get(line.tierKey);
+            if (quote) requireCurrentQuote(quote);
             if (line.quantity > await availability(line.key, inventory.get(line.key).stock, session)) {
                 reject(409, 'Insufficient stock for ' + line.title + '.');
             }
@@ -230,6 +258,8 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
     const preview = await getOrder(orderReference);
     if (!preview || preview.customer?.phone !== mobile) reject(404, 'Order not found for this mobile number.');
     const stock = preview.paymentStatus === 'PENDING' ? await getInventory() : null;
+    const confirmed = mode === 'live' && stock
+        ? await confirmImportedTiers(preview.items.filter(item => item.key?.startsWith('ticket:')).map(item => item.tierKey)) : new Map();
     const { order, start } = await transaction(async session => {
         const stored = await getOrder(orderReference, session);
         if (!stored || stored.customer.phone !== mobile) reject(404, 'Order not found for this mobile number.');
@@ -248,6 +278,15 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
             }
             stored.provider = settings.provider;
             await lockStock(stored.items.map(item => item.key), session);
+            for (const item of stored.items) {
+                const quote = confirmed.get(item.tierKey);
+                if (!quote) continue;
+                requireCurrentQuote(quote);
+                if (quote.priceKes !== item.unitPriceKes) priceChanged(req.app.locals.eventCatalog);
+                if (item.quantity > await availability(item.key, quote.capacity, session, orderReference)) {
+                    reject(409, 'The supplier no longer has enough tickets for ' + item.title + '.');
+                }
+            }
             const holds = await collection('commerce_holds').updateMany({ orderReference, expiresAt: { $gt: Date.now() } },
                 { $set: { expiresAt: Number.MAX_SAFE_INTEGER }, $unset: { purgeAt: '' } }, { session });
             if (holds.matchedCount !== stored.items.length) reject(410, 'Your ticket hold expired. Start a new checkout.');

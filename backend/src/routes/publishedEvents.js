@@ -10,9 +10,7 @@ const { route } = require('../services/http');
 const { ticketsasaEvents } = require('../config/ticketsasaEvents');
 
 async function events() {
-    const dbEvents = isConnected()
-        ? await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray()
-        : [];
+    const dbEvents = await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray().catch(() => []);
     const defaultPublished = ticketsasaEvents.map(ev => ({
         id: ev.id,
         title: ev.title,

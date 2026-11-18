@@ -5,6 +5,7 @@ const { route } = require('../services/http');
 const { getPaymentSettings, setPaymentProvider } = require('../services/paymentSettings');
 const { revenueSummary, realCompletedOrder, isLiveTicket } = require('../services/ticketRevenue');
 const { publishEvent } = require('./publishedEvents');
+const { isConnected } = require('../config/db');
 
 router.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.get('X-Admin-Action') !== 'dashboard') {
@@ -29,8 +30,9 @@ router.put('/payments/settings', route(async (req, res) => {
 router.get('/overview', async (req, res, next) => {
     try {
         const payments = await getPaymentSettings();
-        const events = await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray();
-        const liveOrders = await collection('commerce_orders').find({ mode: 'live' }).sort({ createdAt: -1 }).toArray();
+        const storageAvailable = isConnected();
+        const events = storageAvailable ? await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray() : [];
+        const liveOrders = storageAvailable ? await collection('commerce_orders').find({ mode: 'live' }).sort({ createdAt: -1 }).toArray() : [];
         const orders = liveOrders
             .filter(order => order.provider !== 'demo' && !/^DEMO-/i.test(order.receipt ?? ''))
             .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt }) => ({
@@ -50,13 +52,14 @@ router.get('/overview', async (req, res, next) => {
         }
 
         const imports = discoveryStatus(await req.app.locals.eventCatalog.get());
-        res.json({ events, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
+        res.json({ storageAvailable, events, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
     } catch (error) {
         next(error);
     }
 });
 
 router.patch('/events/:id', route(async (req, res) => {
+    if (!isConnected()) return res.status(503).json({ message: 'Event changes require the database connection.' });
     const { status } = req.body;
     if (!['published', 'unpublished', 'archived'].includes(status)) {
         return res.status(400).json({ message: 'Invalid event status.' });
@@ -82,8 +85,9 @@ router.get('/audit', route(async (req, res) => {
 
 function discoveryStatus(catalog) {
     const { events, updatedAt, providerStatuses, allocationStatus } = catalog;
-    return { events: events.filter(event => event.ticketStatus).map(({ id, title, venue, startsAt, source, ticketStatus, startingPrice }) =>
-        ({ id, title, venue, startsAt, source, ticketStatus, startingPrice })), updatedAt, providerStatuses, allocationStatus };
+    return { events: events.filter(event => event.ticketStatus).map(({ id, title, venue, startsAt, source, ticketStatus, startingPrice, price }) =>
+        ({ id, title, venue, startsAt, source, ticketStatus, startingPrice, priceSource: price?.sourceUrl, priceCheckedAt: price?.checkedAt })),
+    updatedAt, providerStatuses, allocationStatus };
 }
 
 async function publishingLobby(req, res) {

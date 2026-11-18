@@ -5,15 +5,15 @@ import './style.css';
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
 type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string };
-type Import = { id: string; title: string; venue: string; startsAt: string; source?: string; ticketStatus: string; startingPrice: number | null };
+type Import = { id: string; title: string; venue: string; startsAt: string; source?: string; ticketStatus: string; startingPrice: number | null; priceSource?: string; priceCheckedAt?: string };
 type Audit = { action: string; target: string; timestamp: string };
 type PaymentSettings = { provider: string | null; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
 type Imports = { events: Import[]; allocationStatus: string; updatedAt: string | null; providerStatuses: Record<string, string> };
 type SyncRun = { id: string; startedAt: string; finishedAt?: string; trigger: string; stage: string; allocationStatus?: string;
-    sources: Record<string, { status: string; count: number; removed: number }> };
+    sources: Record<string, { status: string; count: number; removed: number; priced?: number }> };
 type Lobby = Imports & { activeRun: SyncRun | null; nextRunAt: string | null; history: SyncRun[] };
-type Data = { payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: Imports };
+type Data = { storageAvailable: boolean; payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: Imports };
 
 const sections = ['Overview', 'Events', 'Publishing lobby', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
 type Section = typeof sections[number];
@@ -95,6 +95,7 @@ function PublishingLobby() {
                 <button className="primary" disabled={syncing || Boolean(activity)} onClick={() => void sync()}>Sync now</button></div>
             <dl className="lobby-summary">
                 <div><dt>Imported events</dt><dd>{lobby.events.length}</dd></div><div><dt>On sale</dt><dd>{onSale}</dd></div>
+                <div><dt>Listings with prices</dt><dd>{lobby.events.filter(event => event.startingPrice != null).length}</dd></div>
                 <div><dt>Supplier inventory feed</dt><dd>{syncLabels[lobby.allocationStatus] ?? lobby.allocationStatus}</dd></div>
                 <div><dt>Last successful source refresh</dt><dd>{lobby.updatedAt ? date(lobby.updatedAt) : 'Unavailable'}</dd></div>
             </dl>
@@ -108,12 +109,12 @@ function PublishingLobby() {
                 <select aria-label="Filter by ticket status" value={saleStatus} onChange={event => setSaleStatus(event.target.value)}><option value="all">All statuses</option>{Object.entries(saleLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
             {visible.length ? <div className="scroll lobby-events"><table><thead><tr><th>Event</th><th>Source</th><th>Starts (EAT)</th><th>Price from</th><th>Ticket decision</th></tr></thead>
                 <tbody>{visible.map(event => <tr key={event.id}><td><a href={'/?view=events&event=' + encodeURIComponent(event.id)}>{event.title}</a><small>{event.venue}</small></td><td>{event.source}</td><td>{date(event.startsAt)}</td>
-                    <td>{event.startingPrice == null ? 'Unavailable' : money(event.startingPrice)}</td><td><span className="sync-badge" data-state={event.ticketStatus}>{saleLabels[event.ticketStatus]}</span></td></tr>)}</tbody></table></div> : <p>No imported events match this view.</p>}
+                    <td>{event.startingPrice == null ? 'Unavailable' : money(event.startingPrice)}{event.priceSource && <small><a href={event.priceSource} target="_blank" rel="noreferrer">Advertised price source</a>{event.priceCheckedAt && ` · ${date(event.priceCheckedAt)}`}</small>}</td><td><span className="sync-badge" data-state={event.ticketStatus}>{saleLabels[event.ticketStatus]}</span></td></tr>)}</tbody></table></div> : <p>No imported events match this view.</p>}
         </section>
         <section className="panel"><h2>Recent sync runs</h2>{lobby.history.length ? lobby.history.map(run => <details className="sync-run" key={run.id}>
             <summary>{date(run.startedAt)} · {syncLabels[run.trigger] ?? run.trigger} · Supplier inventory {syncLabels[run.allocationStatus ?? 'pending']?.toLowerCase()}</summary>
             {run.finishedAt && <p>Finished {date(run.finishedAt)}</p>}
-            <ul>{Object.entries(run.sources).map(([id, source]) => <li key={id}>{sourceLabels[id] ?? id} · {syncLabels[source.status] ?? source.status}{source.status === 'live' ? ` · ${source.count} synced · ${source.removed} removed` : ''}</li>)}</ul>
+            <ul>{Object.entries(run.sources).map(([id, source]) => <li key={id}>{sourceLabels[id] ?? id} · {syncLabels[source.status] ?? source.status}{source.status === 'live' ? ` · ${source.count} synced · ${source.removed} removed${source.priced == null ? '' : ` · ${source.priced} priced`}` : ''}</li>)}</ul>
         </details>) : <p>No completed runs have been saved yet.</p>}</section>
     </div>;
 }
@@ -196,18 +197,19 @@ function App() {
                 <a className="primary" href="/organizer">Publish an event</a></div>
             </header>
             {notice && <p className="notice" role="status">{notice}</p>}
+            {data && !data.storageAvailable && !inLobby && <p className="notice" role="status">Database connection unavailable. Stored events, orders, revenue and account changes will return when Atlas reconnects. <a href="/admin/publishing">View source activity</a></p>}
             {inLobby && <PublishingLobby />}
             {!inLobby && !data && <p className="panel" role="status">{busy ? 'Loading dashboard…' : 'Dashboard data unavailable.'}</p>}
             {data && section === 'Overview' && <>
                 <div className="metrics">{[
-                    ['Ticket revenue today (EAT)', money(data.ticketRevenue.todayKes)],
-                    ['Ticket revenue this week (EAT)', money(data.ticketRevenue.weekKes)],
+                    ['Ticket revenue today (EAT)', data.storageAvailable ? money(data.ticketRevenue.todayKes) : 'Unavailable'],
+                    ['Ticket revenue this week (EAT)', data.storageAvailable ? money(data.ticketRevenue.weekKes) : 'Unavailable'],
                     ['Organizer events', events.length],
                     ['Published events', events.filter(event => eventStatus(event) === 'published').length],
                     ['Upcoming events', events.filter(event => Date.parse(event.startsAt) > Date.now()).length],
                     ['Expired events', events.filter(event => Date.parse(event.startsAt) <= Date.now()).length],
                     ['Verified live tickets sold', completed.reduce((sum, order) => sum + order.totalTickets, 0)],
-                    ['Verified ticket revenue', money(data.ticketRevenue.totalKes)],
+                    ['Verified ticket revenue', data.storageAvailable ? money(data.ticketRevenue.totalKes) : 'Unavailable'],
                     ['Customers with orders', customers.length],
                     ['Discovered events', data.imports.events.length]
                 ].map(([label, value]) => <article key={label}><span>{label}</span><strong>{value}</strong></article>)}</div>
@@ -267,7 +269,7 @@ function App() {
                 <p>Current provider: {data.payments.options.find(option => option.id === data.payments.provider)?.name ?? 'Unavailable'}</p>
                 <div className="actions">
                     {data.payments.options.map(option => <button key={option.id}
-                        disabled={busy || !option.configured || data.payments.provider === option.id}
+                        disabled={busy || !data.storageAvailable || !option.configured || data.payments.provider === option.id}
                         onClick={() => void run(async () => {
                             const payments = await request<PaymentSettings>('/payments/settings', 'PUT', { provider: option.id });
                             setData(previous => previous && { ...previous, payments });

@@ -16,28 +16,38 @@ const travelRoutes = require('./routes/travelRoutes');
 const { router: authRoutes, createAuthIndexes } = require('./routes/auth');
 
 const app = express();
+app.set('trust proxy', 1);
 app.locals.eventCatalog = eventRoutes.catalog;
 const PORT = process.env.PORT || 8000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Start event catalog refresh immediately (with MongoDB or fallback store)
 app.locals.eventCatalog.start().catch(err => console.warn('Initial catalog refresh warning:', err.message));
 
-async function initializeDatabase() {
-    await connectDB();
-    if (!isConnected()) {
-        if (process.env.MONGODB_URI) setTimeout(initializeDatabase, 15000).unref();
-        return;
-    }
-    try {
+let databaseInitialization;
+let databaseReady = false;
+require('mongoose').connection.on('disconnected', () => {
+    databaseReady = false;
+    console.warn('MongoDB disconnected. Automatic recovery will retry.');
+});
+
+function initializeDatabase() {
+    if (databaseInitialization) return databaseInitialization;
+    databaseInitialization = (async () => {
+        await connectDB();
+        if (!isConnected() || databaseReady) return;
         await Promise.all([createIndexes(), createAuthIndexes()]);
         await app.locals.eventCatalog.refresh('database-ready');
-    } catch (error) {
-        console.error('Could not initialize booking storage:', error.message);
-        setTimeout(initializeDatabase, 15000).unref();
-    }
+        databaseReady = isConnected();
+    })().catch(error => {
+        databaseReady = false;
+        console.error('Could not initialize booking storage:', error.name);
+    }).finally(() => { databaseInitialization = undefined; });
+    return databaseInitialization;
 }
 
 void initializeDatabase();
+setInterval(() => { void initializeDatabase(); }, 15000).unref();
 const { reconcilePendingPayments } = require('./controllers/commerceController');
 setInterval(() => {
     reconcilePendingPayments().catch(error => console.error('Payment status refresh failed:', error.name));
@@ -173,11 +183,14 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
+    const nets = require('node:os').networkInterfaces();
+    const lanIp = Object.values(nets).flat().find(i => i && i.family === 'IPv4' && !i.internal)?.address;
     console.log(`
 =====================================================================
 🚀 TICKETSASSA BACKEND RUNNING
 📡 Local Address: http://localhost:${PORT}
+🌐 Network Address: ${lanIp ? `http://${lanIp}:${PORT}` : `http://0.0.0.0:${PORT}`}
 🩺 Health Check: http://localhost:${PORT}/api/health
 🌐 MongoDB connection status: /api/health
 =====================================================================

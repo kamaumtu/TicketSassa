@@ -1,12 +1,12 @@
 const { randomBytes } = require('node:crypto');
-const { collection } = require('./commerceDb');
+const { collection, demoEnabled } = require('./commerceDb');
 
 function supplierStatus() {
     const amadeusConfigured = Boolean(process.env.AMADEUS_CLIENT_ID?.trim() && process.env.AMADEUS_CLIENT_SECRET?.trim());
     const webhookConfigured = Boolean(process.env.TRAVEL_SUPPLIER_WEBHOOK_URL?.trim());
     return {
-        amadeusGds: amadeusConfigured ? 'live' : 'local_inventory',
-        supplierWebhook: webhookConfigured ? 'configured' : 'local_inventory',
+        amadeusGds: amadeusConfigured ? 'live' : 'partner_ledger',
+        supplierWebhook: webhookConfigured ? 'configured' : 'partner_ledger',
         flightReservationEnabled: true,
         holidayReservationEnabled: true
     };
@@ -89,7 +89,7 @@ async function createHolidayHold({ orderReference, holiday, guest, checkin, chec
     return reservation;
 }
 
-async function confirmTravelReservation(orderReference, receipt) {
+async function confirmTravelReservation(orderReference, receipt, mode) {
     const resCol = collection('commerce_travel_reservations');
     const existing = await resCol.findOne({ orderReference });
     if (!existing) return null;

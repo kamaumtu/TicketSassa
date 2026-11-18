@@ -1,4 +1,5 @@
 const ENDPOINT = 'https://api.tickets.dev/v1/events';
+const { priceSourceUrl } = require('./advertisedPrices');
 
 function listingsFromPage(body, now) {
     if (!Array.isArray(body?.events)) throw new Error('Invalid Tickets.dev events response');
@@ -16,6 +17,8 @@ function listingsFromPage(body, now) {
             venue: typeof event.venue.name === 'string' ? event.venue.name : '',
             city: typeof event.venue.city === 'string' ? event.venue.city : '',
             source: 'Tickets.dev',
+            pricePageUrls: (Array.isArray(event.sources) ? event.sources : [])
+                .map(source => priceSourceUrl(source?.url)).filter(Boolean).slice(0, 5),
             price: null,
             checkout: false
         });

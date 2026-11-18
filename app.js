@@ -1509,6 +1509,10 @@ async function handleFlightBookingSubmit(event) {
                 const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(email)).catch(() => null);
                 if (check?.status === 'COMPLETED') {
                     const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
+                    if (confirmedRes?.reservation?.status !== 'CONFIRMED' || !confirmedRes.reservation.confirmationCode) {
+                        if (statusEl) statusEl.textContent = 'Payment received. The flight is awaiting supplier confirmation. Order: ' + orderReference;
+                        return;
+                    }
                     const code = confirmedRes?.reservation?.confirmationCode || pnr;
                     rememberOrder(check.order, check.passes);
                     if (statusEl) statusEl.textContent = `Flight confirmed! PNR: ${pnr} · E-Ticket: ${code}`;
@@ -2071,6 +2075,10 @@ async function handleHolidayBookingSubmit(event) {
                 const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(guestEmail)).catch(() => null);
                 if (check?.status === 'COMPLETED') {
                     const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
+                    if (confirmedRes?.reservation?.status !== 'CONFIRMED' || !confirmedRes.reservation.confirmationCode) {
+                        if (statusEl) statusEl.textContent = 'Payment received. The holiday is awaiting supplier confirmation. Order: ' + orderReference;
+                        return;
+                    }
                     const voucher = confirmedRes?.reservation?.confirmationCode || bookingRef;
                     rememberOrder(check.order, check.passes);
                     if (statusEl) statusEl.textContent = `Holiday confirmed! Ref: ${bookingRef} · Voucher: ${voucher}`;
@@ -2679,6 +2687,24 @@ function renderPublishedTiers(tiers) {
     }
 }
 
+function renderAdvertisedPrices(event, eventTiers) {
+    const panel = document.getElementById('ts-advertised-prices');
+    if (!panel) return;
+    const price = eventTiers.length ? null : event.price;
+    panel.classList.toggle('hidden', price?.amount == null);
+    const offers = price?.offers?.length ? price.offers : price?.amount != null ? [{ amount: price.amount }] : [];
+    panel.querySelector('ul').replaceChildren(...offers.map(offer => {
+        const entry = document.createElement('li');
+        entry.textContent = [offer.title, formatMoney(offer.amount, price.currency)].filter(Boolean).join(' · ');
+        return entry;
+    }));
+    const source = panel.querySelector('a');
+    if (source) {
+        source.classList.add('hidden');
+        source.removeAttribute('href');
+    }
+}
+
 
 function openTicketsasaEventModal(eventId) {
     let ev = ticketsasaCatalogMap.get(eventId);
@@ -2727,7 +2753,11 @@ function openTicketsasaEventModal(eventId) {
     }
     if (statusEl) statusEl.textContent = '';
 
-    const eventTiers = currentTicketTiers.filter(tier => tier.eventId === ev.id);
+    let eventTiers = currentTicketTiers.filter(tier => tier.eventId === ev.id);
+    if (!eventTiers.length && Array.isArray(ev.tiers) && ev.tiers.length) {
+        eventTiers = ev.tiers;
+    }
+    renderAdvertisedPrices(ev, eventTiers);
     activeTicketsasaDetailEvent = { ...ev, tiers: eventTiers };
     const bookButton = document.getElementById('ts-btn-book-now');
     if (bookButton) bookButton.disabled = !eventTiers.some(tier => tier.remainingAllocation > 0);

@@ -1,5 +1,6 @@
 const { collection } = require('../commerceDb');
 const { dedupeKey } = require('./baseProvider');
+const { refreshAdvertisedPrices } = require('../advertisedPrices');
 const tktProvider = require('./tktEvents');
 const egoticketsProvider = require('./egoticketsEvents');
 const { ENDPOINT: QUICKET_ENDPOINT, fetchQuicketEvents } = require('../quicketEvents');
@@ -28,7 +29,12 @@ const ticketsDevProvider = {
     }
 };
 
-const defaultProviders = [tktProvider, egoticketsProvider, quicketProvider, ticketsDevProvider];
+const defaultProviders = [
+  tktProvider,
+  egoticketsProvider,
+  quicketProvider,
+  ticketsDevProvider
+];
 
 async function syncSingleProvider(provider, { env = process.env, fetchPage = fetch, now = Date.now() } = {}) {
     if (!provider.isEnabled(env)) {
@@ -38,6 +44,7 @@ async function syncSingleProvider(provider, { env = process.env, fetchPage = fet
         const previousDoc = await collection('event_catalogs').findOne({ _id: provider.endpointKey }).catch(() => null);
         const previousEvents = Array.isArray(previousDoc?.events) ? previousDoc.events : [];
         const incoming = await provider.fetchEvents({ env, fetchPage, now });
+        await refreshAdvertisedPrices(incoming, fetchPage, now, previousEvents);
 
         const incomingIds = new Set(incoming.map(ev => ev.id));
         const activeEvents = [];
@@ -77,12 +84,14 @@ async function syncSingleProvider(provider, { env = process.env, fetchPage = fet
             cancelledIds
         };
     } catch (error) {
+        const fallbackDoc = await collection('event_catalogs').findOne({ _id: provider.endpointKey }).catch(() => null);
+        const fallbackEvents = Array.isArray(fallbackDoc?.events) ? fallbackDoc.events : [];
         await collection('event_catalogs').updateOne(
             { _id: provider.endpointKey },
             { $set: { stale: true, lastError: error.message } }
         ).catch(() => {});
         console.warn(`${provider.label} sync failed:`, error.message);
-        return { id: provider.id, status: 'stale', error: error.message, events: [], cancelledIds: [] };
+        return { id: provider.id, status: 'stale', error: error.message, events: fallbackEvents, cancelledIds: [] };
     }
 }
 
@@ -112,12 +121,15 @@ function mergeDeduplicatedEvents(eventGroups = [], cancelledIdSet = new Set()) {
                 if (primary) {
                     const preferred = !primary.checkout && event.checkout ? event : primary;
                     const secondary = preferred === event ? primary : event;
+                    const price = preferred.price ?? secondary.price;
                     byId.delete(primaryId);
                     bySignature.set(sig, preferred.id);
                     byId.set(preferred.id, {
                         ...preferred,
                         imageUrl: preferred.imageUrl || secondary.imageUrl,
-                        description: preferred.description || secondary.description
+                        description: preferred.description || secondary.description,
+                        price,
+                        startingPrice: preferred.startingPrice ?? price?.amount
                     });
                 }
                 continue;

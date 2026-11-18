@@ -154,7 +154,10 @@ The sync engine (`eventSyncService.js`) runs on startup and every 15 minutes wit
 
 ### Automatic checkout for imported events
 
-Public listings describe events and advertised prices. Configure a separate
+The catalog publishes advertised KES prices from event feeds and matching
+public event pages. Each researched price carries its source and check time.
+The publishing lobby shows the price lookup count separately from checkout status.
+Configure a separate
 authorized, dedicated allocation feed to supply inventory this site can sell
 and issue passes for. Set `EVENT_ALLOCATION_FEED_URL` to its HTTPS URL and
 `EVENT_ALLOCATION_FEED_TOKEN` to its bearer token. The supplier can return this
@@ -185,6 +188,9 @@ Capacity is the total allocation dedicated to this site, including any
 units already bought through this site. Supply a fresh `validUntil` within
 one hour on each refresh. Sales close when an allocation is removed or
 expires. Events with active allocations link to checkout automatically.
+Live checkout reads a fresh supplier snapshot when creating an imported-ticket
+order and again before sending the M-Pesa prompt. Changed prices require the
+customer to review the new quote and unavailable stock blocks payment.
 Use `/organizer` for events outside the feed.
 
 ## Event checkout and inventory holds

@@ -6,6 +6,7 @@ const { syncAllocations } = require('../services/eventAllocations');
 const { ticketsasaEvents, ticketsasaSliders } = require('./ticketsasaEvents');
 const { defaultProviders, syncSingleProvider, mergeDeduplicatedEvents } = require('../services/providers/eventSyncService');
 const { onSale } = require('../routes/publishedEvents');
+const { advertisedOffers, priceFromOffers, refreshAdvertisedPrices } = require('../services/advertisedPrices');
 
 const SOURCE = 'https://soldoutafrica.com/events';
 const REFRESH_MS = 15 * 60 * 1000;
@@ -44,10 +45,7 @@ function parseListings(html, now = Date.now()) {
                 ? event.name.replace(/\p{Extended_Pictographic}|\p{Regional_Indicator}|\p{Emoji_Modifier}|[\u200d\ufe0f\u20e3]/gu, '').trim()
                 : '';
             if (!title) continue;
-            const offers = Array.isArray(event.offers) ? event.offers : [event.offers];
-            const prices = offers.filter(offer => offer?.priceCurrency === 'KES' &&
-                offer.availability?.endsWith('/InStock') && /^(?:\d+)(?:\.\d+)?$/.test(String(offer.price)))
-                .map(offer => Number(offer.price)).filter(Number.isFinite);
+            const price = priceFromOffers(advertisedOffers(event.offers, now), url.href, now);
             const images = Array.isArray(event.image) ? event.image : [event.image];
             const image = images.map(secureUrl).find(Boolean);
             listings.set(url.pathname, {
@@ -58,7 +56,7 @@ function parseListings(html, now = Date.now()) {
                 startsAt: new Date(startsAt).toISOString(),
                 venue: event.location.name?.trim(),
                 city: address.addressLocality?.trim(),
-                price: prices.length ? { amount: Math.min(...prices), currency: 'KES' } : null,
+                price,
                 imageUrl: image?.href ?? null,
                 sourceUrl: url.href,
                 source: 'SoldOut Africa'
@@ -82,7 +80,8 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
         async function track(id, work) {
             run.sources[id] = { status: 'checking', count: 0, removed: 0 };
             const result = await work();
-            run.sources[id] = { status: result.status, count: result.events?.length ?? 0, removed: result.cancelledIds?.length ?? 0 };
+            run.sources[id] = { status: result.status, count: result.events?.length ?? 0, removed: result.cancelledIds?.length ?? 0,
+                priced: result.events?.filter(event => event.price != null).length ?? 0 };
             return result;
         }
         pending = Promise.all([
@@ -95,14 +94,32 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                     });
                     if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
                     const events = parseListings(await response.text());
+                    const previous = await collection('event_catalogs').findOne({ _id: SOURCE });
+                    await refreshAdvertisedPrices(events, fetchPage, Date.now(), previous?.events);
                     await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
                         events, updatedAt: new Date().toISOString(), stale: false
                     }, { upsert: true });
                     return { status: 'live', events };
                 } catch (error) {
-                    await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
+                    const fallbackDoc = await collection('event_catalogs').findOne({ _id: SOURCE }).catch(() => null);
+                    let fallbackEvents = Array.isArray(fallbackDoc?.events) ? fallbackDoc.events : [];
+                    if (!fallbackEvents.length) {
+                        try {
+                            const { readFileSync } = require('node:fs');
+                            const { resolve } = require('node:path');
+                            const diskSnap = JSON.parse(readFileSync(resolve(__dirname, '../../data/event-catalog.json'), 'utf8'));
+                            if (Array.isArray(diskSnap?.events)) {
+                                fallbackEvents = diskSnap.events;
+                                await collection('event_catalogs').replaceOne({ _id: SOURCE }, {
+                                    events: fallbackEvents, updatedAt: diskSnap.updatedAt || new Date().toISOString(), stale: true
+                                }, { upsert: true }).catch(() => {});
+                            }
+                        } catch {}
+                    } else {
+                        await collection('event_catalogs').updateOne({ _id: SOURCE }, { $set: { stale: true } }).catch(() => {});
+                    }
                     console.warn('SoldOut Africa refresh failed:', error.message);
-                    return { status: 'unavailable' };
+                    return { status: fallbackEvents.length ? 'stale' : 'unavailable', events: fallbackEvents };
                 }
             })
         ]).then(async results => {
@@ -160,7 +177,9 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                 const allocation = allocations.get(event.id);
                 const tiers = allocation && onSale(allocation)
                     ? allocation.tiers.filter(tier => tier.remainingAllocation > 0) : [];
-                const startingPrice = tiers.length ? Math.min(...tiers.map(tier => tier.priceKes)) : event.price?.amount ?? null;
+                const advertisedPrice = event.price?.checkedAt && Date.parse(event.price.checkedAt) < Date.now() - 3600000
+                    ? null : event.price;
+                const startingPrice = tiers.length ? Math.min(...tiers.map(tier => tier.priceKes)) : advertisedPrice?.amount ?? null;
                 let ticketStatus = 'on-sale';
                 if (!allocation) ticketStatus = 'awaiting-allocation';
                 else if (allocation.status && allocation.status !== 'published') ticketStatus = 'paused';
@@ -172,7 +191,7 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                     ...event, description: allocation?.description || event.description ||
                         [event.title, event.locationFull || event.venue || event.city].filter(Boolean).join(' · '),
                     checkout: tiers.length > 0, onSale: tiers.length > 0, tiers, startingPrice,
-                    price: tiers.length ? { amount: startingPrice, currency: 'KES' } : event.price,
+                    price: tiers.length ? { amount: startingPrice, currency: 'KES' } : advertisedPrice,
                     ticketStatus
                 };
             }
