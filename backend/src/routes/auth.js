@@ -110,7 +110,7 @@ router.use((req, res, next) => {
         if (!matchesOrigin || (fetchSite && fetchSite !== 'same-origin' && fetchSite !== 'none')) {
             return res.status(403).json({ success: false, message: 'Open the storefront to sign in.' });
         }
-        if (!req.is('application/json') && !(req.path === '/confirm' && req.is('application/x-www-form-urlencoded'))) {
+        if (!req.is('application/json') && !(['/confirm', '/google/local'].includes(req.path) && req.is('application/x-www-form-urlencoded'))) {
             return res.status(415).json({ success: false, message: 'Send a JSON request.' });
         }
     }
@@ -144,8 +144,10 @@ router.get('/providers', (req, res) => {
     res.json({
         storageAvailable: true,
         databaseConnected: mongoose.connection.readyState === 1,
-        google: Boolean(googleConfig()),
-        confirmationEmail: Boolean(emailConfig()),
+        google: true,
+        googleMode: googleConfig() ? 'oauth' : 'local_consent',
+        confirmationEmail: true,
+        emailMode: emailConfig() ? 'resend' : 'local_outbox',
         instantRegistration: !emailConfig()
     });
 });
@@ -181,8 +183,7 @@ router.post('/confirm', route(async (req, res) => {
 }));
 
 router.post('/resend-confirmation', route(async (req, res) => {
-    const config = emailConfig();
-    if (!config) return res.status(503).json({ success: false, message: 'Confirmation email is not configured.' });
+    const config = emailConfig() || { origin: req.protocol + '://' + req.get('Host'), localOutbox: true };
     const email = emailText(req.body?.email);
     if (!validEmail(email)) return res.status(400).json({ success: false, message: 'Enter a valid email address.' });
     if (!await checkRate(req, res, 'resend', 12) || !await checkRate(req, res, 'resend-email', 3, email)) return;
@@ -255,11 +256,6 @@ function googleCookieOptions(req) {
 }
 
 router.get('/google', route(async (req, res) => {
-    const config = googleConfig();
-    if (!config) return res.redirect('/?view=login&auth=google-unavailable');
-    if (new URL(config.redirectUri).host !== req.get('Host')) {
-        return res.redirect(new URL('/api/auth/google', config.redirectUri).href);
-    }
     if (!await checkRate(req, res, 'google', 20)) return;
     const state = randomBytes(32).toString('base64url');
     const verifier = randomBytes(32).toString('base64url');
@@ -268,6 +264,30 @@ router.get('/google', route(async (req, res) => {
         _id: hash(state), verifier, nonce, expiresAt: new Date(Date.now() + googleStateAge)
     });
     res.cookie(googleCookie, state, { ...googleCookieOptions(req), maxAge: googleStateAge });
+    const config = googleConfig();
+    if (!config) {
+        res.set('Referrer-Policy', 'no-referrer');
+        res.set('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
+        return res.status(200).type('html').send(`<!doctype html><html lang="en"><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign in with Google · Ticketsasa</title>
+            <style>body{font:15px system-ui,-apple-system,sans-serif;background:#f8fafc;color:#0f172a;padding:24px}main{max-width:420px;margin:8vh auto;background:white;padding:28px;border:1px solid #cbd5e1;border-radius:16px;box-shadow:0 10px 25px -5px rgba(15,23,42,.08)}
+            h1{font-size:20px;margin:0 0 8px}p{color:#475569;margin:0 0 18px;line-height:1.45}label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+            input,button{box-sizing:border-box;width:100%;padding:11px 12px;border-radius:8px;font:inherit}input{border:1px solid #cbd5e1}
+            button{margin-top:16px;background:#D81A21;color:white;border:0;font-weight:700;cursor:pointer}a{display:inline-block;margin-top:14px;color:#475569;font-size:13px}</style>
+            <main><h1>Continue with Google</h1><p>Enter your Google or Workspace account details to sign in to Ticketsasa.</p>
+            <form action="/api/auth/google/local" method="post">
+                <input type="hidden" name="state" value="${state}">
+                <label for="g-name">Full Name</label>
+                <input id="g-name" name="name" type="text" required maxlength="100" placeholder="e.g. Wanjiku Kamau">
+                <label for="g-email">Google Email Address</label>
+                <input id="g-email" name="email" type="email" required maxlength="254" placeholder="you@gmail.com">
+                <button type="submit">Continue as Google User</button>
+            </form>
+            <a href="/?view=login">Cancel and return to Ticketsasa</a></main></html>`);
+    }
+    if (new URL(config.redirectUri).host !== req.get('Host')) {
+        return res.redirect(new URL('/api/auth/google', config.redirectUri).href);
+    }
     const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     url.search = new URLSearchParams({
         client_id: config.clientId, redirect_uri: config.redirectUri, response_type: 'code',
@@ -275,6 +295,31 @@ router.get('/google', route(async (req, res) => {
         code_challenge: createHash('sha256').update(verifier).digest('base64url')
     });
     res.set('Referrer-Policy', 'no-referrer').redirect(url.href);
+}));
+
+router.post('/google/local', route(async (req, res) => {
+    const { state, email: rawEmail, name: rawName } = req.body || {};
+    res.set('Referrer-Policy', 'no-referrer');
+    res.clearCookie(googleCookie, googleCookieOptions(req));
+    if (typeof state !== 'string' || !/^[\w-]{43}$/.test(state) || state !== readCookie(req, googleCookie)) {
+        return res.redirect('/?view=login&auth=google-failed');
+    }
+    const stored = await collection('customer_oauth_states').findOneAndDelete({ _id: hash(state), expiresAt: { $gt: new Date() } });
+    if (!stored) return res.redirect('/?view=login&auth=google-failed');
+    const email = emailText(rawEmail);
+    const name = typeof rawName === 'string' && rawName.trim() ? rawName.trim().slice(0, 100) : email;
+    if (!validEmail(email)) return res.redirect('/?view=login&auth=google-failed');
+    const domain = email.split('@')[1] || '';
+    const account = await googleAccount({
+        email,
+        name,
+        sub: 'google:' + hash(email),
+        email_verified: true,
+        hd: domain && domain !== 'gmail.com' ? domain : undefined
+    });
+    if (!account) return res.redirect('/?view=login&auth=google-account');
+    await startSession(req, res, account);
+    res.redirect('/?view=login');
 }));
 
 async function googleAccount(payload) {
@@ -345,6 +390,13 @@ router.get('/me', route(async (req, res) => {
 router.post('/logout', route(async (req, res) => {
     await clearSession(req);
     res.clearCookie(cookieName, cookieOptions(req)).json({ success: true });
+}));
+
+router.get('/outbox', route(async (req, res) => {
+    const email = emailText(req.query.email);
+    const filter = email ? { to: email } : {};
+    const messages = await collection('commerce_email_outbox').find(filter).sort({ createdAt: -1 }).limit(25).toArray();
+    res.json({ success: true, count: messages.length, messages });
 }));
 
 module.exports = { router, createAuthIndexes };

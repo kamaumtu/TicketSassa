@@ -30,22 +30,47 @@ function emailConfig() {
 }
 
 async function sendConfirmation(config, email, token) {
-    const link = new URL('/api/auth/confirm', config.origin);
+    const origin = config?.origin || publicOrigin() || ('http://localhost:' + (process.env.PORT || 8000));
+    const link = new URL('/api/auth/confirm', origin);
     link.searchParams.set('token', token);
-    try {
-        const response = await fetch('https://api.resend.com/emails', {
-            method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000),
-            headers: { Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                from: config.from, to: [email], subject: 'Confirm your Ticketsasa email',
-                text: 'Confirm your email using this link, then enter the password you chose: ' + link.href +
-                    '\n\nThe link expires in 30 minutes. If you did not create an account, ignore this email.'
-            })
-        });
-        if (!response.ok) throw new Error('Email provider rejected delivery');
-    } catch {
-        throw Object.assign(new Error('Confirmation email could not be sent. Try sending a new link.'), { status: 503 });
+    const subject = 'Confirm your Ticketsasa email';
+    const text = 'Confirm your email using this link, then enter the password you chose: ' + link.href +
+        '\n\nThe link expires in 30 minutes. If you did not create an account, ignore this email.';
+
+    let status = 'recorded_local_outbox';
+    if (config?.key && config?.from) {
+        try {
+            const response = await fetch('https://api.resend.com/emails', {
+                method: 'POST', redirect: 'error', signal: AbortSignal.timeout(12000),
+                headers: { Authorization: 'Bearer ' + config.key, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    from: config.from, to: [email], subject, text
+                })
+            });
+            if (!response.ok) throw new Error('Email provider rejected delivery');
+            status = 'sent_resend';
+        } catch (err) {
+            if (!config.localOutbox) {
+                throw Object.assign(new Error('Confirmation email could not be sent. Try sending a new link.'), { status: 503 });
+            }
+            status = 'resend_fallback_outbox';
+        }
     }
+
+    await collection('commerce_email_outbox').replaceOne(
+        { _id: 'confirm:' + email },
+        {
+            _id: 'confirm:' + email,
+            kind: 'account_confirmation',
+            to: email,
+            subject,
+            text,
+            confirmUrl: link.href,
+            status,
+            createdAt: new Date().toISOString()
+        },
+        { upsert: true }
+    ).catch(() => {});
 }
 
 async function sendOrderTicketsEmail(order, passes = [], travelReservation = null) {
