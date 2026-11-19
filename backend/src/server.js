@@ -18,6 +18,8 @@ const { router: authRoutes, createAuthIndexes } = require('./routes/auth');
 const app = express();
 app.set('trust proxy', 1);
 app.locals.eventCatalog = eventRoutes.catalog;
+require('./services/travelCatalog').start();
+setInterval(() => { void require('./services/travelBookings').reconcile().catch(() => {}); }, 60000).unref();
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || '0.0.0.0';
 
@@ -26,6 +28,16 @@ app.locals.eventCatalog.start().catch(err => console.warn('Initial catalog refre
 
 let databaseInitialization;
 let databaseReady = false;
+let indexesCreated = false;
+let lastCatalogSyncAt = 0;
+
+require('mongoose').connection.on('connected', () => {
+    databaseReady = true;
+});
+require('mongoose').connection.on('reconnected', () => {
+    databaseReady = true;
+    console.log('[+] MongoDB reconnected.');
+});
 require('mongoose').connection.on('disconnected', () => {
     databaseReady = false;
     console.warn('MongoDB disconnected. Automatic recovery will retry.');
@@ -35,9 +47,16 @@ function initializeDatabase() {
     if (databaseInitialization) return databaseInitialization;
     databaseInitialization = (async () => {
         await connectDB();
-        if (!isConnected() || databaseReady) return;
-        await Promise.all([createIndexes(), createAuthIndexes()]);
-        await app.locals.eventCatalog.refresh('database-ready');
+        if (!isConnected()) return;
+        if (!indexesCreated) {
+            await Promise.all([createIndexes(), createAuthIndexes()]);
+            indexesCreated = true;
+        }
+        if (Date.now() - lastCatalogSyncAt > 5 * 60 * 1000) {
+            lastCatalogSyncAt = Date.now();
+            await app.locals.eventCatalog.refresh('database-ready');
+            await require('./services/travelCatalog').sync('database-ready');
+        }
         databaseReady = isConnected();
     })().catch(error => {
         databaseReady = false;
@@ -147,7 +166,7 @@ function adminOnly(req, res, next) {
 }
 app.use('/api/admin', adminOnly, require('./routes/admin'));
 app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), { index: false }));
-app.get(['/admin', '/admin/publishing'], adminOnly, (req, res) => {
+app.get(['/admin', '/admin/publishing', '/admin/travel'], adminOnly, (req, res) => {
     res.sendFile('admin-ui/dist/index.html', { root: publicRoot });
 });
 app.get('/organizer', adminOnly, (req, res) => {
@@ -156,7 +175,7 @@ app.get('/organizer', adminOnly, (req, res) => {
 app.get('/staff/check-in', privateTool('PASS_SCANNER_KEY', 'Ticket check-in'), (req, res) => {
     res.sendFile('staff-check-in.html', { root: publicRoot });
 });
-app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/travel-offers.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
 app.use('/assets', express.static(resolve(publicRoot, 'assets'), { index: false }));

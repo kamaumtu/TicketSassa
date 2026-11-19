@@ -155,23 +155,22 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
         },
         async activity() {
             const history = isConnected() ? await collection('event_sync_runs').find({}, { projection: { _id: 0, expireAt: 0 } })
-                .sort({ startedAt: -1 }).limit(20).toArray() : [];
+                .sort({ startedAt: -1 }).limit(20).toArray().catch(() => []) : [];
             return { activeRun, nextRunAt, history };
         },
         async get() {
-            const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE });
-            const providerSnapshots = await Promise.all(
-                providers.map(async provider => {
-                    const enabled = provider.isEnabled(process.env);
-                    const doc = enabled ? await collection('event_catalogs').findOne({ _id: provider.endpointKey }) : null;
-                    return { provider, enabled, doc };
-                })
-            );
+            const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE }).catch(() => null);
+            const providerSnapshots = [];
+            for (const provider of providers) {
+                const enabled = provider.isEnabled(process.env);
+                const doc = enabled ? await collection('event_catalogs').findOne({ _id: provider.endpointKey }).catch(() => null) : null;
+                providerSnapshots.push({ provider, enabled, doc });
+            }
 
             const now = new Date().toISOString();
             const allocated = await collection('commerce_events').find({
                 allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
-            }).toArray();
+            }).toArray().catch(() => []);
             const allocations = new Map(allocated.map(event => [event.id, event]));
             function importedEvent(event) {
                 const allocation = allocations.get(event.id);

@@ -86,7 +86,7 @@ async function refreshAdvertisedPrices(events, fetchPage, now = Date.now(), prev
             }
         }
     }
-    await Promise.all(Array.from({ length: Math.min(batch.length, 5) }, worker));
+    await Promise.all(Array.from({ length: Math.min(batch.length, 2) }, worker));
     const previousPrices = new Map(previousEvents.map(event => [event.id, event]));
     for (const event of candidates) {
         if (event.advertisedPriceChecked || event.price) continue;
