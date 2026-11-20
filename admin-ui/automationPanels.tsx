@@ -383,8 +383,8 @@ export function FlightManagementPanel({ mode }: { mode: 'discovery' | 'manage' }
                 <tbody>{flights.map(f => <tr key={f._id}>
                     <td><strong>{f.airline}</strong> {f.flightNumber}<small>{f.source}</small></td>
                     <td>{f.originCode} → {f.destinationCode}</td>
-                    <td>{dateFmt(f.departureTime)}</td>
-                    <td>{money(f.priceKes)}</td>
+                    <td>{f.departureTime ? dateFmt(f.departureTime) : 'Verified Route (See Booking Link)'}</td>
+                    <td>{f.priceKes == null ? 'Price on Request' : money(f.priceKes)}</td>
                     <td>{f.baggageAllowance}</td>
                     <td>{f.bookingUrl ? <a href={f.bookingUrl} target="_blank" rel="noreferrer">Book External</a> : 'Direct'}</td>
                     <td><button onClick={async () => { await autoRequest('/flights/' + f._id, 'DELETE'); await load(); }}>Delete</button></td>
@@ -459,7 +459,7 @@ export function HolidayPackagesPanel() {
                     <h3>{p.title}</h3>
                     <p className="discovery-meta">{p.category} · {p.accommodation || p.provider}</p>
                     <p className="discovery-meta">{p.meals} · {p.transport}</p>
-                    <p className="discovery-meta"><strong>{money(p.priceKes)}</strong> ({p.currency} {p.pricePerPerson})</p>
+                    <p className="discovery-meta"><strong>{p.priceKes == null ? 'Price on Request' : money(p.priceKes)}</strong> {p.pricePerPerson != null ? `(${p.currency} ${p.pricePerPerson})` : ''}</p>
                     <div className="actions">
                         {p.bookingUrl && <a className="primary" href={p.bookingUrl} target="_blank" rel="noreferrer">Booking URL</a>}
                         <button onClick={async () => { await autoRequest('/holidays/' + p._id, 'DELETE'); await load(); }}>Delete</button>

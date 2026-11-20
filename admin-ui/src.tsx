@@ -16,6 +16,7 @@ import {
     ReportsPanel,
     SystemLogsPanel
 } from './automationPanels';
+import { DiscoveryCenterPanel } from './discoveryCenterPanel';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
@@ -39,6 +40,7 @@ type DepositAlert = {
 
 const sections = [
     'Dashboard Overview',
+    'Automated Discovery Center',
     'Event Discovery',
     'All Events',
     'Ticket Management',
@@ -140,7 +142,8 @@ function TravelBookingsPanel() {
 function App() {
     const [section, setSection] = useState<Section>(
         location.pathname === '/admin/travel' ? 'Travel Bookings'
-            : location.pathname === '/admin/publishing' || location.pathname === '/admin/discovery' ? 'Event Discovery'
+            : location.pathname === '/admin/discovery' ? 'Automated Discovery Center'
+            : location.pathname === '/admin/publishing' ? 'Event Discovery'
             : 'Dashboard Overview'
     );
     const [data, setData] = useState<Data>();
@@ -323,6 +326,7 @@ function App() {
             {notice && <p className="notice" role="status">{notice}</p>}
 
             {section === 'Dashboard Overview' && <AutomationOverview onNavigate={target => setSection(target as Section)} />}
+            {section === 'Automated Discovery Center' && <DiscoveryCenterPanel />}
             {section === 'Event Discovery' && <EventDiscoveryPanel />}
             {section === 'Ticket Management' && <TicketManagementPanel />}
             {section === 'Flight Discovery' && <FlightManagementPanel mode="discovery" />}

@@ -14,7 +14,8 @@ const {
     AdminNotification,
     AdminSetting,
     DiscoveryJob,
-    PriceHistory
+    PriceHistory,
+    DiscoveryLog
 } = require('../models/automation');
 const {
     KENYA_47_COUNTIES,
@@ -29,8 +30,14 @@ const {
     ensureDefaults,
     runEventDiscovery,
     runTravelDiscovery,
-    rescheduleJobs
+    rescheduleJobs,
+    getDiscoveryOverview,
+    pauseWorker,
+    resumeWorker,
+    stopWorker,
+    getWorkerStatus
 } = require('../services/automation/discoveryEngine');
+const { cleanupAllDuplicates } = require('../services/discovery/DuplicateDetector');
 const {
     createGeneratedTicket,
     renderTicketPdfBuffer,
@@ -59,54 +66,75 @@ publicRouter.get('/exchange-rates', route(async (req, res) => {
     res.json(await getExchangeRates());
 }));
 
-// Customer-facing approved catalog with clear labels (Verified Price, Estimated Price, External Booking, Available, Sold Out, Pending Verification)
+// Customer-facing approved catalog with clear labels (Confirmed Published Price, Estimated Price, Price on Request, External Flight/Holiday/Event Booking, Available, Sold Out, Pending Verification)
 publicRouter.get('/public/catalog', route(async (req, res) => {
-    if (!isConnected()) return res.json({ events: [], flights: [], holidays: [], total: 0 });
-    const { kind = 'all', category = '', county = '', q = '', sort = 'date', page = '1', limit = '24' } = req.query;
+    if (!isConnected()) return res.json({ events: [], flights: [], holidays: [], totals: { events: 0, flights: 0, holidays: 0 }, page: 1, limit: 24 });
+    const { kind = 'all', category = '', county = '', destination = '', q = '', sort = 'date', page = '1', limit = '24' } = req.query;
     const now = new Date();
     const pageNum = Math.max(1, Number(page) || 1);
     const limitNum = Math.min(60, Math.max(1, Number(limit) || 24));
     const regex = q ? new RegExp(String(q).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') : null;
 
     const eventFilter = { approvalStatus: 'approved', expired: false, startsAt: { $gt: now } };
-    if (category) eventFilter.category = category;
+    if (kind === 'concerts') eventFilter.category = 'Concerts & Music Festivals';
+    else if (kind === 'sports') eventFilter.category = 'Football & Sporting Events';
+    else if (category) eventFilter.category = category;
     if (county) eventFilter.county = county;
-    if (regex) eventFilter.$or = [{ name: regex }, { venue: regex }, { county: regex }, { town: regex }];
+    if (regex) eventFilter.$or = [{ name: regex }, { description: regex }, { venue: regex }, { county: regex }, { town: regex }];
 
-    const flightFilter = { approvalStatus: 'approved', departureTime: { $gt: now } };
-    if (regex) flightFilter.$or = [{ airline: regex }, { flightNumber: regex }, { originCode: regex }, { destinationCode: regex }];
+    const flightFilter = {
+        approvalStatus: 'approved',
+        $or: [{ departureTime: null }, { departureTime: { $gt: now } }]
+    };
+    if (destination) flightFilter.destinationCode = String(destination).toUpperCase();
+    if (regex) {
+        flightFilter.$and = [{ $or: [{ airline: regex }, { flightNumber: regex }, { originCode: regex }, { destinationCode: regex }, { routeSummary: regex }] }];
+    }
 
     const holidayFilter = { approvalStatus: 'approved' };
     if (category) holidayFilter.category = category;
-    if (regex) holidayFilter.$or = [{ title: regex }, { destination: regex }, { provider: regex }];
+    if (destination) holidayFilter.destination = destination;
+    if (regex) holidayFilter.$or = [{ title: regex }, { description: regex }, { destination: regex }, { provider: regex }];
 
     const sortSpec = sort === 'price_asc' ? { confirmedPriceKes: 1, estimatedPriceKes: 1 }
         : sort === 'price_desc' ? { confirmedPriceKes: -1, estimatedPriceKes: -1 }
         : { startsAt: 1 };
 
-    const [events, flights, holidays] = await Promise.all([
-        (kind === 'all' || kind === 'events') ? DiscoveredEvent.find(eventFilter).sort(sortSpec).skip((pageNum - 1) * limitNum).limit(limitNum).lean() : [],
-        (kind === 'all' || kind === 'flights') ? FlightListing.find(flightFilter).sort({ departureTime: 1 }).limit(limitNum).lean() : [],
-        (kind === 'all' || kind === 'holidays') ? HolidayPackage.find(holidayFilter).sort({ priceKes: 1 }).limit(limitNum).lean() : []
+    const wantEvents = ['all', 'events', 'concerts', 'sports'].includes(kind);
+    const wantFlights = ['all', 'flights'].includes(kind);
+    const wantHolidays = ['all', 'holidays', 'packages'].includes(kind);
+
+    const [events, totalEvents, flights, totalFlights, holidays, totalHolidays] = await Promise.all([
+        wantEvents ? DiscoveredEvent.find(eventFilter).sort(sortSpec).skip((pageNum - 1) * limitNum).limit(limitNum).lean() : [],
+        wantEvents ? DiscoveredEvent.countDocuments(eventFilter) : 0,
+        wantFlights ? FlightListing.find(flightFilter).sort({ priceKes: 1, airline: 1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean() : [],
+        wantFlights ? FlightListing.countDocuments(flightFilter) : 0,
+        wantHolidays ? HolidayPackage.find(holidayFilter).sort(sort === 'price_desc' ? { priceKes: -1 } : { priceKes: 1 }).skip((pageNum - 1) * limitNum).limit(limitNum).lean() : [],
+        wantHolidays ? HolidayPackage.countDocuments(holidayFilter) : 0
     ]);
 
     res.json({
         page: pageNum,
         limit: limitNum,
+        totals: { events: totalEvents, flights: totalFlights, holidays: totalHolidays },
         events: events.map(ev => ({
             ...ev,
-            priceLabel: ev.priceType === 'verified' ? 'Verified Price' : 'Estimated Price',
-            bookingLabel: ev.authorizedToSell ? 'Available' : (ev.ticketPurchaseUrl ? 'External Booking' : 'Pending Verification')
+            ticketTypeLabel: ev.authorizedToSell ? 'Platform-issued Ticket' : 'External Event Tickets',
+            priceLabel: ev.confirmedPriceKes != null ? 'Confirmed Published Price'
+                : (ev.estimatedPriceKes != null ? 'Estimated Price' : 'Price on Request'),
+            bookingLabel: ev.authorizedToSell ? 'Available'
+                : (ev.ticketPurchaseUrl ? 'External Booking' : 'Pending Verification')
         })),
         flights: flights.map(fl => ({
             ...fl,
-            priceLabel: fl.priceType === 'verified' ? 'Verified Price' : 'Estimated Price',
-            bookingLabel: fl.bookingUrl ? 'External Booking' : 'Available'
+            priceLabel: fl.priceKes != null ? 'Confirmed Published Price' : 'Price on Request',
+            bookingLabel: fl.bookingUrl ? 'External Flight Booking' : 'Pending Verification'
         })),
         holidays: holidays.map(hl => ({
             ...hl,
-            priceLabel: hl.priceType === 'verified' ? 'Verified Price' : 'Estimated Price',
-            bookingLabel: hl.availability === 'sold_out' ? 'Sold Out' : (hl.bookingUrl ? 'External Booking' : 'Available')
+            priceLabel: hl.priceKes != null ? 'Confirmed Published Price' : 'Price on Request',
+            bookingLabel: hl.availability === 'sold_out' ? 'Sold Out'
+                : (hl.bookingUrl ? 'External Holiday Booking' : 'Available')
         }))
     });
 }));
@@ -283,14 +311,26 @@ adminRouter.get('/settings', route(async (req, res) => {
 
 adminRouter.put('/settings', route(async (req, res) => {
     await ensureDefaults();
-    const { discoveryEnabled, schedules, enabledCounties, enabledCategories, flightDestinations, holidayDestinations, defaultCurrency } = req.body || {};
+    const { discoveryEnabled, discoveryPaused, schedules, autoPublish, enabledCounties, enabledCategories, flightDestinations, holidayDestinations, defaultCurrency } = req.body || {};
     const update = {};
     if (typeof discoveryEnabled === 'boolean') update.discoveryEnabled = discoveryEnabled;
+    if (typeof discoveryPaused === 'boolean') update.discoveryPaused = discoveryPaused;
     if (schedules && typeof schedules === 'object') {
         update.schedules = {
             eventsHours: Math.min(168, Math.max(1, Number(schedules.eventsHours) || 6)),
             flightsHours: Math.min(168, Math.max(1, Number(schedules.flightsHours) || 3)),
-            holidaysHours: Math.min(168, Math.max(1, Number(schedules.holidaysHours) || 12))
+            holidaysHours: Math.min(168, Math.max(1, Number(schedules.holidaysHours) || 12)),
+            imageRefreshHours: Math.min(336, Math.max(1, Number(schedules.imageRefreshHours) || 24)),
+            expirationCheckHours: Math.min(72, Math.max(1, Number(schedules.expirationCheckHours) || 1))
+        };
+    }
+    if (autoPublish && typeof autoPublish === 'object') {
+        update.autoPublish = {
+            events: autoPublish.events !== false,
+            flights: autoPublish.flights !== false,
+            holidays: autoPublish.holidays !== false,
+            requirePrice: Boolean(autoPublish.requirePrice),
+            requireOfficialImage: Boolean(autoPublish.requireOfficialImage)
         };
     }
     if (Array.isArray(enabledCounties)) update.enabledCounties = enabledCounties.filter(c => KENYA_47_COUNTIES.includes(c));
@@ -302,6 +342,89 @@ adminRouter.put('/settings', route(async (req, res) => {
     const updated = await AdminSetting.findByIdAndUpdate('global', { $set: update }, { new: true, upsert: true });
     await rescheduleJobs();
     res.json({ success: true, settings: updated });
+}));
+
+// Automated Discovery Center Overview, Controls, Logs, Verify & Duplicate Cleanup
+adminRouter.get('/discovery-center/overview', route(async (req, res) => {
+    const [overview, workerStatus, recentJobs] = await Promise.all([
+        getDiscoveryOverview(),
+        Promise.resolve(getWorkerStatus()),
+        DiscoveryJob.find({}).sort({ startedAt: -1 }).limit(15).lean()
+    ]);
+    res.json({ overview, workerStatus, recentJobs });
+}));
+
+adminRouter.post('/discovery-center/control', route(async (req, res) => {
+    const { action, kind = 'all' } = req.body || {};
+    if (action === 'pause') {
+        return res.json({ success: true, workerStatus: await pauseWorker() });
+    }
+    if (action === 'resume' || action === 'start') {
+        const workerStatus = await resumeWorker();
+        if (action === 'start') {
+            setImmediate(async () => {
+                if (kind === 'events' || kind === 'all') await runEventDiscovery('manual');
+                if (kind === 'flights' || kind === 'all') await runTravelDiscovery('flights', 'manual');
+                if (kind === 'holidays' || kind === 'all') await runTravelDiscovery('holidays', 'manual');
+            });
+        }
+        return res.json({ success: true, workerStatus });
+    }
+    if (action === 'stop') {
+        return res.json({ success: true, workerStatus: await stopWorker() });
+    }
+    if (action === 'search_now') {
+        const target = ['events', 'flights', 'holidays', 'all'].includes(kind) ? kind : 'all';
+        setImmediate(async () => {
+            if (target === 'events') await runEventDiscovery('manual');
+            else if (target === 'flights') await runTravelDiscovery('flights', 'manual');
+            else if (target === 'holidays') await runTravelDiscovery('holidays', 'manual');
+            else {
+                const { runPublicDiscovery } = require('../services/discovery/DiscoveryEngine');
+                await runPublicDiscovery('all', 'manual', { eventCatalogRef: req.app.locals.eventCatalog });
+            }
+        });
+        return res.status(202).json({ success: true, message: `Automated discovery (${target}) started in background.` });
+    }
+    return res.status(400).json({ success: false, message: 'Unknown control action.' });
+}));
+
+adminRouter.get('/discovery-center/logs', route(async (req, res) => {
+    const kind = String(req.query.kind || 'all');
+    const limit = Math.min(200, Math.max(10, Number(req.query.limit) || 100));
+    const filter = kind && kind !== 'all' ? { kind } : {};
+    const logs = await DiscoveryLog.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+    res.json({ data: logs });
+}));
+
+adminRouter.post('/discovery-center/verify-source', route(async (req, res) => {
+    const { entityType, id, url } = req.body || {};
+    if (!url) return res.status(400).json({ message: 'Source URL is required.' });
+    let status = 0;
+    let verified = false;
+    try {
+        const r = await fetch(url, {
+            method: 'GET',
+            headers: { 'User-Agent': 'TicketsasaDiscoveryBot/1.0 (+https://ticketsasa.com)' },
+            signal: AbortSignal.timeout(10000)
+        });
+        status = r.status;
+        verified = r.ok;
+    } catch {
+        verified = false;
+    }
+    const checkedAt = new Date();
+    if (id && verified) {
+        if (entityType === 'event') await DiscoveredEvent.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
+        else if (entityType === 'flight') await FlightListing.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
+        else if (entityType === 'holiday') await HolidayPackage.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
+    }
+    res.json({ success: true, verified, status, checkedAt });
+}));
+
+adminRouter.post('/discovery-center/cleanup-duplicates', route(async (req, res) => {
+    const result = await cleanupAllDuplicates();
+    res.json({ success: true, ...result });
 }));
 
 // Background Discovery Jobs
@@ -338,11 +461,12 @@ adminRouter.get('/events', route(async (req, res) => {
 }));
 
 adminRouter.patch('/events/:id', route(async (req, res) => {
-    const allowed = ['name', 'description', 'category', 'county', 'town', 'venue', 'organizer', 'confirmedPriceKes', 'estimatedPriceKes', 'priceType', 'approvalStatus', 'authorizedToSell', 'availabilityStatus', 'ticketCategories'];
+    const allowed = ['name', 'description', 'category', 'county', 'town', 'venue', 'organizer', 'originalUrl', 'ticketPurchaseUrl', 'image', 'startsAt', 'endsAt', 'confirmedPriceKes', 'estimatedPriceKes', 'priceType', 'approvalStatus', 'authorizedToSell', 'availabilityStatus', 'ticketCategories'];
     const update = { lastVerifiedAt: new Date() };
     for (const key of allowed) {
         if (req.body && req.body[key] !== undefined) update[key] = req.body[key];
     }
+    if (update.approvalStatus === 'approved' && !req.body.publishedAt) update.publishedAt = new Date();
     const updated = await DiscoveredEvent.findByIdAndUpdate(req.params.id, { $set: update }, { new: true });
     if (!updated) return res.status(404).json({ message: 'Discovered event not found.' });
     res.json({ success: true, data: updated });
