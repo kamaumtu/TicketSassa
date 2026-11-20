@@ -166,7 +166,7 @@ function adminOnly(req, res, next) {
 }
 app.use('/api/admin', adminOnly, require('./routes/admin'));
 app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), { index: false }));
-app.get(['/admin', '/admin/publishing', '/admin/travel'], adminOnly, (req, res) => {
+app.get(['/admin', '/admin/publishing', '/admin/travel', '/admin/discovery'], adminOnly, (req, res) => {
     res.sendFile('admin-ui/dist/index.html', { root: publicRoot });
 });
 app.get('/organizer', adminOnly, (req, res) => {

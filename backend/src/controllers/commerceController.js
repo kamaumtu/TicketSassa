@@ -10,6 +10,7 @@ const { getPaymentSettings } = require('../services/paymentSettings');
 const { confirmTravelReservation } = require('../services/travelSuppliers');
 const { confirmImportedTiers } = require('../services/eventAllocations');
 const { sendOrderTicketsEmail } = require('../services/accountProviders');
+const { recordDepositInitiated } = require('../services/depositAlerts');
 
 // PayHero and NexusPay Payment Gateway Integration
 const { createPaymentGateways } = require('../services/payment-gateways');
@@ -286,6 +287,17 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
         return { order: stored, start: mode === 'live' };
     });
 
+    if (start || mode === 'demo') {
+        recordDepositInitiated({
+            orderReference: order.orderReference,
+            customerName: order.customer?.name,
+            customerPhone: order.customer?.phone,
+            totalKes: order.totalKes,
+            provider: order.provider || 'mpesa',
+            mode,
+            itemsSummary: (order.items || []).map(i => `${i.quantity}x ${i.title}`).join(', ')
+        });
+    }
     if (start) {
         try {
             const result = await paymentGateways.initiate(order.provider, providerDetails(order), order.customer.name);

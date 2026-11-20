@@ -6,6 +6,8 @@ const { getPaymentSettings, setPaymentProvider } = require('../services/paymentS
 const { revenueSummary, realCompletedOrder, isLiveTicket } = require('../services/ticketRevenue');
 const { publishEvent } = require('./publishedEvents');
 const { isConnected } = require('../config/db');
+const { buildKenyaDiscovery } = require('../services/kenyaDiscovery');
+const { depositBus, getRecentDeposits } = require('../services/depositAlerts');
 router.get('/travel/lobby', route(async (req, res) => res.set('Cache-Control', 'no-store').json(await require('../services/travelCatalog').lobby())));
 router.post('/travel/sync', route(async (req, res) => res.json(await require('../services/travelCatalog').sync('admin'))));
 
@@ -116,5 +118,46 @@ router.post('/imports/sync', route(async (req, res) => {
     await req.app.locals.eventCatalog.refresh('manual');
     await publishingLobby(req, res);
 }));
+
+router.get('/discovery', route(async (req, res) => {
+    const payload = await buildKenyaDiscovery(req.app.locals.eventCatalog);
+    res.set('Cache-Control', 'no-store').json(payload);
+}));
+
+router.post('/discovery/scan', route(async (req, res) => {
+    await Promise.allSettled([
+        req.app.locals.eventCatalog.refresh('manual'),
+        require('../services/travelCatalog').sync('manual')
+    ]);
+    const payload = await buildKenyaDiscovery(req.app.locals.eventCatalog);
+    res.set('Cache-Control', 'no-store').json(payload);
+}));
+
+router.get('/deposits/recent', route(async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ data: getRecentDeposits(25) });
+}));
+
+router.get('/deposits/stream', (req, res) => {
+    res.set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-store',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    });
+    res.flushHeaders?.();
+    res.write(`event: connected\ndata: ${JSON.stringify({ ok: true, recent: getRecentDeposits(5) })}\n\n`);
+
+    const onDeposit = (entry) => {
+        res.write(`event: deposit_initiated\ndata: ${JSON.stringify(entry)}\n\n`);
+    };
+    depositBus.on('deposit', onDeposit);
+    const keepalive = setInterval(() => {
+        res.write(': keepalive\n\n');
+    }, 25000);
+    req.on('close', () => {
+        clearInterval(keepalive);
+        depositBus.off('deposit', onDeposit);
+    });
+});
 
 module.exports = router;
