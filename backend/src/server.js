@@ -1,10 +1,14 @@
 const { resolve } = require('node:path');
+const http = require('node:http');
 require('dotenv').config({ path: resolve(__dirname, '../.env') });
 const express = require('express');
 const { timingSafeEqual } = require('node:crypto');
 const cors = require('cors');
 const { checkoutMode, createIndexes } = require('./services/commerceDb');
 const { connectDB, isConnected } = require('./config/db');
+const { initSocketHub } = require('./services/automation/socketHub');
+const { startAutomationEngine } = require('./services/automation/discoveryEngine');
+const { adminRouter: automationAdminRoutes, publicRouter: automationPublicRoutes } = require('./routes/automation');
 
 // Import Route Handlers
 const eventRoutes = require('./routes/eventRoutes');
@@ -114,6 +118,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/passes', passRoutes);
 app.use('/api/travel', travelRoutes);
+app.use('/api/automation', automationPublicRoutes);
 
 // Serve the standalone client and its public assets from the API origin.
 const publicRoot = resolve(__dirname, '../..');
@@ -164,6 +169,7 @@ function adminOnly(req, res, next) {
     res.set('WWW-Authenticate', 'Basic realm="Event publishing", charset="UTF-8"');
     return res.sendStatus(401);
 }
+app.use('/api/admin/automation', adminOnly, automationAdminRoutes);
 app.use('/api/admin', adminOnly, require('./routes/admin'));
 app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), { index: false }));
 app.get(['/admin', '/admin/publishing', '/admin/travel', '/admin/discovery'], adminOnly, (req, res) => {
@@ -202,12 +208,16 @@ app.use((err, req, res, next) => {
     });
 });
 
-app.listen(PORT, HOST, () => {
+const server = http.createServer(app);
+initSocketHub(server);
+startAutomationEngine(app.locals.eventCatalog);
+
+server.listen(PORT, HOST, () => {
     const nets = require('node:os').networkInterfaces();
     const lanIp = Object.values(nets).flat().find(i => i && i.family === 'IPv4' && !i.internal)?.address;
     console.log(`
 =====================================================================
-🚀 TICKETSASSA BACKEND RUNNING
+🚀 TICKETSASA BACKEND RUNNING (HTTP + SOCKET.IO)
 📡 Local Address: http://localhost:${PORT}
 🌐 Network Address: ${lanIp ? `http://${lanIp}:${PORT}` : `http://0.0.0.0:${PORT}`}
 🩺 Health Check: http://localhost:${PORT}/api/health

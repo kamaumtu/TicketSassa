@@ -11,6 +11,7 @@ const { confirmTravelReservation } = require('../services/travelSuppliers');
 const { confirmImportedTiers } = require('../services/eventAllocations');
 const { sendOrderTicketsEmail } = require('../services/accountProviders');
 const { recordDepositInitiated } = require('../services/depositAlerts');
+const { notifyDepositInitiated, markDepositVerified } = require('../services/automation/socketHub');
 
 // PayHero and NexusPay Payment Gateway Integration
 const { createPaymentGateways } = require('../services/payment-gateways');
@@ -107,6 +108,7 @@ async function completeOrder(session, order, receipt) {
     await saveOrder(order, session);
     const travelReservation = await confirmTravelReservation(orderReference, receipt, order.mode).catch(() => null);
     void sendOrderTicketsEmail(order, passes, travelReservation).catch(() => null);
+    void markDepositVerified({ orderReference, checkoutRequestId: order.checkoutRequestId, receipt, status: 'COMPLETED' }).catch(() => null);
     return { order, passes, travelReservation };
 }
 
@@ -297,6 +299,16 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
             mode,
             itemsSummary: (order.items || []).map(i => `${i.quantity}x ${i.title}`).join(', ')
         });
+        void notifyDepositInitiated({
+            orderReference: order.orderReference,
+            customerName: order.customer?.name,
+            customerPhone: order.customer?.phone,
+            customerEmail: order.customer?.email,
+            amountKes: order.totalKes,
+            method: 'M-PESA',
+            provider: order.provider || 'mpesa',
+            checkoutRequestId: order.checkoutRequestId || ''
+        }).catch(() => null);
     }
     if (start) {
         try {
