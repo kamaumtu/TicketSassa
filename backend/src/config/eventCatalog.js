@@ -72,6 +72,8 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
     let allocationStatus = 'pending';
     let activeRun = null;
     let nextRunAt = null;
+    let cachedResult = null;
+    let cachedAt = 0;
 
     function refresh(trigger = 'startup') {
         if (pending) return pending;
@@ -88,10 +90,16 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             ...providers.map(provider => track(provider.id, () => syncSingleProvider(provider, { fetchPage }))),
             track('soldoutafrica', async () => {
                 try {
-                    const response = await fetchPage(SOURCE, {
-                        headers: { Accept: 'text/html' },
-                        signal: AbortSignal.timeout(15000)
-                    });
+                    const fetchOpts = {
+                        headers: { Accept: 'text/html', 'User-Agent': 'Mozilla/5.0 (compatible; TicketsasaCatalog/1.0)' },
+                        signal: AbortSignal.timeout(30000)
+                    };
+                    let response;
+                    try {
+                        response = await fetchPage(SOURCE, fetchOpts);
+                    } catch {
+                        response = await fetchPage(SOURCE, { ...fetchOpts, signal: AbortSignal.timeout(30000) });
+                    }
                     if (!response.ok) throw new Error('SoldOut Africa HTTP ' + response.status);
                     const events = parseListings(await response.text());
                     const previous = await collection('event_catalogs').findOne({ _id: SOURCE });
@@ -140,6 +148,8 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             }
             activeRun = null;
             pending = null;
+            cachedResult = null;
+            cachedAt = 0;
         });
         return pending;
     }
@@ -159,18 +169,24 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             return { activeRun, nextRunAt, history };
         },
         async get() {
-            const snapshot = await collection('event_catalogs').findOne({ _id: SOURCE }).catch(() => null);
-            const providerSnapshots = [];
-            for (const provider of providers) {
-                const enabled = provider.isEnabled(process.env);
-                const doc = enabled ? await collection('event_catalogs').findOne({ _id: provider.endpointKey }).catch(() => null) : null;
-                providerSnapshots.push({ provider, enabled, doc });
+            if (cachedResult && Date.now() - cachedAt < 10000) {
+                return cachedResult;
             }
-
+            const enabledProviders = providers.filter(provider => provider.isEnabled(process.env));
+            const catalogKeys = [SOURCE, ...enabledProviders.map(p => p.endpointKey)];
             const now = new Date().toISOString();
-            const allocated = await collection('commerce_events').find({
-                allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
-            }).toArray().catch(() => []);
+            const [catalogDocs, allocated] = await Promise.all([
+                collection('event_catalogs').find({ _id: { $in: catalogKeys } }).toArray().catch(() => []),
+                collection('commerce_events').find({
+                    allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
+                }).toArray().catch(() => [])
+            ]);
+            const docsById = new Map(catalogDocs.map(doc => [doc._id, doc]));
+            const snapshot = docsById.get(SOURCE) ?? null;
+            const providerSnapshots = providers.map(provider => {
+                const enabled = provider.isEnabled(process.env);
+                return { provider, enabled, doc: enabled ? (docsById.get(provider.endpointKey) ?? null) : null };
+            });
             const allocations = new Map(allocated.map(event => [event.id, event]));
             function importedEvent(event) {
                 const allocation = allocations.get(event.id);
@@ -213,11 +229,17 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             }
 
             const mergedEvents = mergeDeduplicatedEvents(
-                [ticketsasaEvents.map(event => ({ ...event, checkout: Boolean(event.tiers?.length) })), remoteEvents, ...providerEvents],
+                [
+                    ticketsasaEvents
+                        .filter(event => Date.parse(event.startsAt) > Date.now())
+                        .map(event => ({ ...event, checkout: Boolean(event.tiers?.length) })),
+                    remoteEvents,
+                    ...providerEvents
+                ],
                 cancelledSet
             ).filter(event => !isRemovedVenue(event));
 
-            return {
+            const result = {
                 events: mergedEvents,
                 sliders: ticketsasaSliders.filter(slider => !isRemovedVenue(slider)),
                 updatedAt: updatedAts.filter(Boolean).sort().at(-1) ?? null,
@@ -229,6 +251,9 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                 quicketStatus: providerStatuses.quicket || 'unconfigured',
                 status: 'live'
             };
+            cachedResult = result;
+            cachedAt = Date.now();
+            return result;
         },
         refresh
     };

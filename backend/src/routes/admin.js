@@ -29,12 +29,23 @@ router.put('/payments/settings', route(async (req, res) => {
     }
 }));
 
+let overviewCache = { events: [], liveOrders: [], audit: [], at: 0 };
+
 router.get('/overview', async (req, res, next) => {
     try {
         const payments = await getPaymentSettings();
         const storageAvailable = isConnected();
-        const events = storageAvailable ? await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: -1 }).toArray() : [];
-        const liveOrders = storageAvailable ? await collection('commerce_orders').find({ mode: 'live' }).sort({ createdAt: -1 }).toArray() : [];
+        let events = overviewCache.events;
+        let liveOrders = overviewCache.liveOrders;
+        if (storageAvailable && Date.now() - overviewCache.at > 5000) {
+            const [evRes, ordRes] = await Promise.all([
+                collection('commerce_events').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 }).sort({ startsAt: -1 }).toArray().catch(() => null),
+                collection('commerce_orders').find({ mode: 'live' }, { maxTimeMS: 6000 }).sort({ createdAt: -1 }).toArray().catch(() => null)
+            ]);
+            if (evRes) events = evRes;
+            if (ordRes) liveOrders = ordRes;
+            overviewCache = { ...overviewCache, events, liveOrders, at: Date.now() };
+        }
         const orders = liveOrders
             .filter(order => order.provider !== 'demo' && !/^DEMO-/i.test(order.receipt ?? ''))
             .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt }) => ({
@@ -49,12 +60,13 @@ router.get('/overview', async (req, res, next) => {
                 if (isLiveTicket(item)) sold.set(item.tierKey, (sold.get(item.tierKey) ?? 0) + item.quantity);
             }
         }
-        for (const event of events) {
-            for (const tier of event.tiers) tier.sold = sold.get(tier.tierKey) ?? 0;
-        }
+        const eventsWithSold = events.map(event => ({
+            ...event,
+            tiers: (event.tiers || []).map(tier => ({ ...tier, sold: sold.get(tier.tierKey) ?? 0 }))
+        }));
 
         const imports = discoveryStatus(await req.app.locals.eventCatalog.get());
-        res.json({ storageAvailable, events, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
+        res.json({ storageAvailable, events: eventsWithSold, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
     } catch (error) {
         next(error);
     }
@@ -80,8 +92,9 @@ router.patch('/events/:id', route(async (req, res) => {
 }));
 
 router.get('/audit', route(async (req, res) => {
-    const data = await collection('commerce_audit').find({}, { projection: { _id: 0 } })
-        .sort({ timestamp: -1 }).limit(100).toArray();
+    const data = await collection('commerce_audit').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 })
+        .sort({ timestamp: -1 }).limit(100).toArray().catch(() => overviewCache.audit);
+    overviewCache.audit = data;
     res.json({ data });
 }));
 

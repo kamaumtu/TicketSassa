@@ -10,7 +10,7 @@ mongoose.connection.on('reconnected', () => {
     clientInitialized = true;
 });
 
-// Keep the single pooled connection and NAT mapping warm
+// Keep NAT mappings warm without congesting the pool
 setInterval(() => {
     if (mongoose.connection.readyState === 1 && mongoose.connection.db) {
         mongoose.connection.db.admin().ping().catch(() => {});
@@ -42,13 +42,13 @@ const connectDB = () => {
         family: 4,
         serverMonitoringMode: 'poll',
         heartbeatFrequencyMS: 30000,
-        serverSelectionTimeoutMS: 45000,
-        connectTimeoutMS: 60000,
-        socketTimeoutMS: 90000,
-        waitQueueTimeoutMS: 30000,
+        serverSelectionTimeoutMS: 15000,
+        connectTimeoutMS: 15000,
+        socketTimeoutMS: 25000,
+        waitQueueTimeoutMS: 0,
         minPoolSize: 0,
-        maxPoolSize: 2,
-        maxConnecting: 1,
+        maxPoolSize: 10,
+        maxConnecting: 2,
         maxIdleTimeMS: 0,
         retryReads: true,
         retryWrites: true,

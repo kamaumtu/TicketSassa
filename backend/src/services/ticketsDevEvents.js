@@ -33,11 +33,21 @@ async function fetchTicketsDevEvents({ key, queries, fetchPage = fetch, now = Da
         for (let page = 1; page <= 3; page++) {
             const url = new URL(ENDPOINT);
             url.search = new URLSearchParams({ query, from, page: String(page), pageSize: '100' });
-            const response = await fetchPage(url, {
-                headers: { 'x-api-key': key, Accept: 'application/json' },
-                redirect: 'error',
-                signal: AbortSignal.timeout(10000)
-            });
+            let response;
+            try {
+                response = await fetchPage(url, {
+                    headers: { 'x-api-key': key, Accept: 'application/json' },
+                    redirect: 'error',
+                    signal: AbortSignal.timeout(25000)
+                });
+            } catch (firstErr) {
+                if (listings.size > 0) break;
+                response = await fetchPage(url, {
+                    headers: { 'x-api-key': key, Accept: 'application/json' },
+                    redirect: 'error',
+                    signal: AbortSignal.timeout(25000)
+                });
+            }
             if (!response.ok) throw new Error('Tickets.dev HTTP ' + response.status);
             const body = await response.json();
             for (const event of listingsFromPage(body, now)) listings.set(event.id, event);

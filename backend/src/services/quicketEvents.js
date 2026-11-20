@@ -117,7 +117,7 @@ async function request(url, fetchPage, signal) {
 
 async function fetchQuicketEvents({ key, userToken = process.env.QUICKET_USER_TOKEN?.trim(), eventIds = [], fetchPage = fetch, now = Date.now() }) {
     const listings = new Map();
-    const deadline = AbortSignal.timeout(25000);
+    const deadline = AbortSignal.timeout(45000);
     const idsToFetch = eventIds.length
         ? [...new Set([...eventIds, ...DEFAULT_KENYA_EVENT_IDS])]
         : DEFAULT_KENYA_EVENT_IDS;
@@ -138,20 +138,24 @@ async function fetchQuicketEvents({ key, userToken = process.env.QUICKET_USER_TO
         }
     }
 
-    // 2. Fetch configured/curated Kenyan Quicket event IDs with ?api_key=...
+    // 2. Fetch configured/curated Kenyan Quicket event IDs in small batches of 4
     if (idsToFetch.length) {
-        const results = await Promise.allSettled(idsToFetch.map(async id => {
-            if (!/^\d{1,12}$/.test(String(id).trim())) return null;
-            const url = new URL(ENDPOINT + '/' + String(id).trim());
-            url.searchParams.set('api_key', key);
-            if (userToken) url.searchParams.set('usertoken', userToken);
-            const body = await request(url, fetchPage, deadline);
-            const event = body.result ?? body;
-            return kenyaListing(event, now);
-        }));
-        for (const res of results) {
-            if (res.status === 'fulfilled' && res.value) {
-                listings.set(res.value.id, res.value);
+        for (let i = 0; i < idsToFetch.length; i += 4) {
+            if (deadline.aborted) break;
+            const chunk = idsToFetch.slice(i, i + 4);
+            const results = await Promise.allSettled(chunk.map(async id => {
+                if (!/^\d{1,12}$/.test(String(id).trim())) return null;
+                const url = new URL(ENDPOINT + '/' + String(id).trim());
+                url.searchParams.set('api_key', key);
+                if (userToken) url.searchParams.set('usertoken', userToken);
+                const body = await request(url, fetchPage, deadline);
+                const event = body.result ?? body;
+                return kenyaListing(event, now);
+            }));
+            for (const res of results) {
+                if (res.status === 'fulfilled' && res.value) {
+                    listings.set(res.value.id, res.value);
+                }
             }
         }
     }

@@ -237,12 +237,12 @@ async function bulkAvailability(items) {
     const keys = items.map(item => stockKey(item.product));
     const now = Date.now();
     const [stockDocs, holdDocs] = await Promise.all([
-        collection('commerce_stock').find({ _id: { $in: keys } }).toArray(),
+        collection('commerce_stock').find({ _id: { $in: keys } }, { maxTimeMS: 6000 }).toArray(),
         isConnected()
             ? collection('commerce_holds').aggregate([
                 { $match: { product: { $in: keys }, expiresAt: { $gt: now } } },
                 { $group: { _id: '$product', quantity: { $sum: '$quantity' } } }
-            ]).toArray()
+            ], { maxTimeMS: 6000 }).toArray()
             : Promise.resolve([])
     ]);
     const soldMap = new Map(stockDocs.map(doc => [doc._id, Number(doc.sold) || 0]));

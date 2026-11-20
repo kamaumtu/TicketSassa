@@ -3,14 +3,25 @@ const { isConnected } = require('../config/db');
 const { createPaymentGateways } = require('./payment-gateways');
 
 const settingsKey = 'mpesa';
+let cachedStored = null;
+let cachedAt = 0;
 
 function settingsCollection() {
     return collection('commerce_settings');
 }
 
 async function getPaymentSettings() {
-    const storageAvailable = true;
-    const stored = storageAvailable ? await settingsCollection().findOne({ _id: settingsKey }) : null;
+    const storageAvailable = isConnected();
+    let stored = cachedStored;
+    if (storageAvailable && Date.now() - cachedAt > 30000) {
+        try {
+            stored = await settingsCollection().findOne({ _id: settingsKey }, { maxTimeMS: 5000 });
+            cachedStored = stored;
+            cachedAt = Date.now();
+        } catch {
+            // Keep last known provider setting during transient network latency
+        }
+    }
     const options = createPaymentGateways().available().map(option => ({
         ...option, name: option.id === 'nexuspay' ? 'Makamesco (Nexus Pay)' : option.name
     }));
@@ -24,6 +35,8 @@ async function setPaymentProvider(provider, actor) {
     }
     await settingsCollection().updateOne({ _id: settingsKey },
         { $set: { provider, updatedAt: new Date(), updatedBy: actor } }, { upsert: true });
+    cachedStored = { _id: settingsKey, provider };
+    cachedAt = Date.now();
     return { ...settings, provider };
 }
 

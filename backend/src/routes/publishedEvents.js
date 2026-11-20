@@ -10,14 +10,14 @@ const { route } = require('../services/http');
 const { ticketsasaEvents } = require('../config/ticketsasaEvents');
 
 async function events() {
-    const dbEvents = await collection('commerce_events').find({}, { projection: { _id: 0 } }).sort({ startsAt: 1 }).toArray().catch(() => []);
+    const dbEvents = await collection('commerce_events').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 }).sort({ startsAt: 1 }).toArray().catch(() => []);
     const defaultPublished = ticketsasaEvents.map(ev => ({
         id: ev.id,
         title: ev.title,
         venue: ev.locationFull || ev.venue,
         description: ev.description,
         salesOpen: '2026-01-01T00:00:00.000Z',
-        salesClose: '2027-12-31T23:59:59.000Z',
+        salesClose: ev.startsAt,
         startsAt: ev.startsAt,
         formattedDate: ev.formattedDate,
         startAtLabel: ev.startAtLabel,
@@ -42,8 +42,8 @@ function visible(event) {
 }
 
 function onSale(event, now = Date.now()) {
-    return !event.discoveryOnly && visible(event) && withinSalesWindow(event, now) &&
-        (!event.source || (Date.parse(event.startsAt) > now && Date.parse(event.allocationExpiresAt) > now &&
+    return !event.discoveryOnly && visible(event) && Date.parse(event.startsAt) > now && withinSalesWindow(event, now) &&
+        (!event.source || (Date.parse(event.allocationExpiresAt) > now &&
             event.tiers.some(tier => tier.remainingAllocation > 0)));
 }
 
