@@ -95,6 +95,16 @@ tbody tr:hover { background: color-mix(in srgb, var(--surface) 90%, var(--line))
 .sync-run { padding: 10px 0; border-top: 1px solid var(--line); }
 .sync-run summary { cursor: pointer; font-weight: 650; }
 .sync-run p { margin-top: 8px; }
+@media (min-width: 1024px) {
+    .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+    .shell main { min-width: 0; padding: 28px 32px; }
+    .shell main > header { padding: 24px 28px; }
+    .metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .lobby-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .lobby-events { max-height: 55vh; }
+    .actions input { min-width: 240px; }
+    .scroll { max-width: 100%; }
+}
 @media (max-width: 720px) {
     .sidebar .brand { padding-bottom: 8px; }
     .sidebar > a { padding-inline: 0; }

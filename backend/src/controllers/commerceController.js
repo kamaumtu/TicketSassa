@@ -140,25 +140,7 @@ exports.createOrder = handler(async (req, res) => {
         const kind = item?.kind ?? 'ticket';
         if (!['ticket', 'flight', 'holiday'].includes(kind)) reject(400, 'This item type is unavailable.');
         if (['flight', 'holiday'].includes(kind)) {
-            if (mode === 'live' && !require('../services/travelSuppliers').supplierStatus().flightReservationEnabled) {
-                reject(503, 'Travel checkout is unavailable until supplier reservations can be confirmed.');
-            }
-            const customId = item?.id || item?.tierKey || item?.productKey || token('TRV-');
-            const key = inventoryKey(kind, customId);
-            const priceKes = Math.max(1, Math.round(Number(item?.unitPriceKes || item?.priceKes || 1000)));
-            const priceUsd = round(priceKes / 125);
-            inventory.set(key, {
-                tierKey: customId,
-                title: String(item?.title || 'Ticketsasa Travel Booking').slice(0, 140),
-                eventTitle: kind === 'flight' ? 'Ticketsasa Flight Booking' : 'Ticketsasa Holiday Package',
-                designatedGate: 'Travel Desk / E-Voucher',
-                priceKes,
-                priceUsd,
-                stock: 999,
-                published: true
-            });
-            quantities.set(key, (quantities.get(key) ?? 0) + (Number(item?.quantity) || 1));
-            continue;
+            reject(409, 'Choose a verified travel offer and use travel booking checkout.');
         }
         const id = item?.tierKey ?? item?.productKey;
         const key = inventoryKey(kind, id);
@@ -272,10 +254,7 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
         // Existing payments keep their original provider, including after an admin changes the setting.
         if (stored.paymentStatus !== 'PENDING') return { order: stored, start: false };
         if (stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
-        if (mode === 'live' && stored.items.some(item => /^(flight|holiday):/.test(item.key)) &&
-            !require('../services/travelSuppliers').supplierStatus().flightReservationEnabled) {
-            reject(503, 'Travel checkout is unavailable until supplier reservations can be confirmed.');
-        }
+        if (mode === 'live') await require('../services/travelBookings').requireHold(stored);
         if (stored.items.some(item => item.key?.startsWith('ticket:') && !stock?.has(item.key))) {
             reject(409, 'An item is no longer available. Start a new checkout.');
         }

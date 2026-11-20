@@ -6,6 +6,8 @@ const { getPaymentSettings, setPaymentProvider } = require('../services/paymentS
 const { revenueSummary, realCompletedOrder, isLiveTicket } = require('../services/ticketRevenue');
 const { publishEvent } = require('./publishedEvents');
 const { isConnected } = require('../config/db');
+router.get('/travel/lobby', route(async (req, res) => res.set('Cache-Control', 'no-store').json(await require('../services/travelCatalog').lobby())));
+router.post('/travel/sync', route(async (req, res) => res.json(await require('../services/travelCatalog').sync('admin'))));
 
 router.use((req, res, next) => {
     if (req.method !== 'GET' && req.method !== 'HEAD' && req.get('X-Admin-Action') !== 'dashboard') {

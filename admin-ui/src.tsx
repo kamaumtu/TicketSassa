@@ -15,7 +15,7 @@ type SyncRun = { id: string; startedAt: string; finishedAt?: string; trigger: st
 type Lobby = Imports & { activeRun: SyncRun | null; nextRunAt: string | null; history: SyncRun[] };
 type Data = { storageAvailable: boolean; payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[]; imports: Imports };
 
-const sections = ['Overview', 'Events', 'Publishing lobby', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
+const sections = ['Overview', 'Events', 'Publishing lobby', 'Travel lobby', 'Tickets', 'Customers', 'Transactions', 'Payment settings', 'Audit log'] as const;
 type Section = typeof sections[number];
 const paymentLabels: Record<string, string> = {
     COMPLETED: 'Completed', FAILED: 'Failed', PROCESSING: 'Awaiting confirmation', PENDING: 'Awaiting payment'
@@ -131,9 +131,49 @@ function exportOrders(orders: Order[]) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+type TravelOffer = { id: string; kind: string; title: string; supplier: string; status: string; priceKes: number; available: number; startsAt: string; checkedAt: string };
+type TravelLobbyData = { stage: string; storageAvailable: boolean; nextRunAt: string | null; offers: TravelOffer[];
+    reservations: { orderReference: string; kind: string; title: string; status: string; totalKes: number; createdAt: string; confirmationCode?: string }[];
+    configuration: Record<string, { feedConfigured: boolean; bookingConfigured: boolean }>;
+    sources: Record<string, { status: string; count: number; available?: number; rejected?: number; message?: string }>;
+    history: { _id: string; startedAt: string; finishedAt: string; trigger: string; sources: Record<string, { status: string; count: number }> }[] };
+function TravelLobby() {
+    const [data, setData] = useState<TravelLobbyData>();
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [kind, setKind] = useState('all');
+    async function load() { setData(await request<TravelLobbyData>('/travel/lobby')); }
+    useEffect(() => {
+        let active = true;
+        const refresh = () => request<TravelLobbyData>('/travel/lobby').then(value => { if (active) { setData(value); setError(''); } }).catch(err => { if (active) setError(err.message); });
+        void refresh(); const timer = window.setInterval(() => { if (!document.hidden) void refresh(); }, 5000);
+        return () => { active = false; window.clearInterval(timer); };
+    }, []);
+    return <div className="publishing-lobby">
+        <section className="panel"><div className="section-heading"><div><h2>Holiday and flight publishing</h2>
+            <p>Offers refresh automatically every 15 minutes. Prices, dates and supplier holds control availability.</p></div>
+            <button className="primary" disabled={busy} onClick={async () => { setBusy(true); setError(''); try { await request('/travel/sync', 'POST'); await load(); } catch (err) { setError(err instanceof Error ? err.message : 'Sync failed.'); } finally { setBusy(false); } }}>{busy ? 'Syncing…' : 'Sync now'}</button></div>
+            {error && <p role="alert">{error}</p>}
+            {data && <><p role="status">{data.storageAvailable ? `System ${data.stage}` : 'Database offline. Publishing and bookings will resume after reconnection.'}{data.nextRunAt && ` · Next refresh ${date(data.nextRunAt)}`}</p>
+                <div className="lobby-metrics">{['flight', 'holiday'].map(key => <div key={key}><h3>{key === 'flight' ? 'Flights' : 'Holidays'}</h3>
+                    <p>{data.sources[key]?.status.replaceAll('_', ' ') || 'Waiting for sync'}</p>
+                    <p>{data.sources[key]?.available || 0} bookable · {data.sources[key]?.count || 0} imported</p>
+                    <p>Offers feed {data.configuration[key]?.feedConfigured ? 'configured' : 'needs setup'} · Booking connection {data.configuration[key]?.bookingConfigured ? 'configured' : 'needs setup'}</p>
+                    {data.sources[key]?.message && <p>{data.sources[key].message}</p>}</div>)}</div></>}
+        </section>
+        <section className="panel"><h2>Offer decisions</h2><select aria-label="Travel type" value={kind} onChange={e => setKind(e.target.value)}><option value="all">Flights and holidays</option><option value="flight">Flights</option><option value="holiday">Holidays</option></select>
+            <div className="table-wrap"><table><thead><tr><th>Offer</th><th>Supplier</th><th>Departure / check-in</th><th>Price</th><th>Availability</th><th>Last checked</th></tr></thead>
+                <tbody>{data?.offers.filter(o => kind === 'all' || o.kind === kind).map(o => <tr key={o.id}><td>{o.title}<small>{o.kind}</small></td><td>{o.supplier}</td><td>{date(o.startsAt)}</td><td>{money(o.priceKes)}</td><td>{o.status.replaceAll('_', ' ')} · {o.available} remaining</td><td>{date(o.checkedAt)}</td></tr>)}</tbody></table></div>
+            {!data?.offers.length && <p>No supplier offers imported yet. The system publishes valid offers automatically once the feeds are connected.</p>}
+        </section>
+        <section className="panel"><h2>Recent supplier reservations</h2><div className="table-wrap"><table><thead><tr><th>Order</th><th>Trip</th><th>Supplier status</th><th>Total</th><th>Confirmation</th></tr></thead><tbody>{data?.reservations.map(row => <tr key={row.orderReference}><td>{row.orderReference}</td><td>{row.title}<small>{row.kind}</small></td><td>{row.status.replaceAll('_', ' ')}</td><td>{money(row.totalKes)}</td><td>{row.confirmationCode || 'Pending'}</td></tr>)}</tbody></table></div><p>Payment status is tracked separately in Transactions. Supplier confirmation may follow payment.</p></section>
+        <section className="panel"><h2>Activity history</h2>{data?.history.map(run => <p key={run._id}>{date(run.startedAt)} · {run.trigger} · {Object.entries(run.sources).map(([key, source]) => `${key}: ${source.status.replaceAll('_', ' ')} (${source.count})`).join(' · ')}</p>)}</section>
+    </div>;
+}
+
 function App() {
-    const [section, setSection] = useState<Section>(location.pathname === '/admin/publishing' ? 'Publishing lobby' : 'Overview');
-    const inLobby = section === 'Publishing lobby';
+    const [section, setSection] = useState<Section>(location.pathname === '/admin/travel' ? 'Travel lobby' : location.pathname === '/admin/publishing' ? 'Publishing lobby' : 'Overview');
+    const inLobby = section === 'Publishing lobby' || section === 'Travel lobby';
     const [data, setData] = useState<Data>();
     const [audit, setAudit] = useState<Audit[]>([]);
     const [query, setQuery] = useState('');
@@ -182,8 +222,8 @@ function App() {
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
             <div className="brand"><strong>Ticketsassa</strong><span>Administration</span></div>
             <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show menu' : 'Hide menu'}</button>
-            <nav aria-label="Admin navigation">{sections.map(item => item === 'Publishing lobby'
-                ? <a key={item} href="/admin/publishing" aria-current={inLobby ? 'page' : undefined}>{item}</a>
+            <nav aria-label="Admin navigation">{sections.map(item => item === 'Publishing lobby' || item === 'Travel lobby'
+                ? <a key={item} href={item === 'Travel lobby' ? '/admin/travel' : '/admin/publishing'} aria-current={section === item ? 'page' : undefined}>{item}</a>
                 : <button key={item} aria-current={section === item ? 'page' : undefined} onClick={() => {
                 if (inLobby) history.replaceState(null, '', '/admin');
                 setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);
@@ -198,7 +238,8 @@ function App() {
             </header>
             {notice && <p className="notice" role="status">{notice}</p>}
             {data && !data.storageAvailable && !inLobby && <p className="notice" role="status">Database connection unavailable. Stored events, orders, revenue and account changes will return when Atlas reconnects. <a href="/admin/publishing">View source activity</a></p>}
-            {inLobby && <PublishingLobby />}
+            {section === 'Publishing lobby' && <PublishingLobby />}
+            {section === 'Travel lobby' && <TravelLobby />}
             {!inLobby && !data && <p className="panel" role="status">{busy ? 'Loading dashboard…' : 'Dashboard data unavailable.'}</p>}
             {data && section === 'Overview' && <>
                 <div className="metrics">{[

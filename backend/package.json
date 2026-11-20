@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "seed": "node src/seed.js",
-    "check:atlas": "node src/verifyAtlas.js"
+    "check:atlas": "node src/verifyAtlas.js",
+    "test": "node --test test/*.test.cjs"
   },
   "keywords": [
     "nodejs",

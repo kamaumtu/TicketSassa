@@ -1,0 +1,17 @@
+Tickets.dev sync failed: The operation was aborted due to timeout
+SoldOut Africa refresh failed: fetch failed
+Quicket Kenya sync failed: Quicket events fetch failed
+Payment status refresh failed: MongoWaitQueueTimeoutError
+[-] Server Error: MongoWaitQueueTimeoutError: Timed out while checking out a connection from connection pool
+    at ConnectionPool.checkOut (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cmap\connection_pool.js:157:38)
+    at async Server.command (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\sdam\server.js:144:24)
+    at async tryOperation (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\operations\execute_operation.js:213:32)
+    at async executeOperation (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\operations\execute_operation.js:78:16)
+    at async AggregationCursor._initialize (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\aggregation_cursor.js:57:26)
+    at async AggregationCursor.cursorInit (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\abstract_cursor.js:632:27)
+    at async AggregationCursor.fetchBatch (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\abstract_cursor.js:666:13)
+    at async AggregationCursor.next (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\abstract_cursor.js:342:17)
+    at async [Symbol.asyncIterator] (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\abstract_cursor.js:250:34)
+    at async AggregationCursor.toArray (C:\Users\kamau\Downloads\traffic\backend\node_modules\mongodb\lib\cursor\abstract_cursor.js:422:26)
+Payment status refresh failed: MongoWaitQueueTimeoutError
+Tickets.dev sync failed: The operation was aborted due to timeout

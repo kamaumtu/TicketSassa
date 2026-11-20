@@ -1464,74 +1464,7 @@ async function handleFlightBookingSubmit(event) {
         phone,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
-    if (!phone || !email) return;
-    if (submitBtn) submitBtn.disabled = true;
-    const departureDate = document.getElementById('flight-depart-date')?.value || new Date().toISOString().split('T')[0];
-    const returnDate = document.getElementById('flight-return-date')?.disabled ? '' : (document.getElementById('flight-return-date')?.value || '');
-    const seatPref = document.getElementById('fbm-seat-pref')?.value || 'window';
-    if (statusEl) statusEl.textContent = `Holding seat on ${flight.airline} (${flight.flightNumber}) & sending M-Pesa STK Push to ${phone}...`;
-    try {
-        const orderRes = await commerceRequest('/orders', {
-            customer: { name: [firstName, lastName].filter(Boolean).join(' '), email, phone },
-            items: [{
-                kind: 'flight',
-                id: flight.id || 'FLT-1',
-                title: `${flight.airline} (${flight.flightNumber || flight.id}) ${flight.origin} → ${flight.dest}`,
-                unitPriceKes: Math.round(totals.totalKes || flight.priceKes),
-                quantity: 1
-            }],
-            currency: 'KES',
-            paymentMethod: 'MPESA'
-        });
-        const orderReference = orderRes.data.orderReference;
-        const holdRes = await commerceRequest('/travel/flights/reserve', {
-            orderReference,
-            flight,
-            passenger: { name: [firstName, lastName].filter(Boolean).join(' '), passport, email, phone },
-            departureDate,
-            returnDate,
-            cabin: flightSearchState.cabinClass,
-            seatPref,
-            totalKes: Math.round(totals.totalKes || flight.priceKes)
-        });
-        const pnr = holdRes?.reservation?.reservationRef || 'HELD';
-        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone });
-        if (payRes.mode === 'demo') {
-            const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
-            const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
-            const code = confirmedRes?.reservation?.confirmationCode || pnr;
-            rememberOrder(conf.data, conf.passes);
-            if (statusEl) statusEl.textContent = `Flight confirmed! PNR: ${pnr} · E-Ticket: ${code} · Order: ${orderReference}`;
-        } else {
-            if (statusEl) statusEl.textContent = `PNR ${pnr} held. ${payRes.CustomerMessage || `STK Push sent to ${phone}!`}`;
-            for (let attempt = 0; attempt < 15; attempt++) {
-                await new Promise(resolve => setTimeout(resolve, 3500));
-                const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(email)).catch(() => null);
-                if (check?.status === 'COMPLETED') {
-                    const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
-                    if (confirmedRes?.reservation?.status !== 'CONFIRMED' || !confirmedRes.reservation.confirmationCode) {
-                        if (statusEl) statusEl.textContent = 'Payment received. The flight is awaiting supplier confirmation. Order: ' + orderReference;
-                        return;
-                    }
-                    const code = confirmedRes?.reservation?.confirmationCode || pnr;
-                    rememberOrder(check.order, check.passes);
-                    if (statusEl) statusEl.textContent = `Flight confirmed! PNR: ${pnr} · E-Ticket: ${code}`;
-                    showToast(`Flight confirmed! PNR ${pnr}`);
-                    return;
-                }
-                if (check?.status === 'FAILED') {
-                    throw new Error(check.reason || 'Payment declined or cancelled on mobile phone.');
-                }
-            }
-        }
-        if (typeof showToast === 'function') {
-            showToast(`PNR ${pnr} held — complete M-Pesa prompt on ${phone}`);
-        }
-    } catch (err) {
-        if (statusEl) statusEl.textContent = err.message || 'Could not complete flight reservation.';
-    } finally {
-        if (submitBtn) submitBtn.disabled = false;
-    }
+
 }
 
 function initFlightEngine() {
@@ -2030,74 +1963,7 @@ async function handleHolidayBookingSubmit(event) {
         guestPhone,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
-    if (!guestPhone || !guestEmail) return;
-    if (submitBtn) submitBtn.disabled = true;
-    const adults = document.getElementById('hbm-adults-count')?.value || '2';
-    const roomTypeEl = document.getElementById('hbm-room-type');
-    const roomType = roomTypeEl?.options?.[roomTypeEl.selectedIndex]?.text || 'Standard Sharing';
-    if (statusEl) statusEl.textContent = `Holding ${currentHolidayBooking.resortName} & sending M-Pesa STK Push to ${guestPhone}...`;
-    try {
-        const orderRes = await commerceRequest('/orders', {
-            customer: { name: guestName, email: guestEmail, phone: guestPhone },
-            items: [{
-                kind: 'holiday',
-                id: currentHolidayBooking.key || 'HOL-1',
-                title: `${currentHolidayBooking.title} (${checkin} to ${checkout})`,
-                unitPriceKes: Math.round(totals.totalKes || currentHolidayBooking.rate),
-                quantity: 1
-            }],
-            currency: 'KES',
-            paymentMethod: 'MPESA'
-        });
-        const orderReference = orderRes.data.orderReference;
-        const holdRes = await commerceRequest('/travel/holidays/reserve', {
-            orderReference,
-            holiday: currentHolidayBooking,
-            guest: { name: guestName, email: guestEmail, phone: guestPhone },
-            checkin,
-            checkout,
-            adults,
-            roomType,
-            totalKes: Math.round(totals.totalKes || currentHolidayBooking.rate)
-        });
-        const bookingRef = holdRes?.reservation?.reservationRef || 'HELD';
-        const payRes = await commerceRequest('/payments/mpesa/stkpush', { orderReference, phone: guestPhone });
-        if (payRes.mode === 'demo') {
-            const conf = await commerceRequest('/payments/demo/confirm', { orderReference, checkoutRequestId: payRes.CheckoutRequestID });
-            const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
-            const voucher = confirmedRes?.reservation?.confirmationCode || bookingRef;
-            rememberOrder(conf.data, conf.passes);
-            if (statusEl) statusEl.textContent = `Holiday confirmed! Ref: ${bookingRef} · Voucher: ${voucher} · Order: ${orderReference}`;
-        } else {
-            if (statusEl) statusEl.textContent = `Resort Ref ${bookingRef} held. ${payRes.CustomerMessage || `STK Push sent to ${guestPhone}!`}`;
-            for (let attempt = 0; attempt < 15; attempt++) {
-                await new Promise(resolve => setTimeout(resolve, 3500));
-                const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(guestEmail)).catch(() => null);
-                if (check?.status === 'COMPLETED') {
-                    const confirmedRes = await commerceRequest('/travel/reservations/' + encodeURIComponent(orderReference)).catch(() => null);
-                    if (confirmedRes?.reservation?.status !== 'CONFIRMED' || !confirmedRes.reservation.confirmationCode) {
-                        if (statusEl) statusEl.textContent = 'Payment received. The holiday is awaiting supplier confirmation. Order: ' + orderReference;
-                        return;
-                    }
-                    const voucher = confirmedRes?.reservation?.confirmationCode || bookingRef;
-                    rememberOrder(check.order, check.passes);
-                    if (statusEl) statusEl.textContent = `Holiday confirmed! Ref: ${bookingRef} · Voucher: ${voucher}`;
-                    showToast(`Holiday confirmed! Voucher ${voucher}`);
-                    return;
-                }
-                if (check?.status === 'FAILED') {
-                    throw new Error(check.reason || 'Payment declined or cancelled on mobile phone.');
-                }
-            }
-        }
-        if (typeof showToast === 'function') {
-            showToast(`Resort Ref ${bookingRef} held — complete M-Pesa prompt on ${guestPhone}`);
-        }
-    } catch (err) {
-        if (statusEl) statusEl.textContent = err.message || 'Could not complete holiday reservation.';
-    } finally {
-        if (submitBtn) submitBtn.disabled = false;
-    }
+
 }
 
 function saveTravelPlan(kind, statusId, plan) {
@@ -2255,7 +2121,7 @@ function submitSupportQuestion(trigger) {
         [/refund|cancel/i, 'Demo orders do not charge money. Refund requests for purchases made elsewhere are handled by the original seller.'],
         [/qr|gate|ticket|order|pass/i, 'Open Tickets in the header. Enter your order reference and checkout email, then select a pass to view its QR code.'],
         [/pay|mpesa|checkout|cart/i, 'Choose tickets for an event on sale, then review your order to pay by M-Pesa.'],
-        [/flight|holiday|hotel/i, 'You can browse the travel pages here. Flight and holiday booking are unavailable in the app.'],
+        [/flight|holiday|hotel/i, 'Open Flights or Holidays and check the available offers section. Bookable offers show their dates and confirmed price. Choose Book this offer to reserve and pay here. Itinerary ideas below are for planning.'],
     ];
     const answer = answers.find(([pattern]) => pattern.test(message))?.[1] ??
         'I can help with ticket lookup, M-Pesa checkout, seating, and travel availability. Which one do you need?';
@@ -2331,6 +2197,9 @@ function showAccount(user) {
         surface.querySelector('[data-auth-form]').hidden = Boolean(user);
         surface.querySelector('[data-account-panel]').hidden = !user;
         surface.querySelector('[data-account-name]').textContent = user ? user.name + ' · ' + user.email : '';
+        const intro = surface.closest('#view-login')?.querySelector('#login-page-title');
+        if (intro) intro.textContent = user ? 'My account' : 'Log In to Ticketsassa';
+        for (const element of surface.querySelectorAll('[data-auth-guest]')) element.hidden = Boolean(user);
         updateAccountReadiness(surface.querySelector('[data-auth-form]'));
     }
     for (const [input, value] of accountPrefills) {
@@ -2403,9 +2272,11 @@ function updateAccountReadiness(form) {
         accountRequestInProgress || !connected || (registering && !canConfirm);
     form.querySelector('[data-auth-resend]').hidden = !connected || !accountProviders?.confirmationEmail;
     // Google OAuth is unavailable inside Android WebView.
-    const googleLink = form.querySelector('[data-auth-google]');
+    const googleLink = surface.querySelector('[data-auth-google]');
     if (googleLink) {
-        googleLink.hidden = !connected || !accountProviders?.google || /; wv\)/.test(navigator.userAgent);
+        googleLink.hidden = Boolean(signedInAccount) || !connected || !accountProviders?.google ||
+            (accountProviders.googleMode && accountProviders.googleMode !== 'oauth') || /; wv\)/.test(navigator.userAgent);
+        for (const element of surface.querySelectorAll('[data-auth-guest]')) element.hidden = googleLink.hidden;
     }
 }
 
@@ -2429,13 +2300,29 @@ async function resendAccountConfirmation(button) {
     }
 }
 
+function togglePasswordVisibility(button) {
+    const input = document.getElementById(button.getAttribute('aria-controls'));
+    const visible = input.type === 'password';
+    input.type = visible ? 'text' : 'password';
+    button.textContent = visible ? 'Hide password' : 'Show password';
+    button.setAttribute('aria-pressed', String(visible));
+}
+
 function setAccountMode(form, mode) {
+    form.elements.password.type = 'password';
+    const visibilityToggle = form.querySelector('[data-password-toggle]');
+    if (visibilityToggle) {
+        visibilityToggle.textContent = 'Show password';
+        visibilityToggle.setAttribute('aria-pressed', 'false');
+    }
     const registering = mode === 'register';
     form.dataset.mode = mode;
     form.querySelector('[data-auth-name]').hidden = !registering;
     form.elements.name.required = registering;
     form.elements.password.minLength = registering ? 12 : 0;
     form.elements.password.autocomplete = registering ? 'new-password' : 'current-password';
+    const passwordHelp = form.querySelector('[data-password-help]');
+    if (passwordHelp) passwordHelp.hidden = !registering;
     form.querySelector('button[type=submit]').textContent = registering ? 'Create account' : 'Log In';
     form.querySelector('[data-auth-toggle]').textContent = registering ? 'Back to log in' : 'Create an account';
     const title = form.closest('#ticketsasa-auth-modal') ? document.getElementById('ts-auth-title') : document.getElementById('login-page-title');
@@ -2459,6 +2346,19 @@ async function handleAccountLogin(event) {
     const status = form.closest('[data-auth-surface]').querySelector('[data-auth-status]');
     const submit = form.querySelector('button[type=submit]');
     const registering = form.dataset.mode === 'register';
+    if (registering && !form.elements.name.value.trim()) {
+        status.textContent = 'Enter your full name to create your account.';
+        form.elements.name.focus();
+        return;
+    }
+    if (!form.checkValidity()) {
+        const invalid = form.querySelector(':invalid');
+        status.textContent = invalid?.name === 'password'
+            ? registering ? 'Choose a password with at least 12 characters to continue.' : 'Enter your password to sign in.'
+            : invalid?.name === 'email' ? 'Enter a valid email address to continue.' : 'Complete the required fields to continue.';
+        form.reportValidity();
+        return;
+    }
     accountRequestInProgress = true;
     submit.disabled = true;
     status.textContent = registering ? 'Creating your account…' : 'Signing in…';
@@ -2480,7 +2380,6 @@ async function handleAccountLogin(event) {
     } catch (error) {
         status.textContent = error.message;
     } finally {
-        form.elements.password.value = '';
         accountRequestInProgress = false;
         updateAccountReadiness(form);
     }

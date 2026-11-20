@@ -23,6 +23,12 @@ services:
         sync: false
       - key: AUTH_PUBLIC_ORIGIN
         sync: false
+      - key: CLIENT_URL
+        sync: false
+      - key: ORGANIZER_KEY
+        sync: false
+      - key: PASS_SCANNER_KEY
+        sync: false
       - key: PAYHERO_API_USERNAME
         sync: false
       - key: PAYHERO_API_PASSWORD
@@ -40,4 +46,20 @@ services:
       - key: RESEND_API_KEY
         sync: false
       - key: AUTH_EMAIL_FROM
+        sync: false
+      - key: EVENT_ALLOCATION_FEED_URL
+        sync: false
+      - key: EVENT_ALLOCATION_FEED_TOKEN
+        sync: false
+      - key: FLIGHT_OFFERS_URL
+        sync: false
+      - key: FLIGHT_BOOKING_URL
+        sync: false
+      - key: FLIGHT_SUPPLIER_TOKEN
+        sync: false
+      - key: HOLIDAY_OFFERS_URL
+        sync: false
+      - key: HOLIDAY_BOOKING_URL
+        sync: false
+      - key: HOLIDAY_SUPPLIER_TOKEN
         sync: false

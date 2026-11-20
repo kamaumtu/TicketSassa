@@ -6,10 +6,10 @@ function supplierStatus() {
     const webhookConfigured = Boolean(process.env.TRAVEL_SUPPLIER_WEBHOOK_URL?.trim());
     const liveSupplierReady = amadeusConfigured || webhookConfigured;
     return {
-        amadeusGds: amadeusConfigured ? 'live' : 'local_inventory',
-        supplierWebhook: webhookConfigured ? 'configured' : 'local_inventory',
-        flightReservationEnabled: demoEnabled() || liveSupplierReady,
-        holidayReservationEnabled: demoEnabled() || liveSupplierReady
+        amadeusGds: amadeusConfigured ? 'credentials_present' : 'not_configured',
+        supplierWebhook: webhookConfigured ? 'configured' : 'not_configured',
+        flightReservationEnabled: Boolean(require('./travelCatalog').config('flight').bookingUrl && require('./travelCatalog').config('flight').url),
+        holidayReservationEnabled: Boolean(require('./travelCatalog').config('holiday').bookingUrl && require('./travelCatalog').config('holiday').url)
     };
 }
 
@@ -95,8 +95,8 @@ async function confirmTravelReservation(orderReference, receipt, mode) {
     const existing = await resCol.findOne({ orderReference });
     if (!existing) return null;
     if (existing.status === 'CONFIRMED') return existing;
-    if (mode !== 'demo' && !process.env.TRAVEL_SUPPLIER_WEBHOOK_URL?.trim() &&
-        !(process.env.AMADEUS_CLIENT_ID?.trim() && process.env.AMADEUS_CLIENT_SECRET?.trim())) {
+    if (existing.supplierManaged) return require('./travelBookings').confirm(existing, receipt);
+    if (mode !== 'demo') {
         await resCol.updateOne({ _id: existing._id }, {
             $set: { status: 'AWAITING_SUPPLIER', mpesaReceipt: receipt || null }
         });
