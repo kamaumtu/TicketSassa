@@ -752,8 +752,9 @@
     <!-- VIEW 3: TICKETSASA HOLIDAY LOBBY (Direct Copy from bookings.ticketsasa.com)-->
     <!-- ========================================================================= -->
     <div id="view-holidays" tabindex="-1" class="tab-view hidden bg-slate-50 min-h-screen">
-        <div class="mx-auto max-w-7xl px-4 py-3">
-            <button type="button" class="underline" onclick="showTravelPlan('holiday')">Show saved itinerary</button>
+        <div class="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center gap-4 text-xs">
+            <button type="button" class="underline font-bold text-emerald-700" onclick="openTicketWallet()">Check My Holiday Tickets</button>
+            <button type="button" class="underline text-slate-600" onclick="showTravelPlan('holiday')">Show saved itinerary</button>
             <p id="saved-holiday-status" role="status"></p>
         </div>
         
@@ -1016,7 +1017,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('neptune-village')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('neptune-village')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('neptune-village')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1046,7 +1047,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('medina-palms')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('medina-palms')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('medina-palms')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1076,7 +1077,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('neptune-village-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('neptune-village-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('neptune-village-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1106,7 +1107,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('jambo-mutara-camp')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('jambo-mutara-camp')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('jambo-mutara-camp')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1136,7 +1137,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('baobab-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('baobab-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('baobab-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1166,7 +1167,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('leopard-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('leopard-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('leopard-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1196,7 +1197,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('serena-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('serena-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('serena-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1226,7 +1227,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('medina-palms-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('medina-palms-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('medina-palms-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1256,7 +1257,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('swahili-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('swahili-beach')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('swahili-beach')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1286,7 +1287,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('masai-mara')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('masai-mara')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('masai-mara')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1316,7 +1317,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('leopard-beach-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('leopard-beach-3d')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('leopard-beach-3d')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1346,7 +1347,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('sarova-whitesands')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('sarova-whitesands')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('sarova-whitesands')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -1376,7 +1377,7 @@
                         </div>
                     </div>
                     <div class="p-5 pt-0 flex gap-2">
-                        <button type="button" onclick="openHolidayBookingModal('voyager-beach-resort')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Plan this trip</button>
+                        <button type="button" onclick="openHolidayBookingModal('voyager-beach-resort')" class="flex-1 rounded-xl bg-emerald-700 hover:bg-emerald-600 px-4 py-2.5 font-bold text-xs text-white shadow-md transition">Buy Tickets</button>
                         <button type="button" onclick="openHolidayDetails('voyager-beach-resort')" class="px-3 py-2.5 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-100 font-semibold text-xs transition">Details</button>
                     </div>
                 </div>
@@ -2173,6 +2174,8 @@
                     </div>
                 </div>
 
+                <div id="pass-itinerary-box" class="hidden text-xs bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-1 text-emerald-950"></div>
+
                 <!-- QR Code Display -->
                 <div class="text-center p-4 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-2">
                     <div id="qr-code-container" class="flex justify-center">
@@ -2183,11 +2186,14 @@
             </div>
 
             <!-- Modal Actions -->
-            <div class="flex gap-3">
-                <button onclick="window.print()" class="flex-1 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2">
+            <div class="flex flex-wrap gap-3">
+                <a id="btn-download-pass-pdf" target="_blank" rel="noopener noreferrer" class="hidden flex-1 py-3 px-4 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2">
+                    Download PDF
+                </a>
+                <button onclick="window.print()" class="flex-1 py-3 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs uppercase tracking-wider transition flex items-center justify-center gap-2">
                     <i data-lucide="printer" class="w-4 h-4"></i> Print Pass
                 </button>
-                <button onclick="closePassModal()" class="flex-1 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition">
+                <button onclick="closePassModal()" class="flex-1 py-3 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition">
                     Done
                 </button>
             </div>
@@ -2375,8 +2381,8 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                     </div>
                     <div>
-                        <h3 class="font-extrabold text-xl text-slate-900" id="hbm-title">Holiday itinerary estimate</h3>
-                        <p class="text-xs text-slate-500" id="hbm-subtitle">Package availability requires provider confirmation.</p>
+                        <h3 class="font-extrabold text-xl text-slate-900" id="hbm-title">Buy Holiday Tickets</h3>
+                        <p class="text-xs text-slate-500" id="hbm-subtitle">Instant M-Pesa checkout with verified QR holiday passes &amp; PDF voucher.</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeHolidayBookingModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-lg transition">
@@ -2424,6 +2430,8 @@
                             <option value="2" selected>2 Adults (Standard Double Sharing)</option>
                             <option value="3">3 Adults (Triple Sharing)</option>
                             <option value="4">4 Adults (2 Double Rooms)</option>
+                            <option value="5">5 Adults (Group Party)</option>
+                            <option value="6">6 Adults (3 Double Rooms)</option>
                         </select>
                     </div>
                     <div class="space-y-1">
@@ -2501,7 +2509,10 @@
                 <div class="flex flex-col sm:flex-row gap-3 pt-2">
                     <button type="submit" id="btn-hbm-submit" class="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/25 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                        <span id="btn-hbm-label">Save itinerary</span>
+                        <span id="btn-hbm-label">Buy Holiday Tickets via M-Pesa</span>
+                    </button>
+                    <button type="button" onclick="saveCurrentHolidayDraft()" class="h-12 px-4 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs flex items-center justify-center transition">
+                        Save Draft
                     </button>
                     <button type="button" onclick="openChatWithContext('Holiday package inquiry')" class="h-12 px-5 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold text-xs flex items-center justify-center gap-2 transition">
                         WhatsApp Concierge

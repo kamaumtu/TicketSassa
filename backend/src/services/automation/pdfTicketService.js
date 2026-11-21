@@ -166,8 +166,98 @@ async function emailGeneratedTicket(ticket) {
     return { sent: true, to: ticket.customerEmail };
 }
 
+async function renderPassPdfBuffer(pass) {
+    const qrPayload = pass.qrCodeToken || pass.passReference;
+    const qrBuffer = await QRCode.toBuffer(qrPayload, {
+        type: 'png',
+        width: 180,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+    });
+
+    return new Promise((resolve, reject) => {
+        const doc = new PDFDocument({ size: 'A5', layout: 'landscape', margin: 28 });
+        const chunks = [];
+        doc.on('data', chunk => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        const pageW = doc.page.width;
+        const pageH = doc.page.height;
+        const isHoliday = Boolean(pass.itinerary);
+
+        doc.rect(0, 0, pageW, 56).fill(isHoliday ? '#15803D' : '#D81A21');
+        doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20)
+            .text(isHoliday ? 'TICKETSASA HOLIDAYS' : 'TICKETSASA KENYA', 28, 16);
+        doc.font('Helvetica').fontSize(9)
+            .text(isHoliday ? 'CONFIRMED HOLIDAY ITINERARY VOUCHER & CHECK-IN PASS' : 'OFFICIAL DIGITAL ADMISSION PASS', 28, 39);
+        doc.font('Helvetica-Bold').fontSize(11)
+            .text(pass.passReference || '', pageW - 220, 22, { width: 192, align: 'right' });
+
+        let contentX = 28;
+        const rawImg = String(pass.itinerary?.image || '').replace(/^\/+/, '');
+        if (rawImg.startsWith('assets/')) {
+            const localPath = path.join(publicRoot, rawImg);
+            if (fs.existsSync(localPath) && /\.(png|jpe?g)$/i.test(localPath)) {
+                try {
+                    doc.image(localPath, 28, 72, { fit: [108, 108] });
+                    contentX = 148;
+                } catch {}
+            }
+        }
+
+        const detailsW = pageW - contentX - 185;
+        doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(14)
+            .text(pass.eventTitle || 'Ticketsasa Booking Pass', contentX, 72, { width: detailsW, lineGap: 2 });
+
+        doc.moveDown(0.35);
+        doc.fillColor('#334155').font('Helvetica').fontSize(9.5);
+        if (pass.itinerary) {
+            doc.text(`Resort: ${pass.itinerary.resortName || pass.eventTitle}`, { width: detailsW });
+            doc.text(`Destination: ${pass.itinerary.destination || 'Kenya'}`, { width: detailsW });
+            doc.text(`Stay Dates: ${pass.itinerary.checkin} to ${pass.itinerary.checkout} (${pass.itinerary.nights} Night${pass.itinerary.nights > 1 ? 's' : ''})`, { width: detailsW });
+            doc.text(`Room Category: ${pass.itinerary.roomType}`, { width: detailsW });
+            if (pass.itinerary.mealPlan) {
+                doc.text(`Meal Plan: ${pass.itinerary.mealPlan}`, { width: detailsW });
+            }
+            if (Array.isArray(pass.itinerary.addons) && pass.itinerary.addons.length) {
+                doc.text(`Add-ons: ${pass.itinerary.addons.join(', ')}`, { width: detailsW });
+            }
+        } else {
+            doc.text(`Ticket Tier: ${pass.tierName}`, { width: detailsW });
+        }
+
+        doc.moveDown(0.5);
+        doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(10.5)
+            .text(`Lead Guest / Holder: ${pass.attendeeName}`, { width: detailsW })
+            .text(`Check-in Point: ${pass.designatedGate || 'Travel Desk'}`, { width: detailsW });
+
+        doc.moveDown(0.35);
+        doc.fillColor('#64748B').font('Helvetica').fontSize(8.5)
+            .text(`Order Ref: ${pass.orderReference}`, { width: detailsW })
+            .text(`Status: ${pass.status}`, { width: detailsW });
+
+        const qrX = pageW - 168;
+        doc.roundedRect(qrX - 10, 72, 152, 198, 8).lineWidth(1).strokeColor('#CBD5E1').stroke();
+        doc.image(qrBuffer, qrX + 6, 84, { width: 120, height: 120 });
+        doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(8)
+            .text(isHoliday ? 'SCAN AT RESORT / DESK' : 'SCAN AT ENTRY GATE', qrX - 4, 212, { width: 140, align: 'center' });
+        doc.fillColor('#475569').font('Helvetica').fontSize(7.5)
+            .text(pass.qrCodeToken, qrX - 4, 226, { width: 140, align: 'center' });
+        doc.fillColor('#64748B').fontSize(6.5)
+            .text('Verified Ticketsasa digital voucher.', qrX - 4, 242, { width: 140, align: 'center' });
+
+        doc.moveTo(28, pageH - 42).lineTo(pageW - 28, pageH - 42).strokeColor('#E2E8F0').stroke();
+        doc.fillColor('#64748B').font('Helvetica').fontSize(8)
+            .text(`Verify pass: /api/passes/verify/${encodeURIComponent(qrPayload)} | Order ${pass.orderReference}`, 28, pageH - 32, { width: pageW - 56 });
+
+        doc.end();
+    });
+}
+
 module.exports = {
     createGeneratedTicket,
     renderTicketPdfBuffer,
+    renderPassPdfBuffer,
     emailGeneratedTicket
 };

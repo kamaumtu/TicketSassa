@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupCurrencyToggle();
     updatePriceDisplays();
     loadCommerceCatalog();
+    void syncHolidayItinerariesFromServer();
     loadPublishedEvents();
     loadFeaturedEvent();
     document.getElementById('btn-my-tickets')?.addEventListener('click', openTicketWallet);
@@ -791,6 +792,41 @@ function openDigitalPass(pass) {
     document.getElementById('ticket-pass-gate').textContent = pass.designatedGate;
     document.getElementById('pass-status').textContent = pass.status === 'VALID' ? 'Verified Ticket Pass' : pass.status;
     document.getElementById('pass-reference').textContent = pass.passReference;
+
+    const itBox = document.getElementById('pass-itinerary-box');
+    if (itBox) {
+        itBox.replaceChildren();
+        if (pass.itinerary) {
+            const lines = [
+                `Resort: ${pass.itinerary.resortName || pass.eventTitle}`,
+                `Destination: ${pass.itinerary.destination || 'Kenya'}`,
+                `Stay Dates: ${pass.itinerary.checkin} to ${pass.itinerary.checkout} (${pass.itinerary.nights} Night${pass.itinerary.nights > 1 ? 's' : ''})`,
+                `Room Category: ${pass.itinerary.roomType || 'Standard'}`,
+                pass.itinerary.mealPlan ? `Meal Plan: ${pass.itinerary.mealPlan}` : '',
+                Array.isArray(pass.itinerary.addons) && pass.itinerary.addons.length ? `Add-ons: ${pass.itinerary.addons.join(', ')}` : ''
+            ].filter(Boolean);
+            for (const line of lines) {
+                const p = document.createElement('p');
+                p.textContent = line;
+                itBox.append(p);
+            }
+            itBox.classList.remove('hidden');
+        } else {
+            itBox.classList.add('hidden');
+        }
+    }
+
+    const pdfLink = document.getElementById('btn-download-pass-pdf');
+    if (pdfLink) {
+        if (pass.status === 'VALID') {
+            pdfLink.href = '/api/passes/' + encodeURIComponent(pass.qrCodeToken || pass.passReference) + '/pdf';
+            pdfLink.classList.remove('hidden');
+        } else {
+            pdfLink.removeAttribute('href');
+            pdfLink.classList.add('hidden');
+        }
+    }
+
     const image = document.querySelector('#qr-code-container img');
     image.hidden = pass.status !== 'VALID';
     if (image.hidden) {
@@ -1781,10 +1817,56 @@ const holidayDb = {
 };
 
 let currentHolidayBooking = null;
+let pendingHolidayOrder = null;
+
+function resolvePkgDefaultNights(pkg) {
+    if (Number.isSafeInteger(pkg?.nights) && pkg.nights > 0) return pkg.nights;
+    const dur = String(pkg?.duration || '');
+    if (dur.includes('5D')) return 4;
+    if (dur.includes('4D')) return 3;
+    if (dur.includes('2D')) return 1;
+    return 2;
+}
+
+async function syncHolidayItinerariesFromServer() {
+    try {
+        const res = await commerceRequest('/travel/itineraries');
+        if (Array.isArray(res?.itineraries)) {
+            for (const item of res.itineraries) {
+                if (item?.key) holidayDb[item.key] = item;
+            }
+        }
+    } catch {}
+}
+
+window.openCustomHolidayBookingModal = function (hl) {
+    if (!hl || (!hl._id && !hl.externalId) || !(Number(hl.priceKes) > 0)) return;
+    const key = 'db:' + String(hl._id || hl.externalId);
+    const nights = Math.max(1, Number(hl.nights) || 2);
+    holidayDb[key] = {
+        key,
+        title: hl.title,
+        resortName: hl.accommodation || hl.title,
+        destination: hl.destination || 'Kenya',
+        duration: hl.duration || `${nights + 1}D / ${nights}N`,
+        nights,
+        image: hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg',
+        rate: Math.round(Number(hl.priceKes)),
+        originalRate: null,
+        discount: '',
+        mealPlan: hl.meals || 'As per package itinerary',
+        inclusions: Array.isArray(hl.activities) && hl.activities.length
+            ? hl.activities
+            : [hl.description || hl.title],
+        roomTypes: [{ name: 'Standard Sharing Room', surcharge: 0 }]
+    };
+    openHolidayBookingModal(key);
+};
 
 function openHolidayBookingModal(packageKey) {
     const pkg = holidayDb[packageKey] || holidayDb['neptune-village'];
     currentHolidayBooking = pkg;
+    pendingHolidayOrder = null;
 
     const imgEl = document.getElementById('hbm-image');
     if (imgEl) imgEl.src = pkg.image;
@@ -1799,22 +1881,51 @@ function openHolidayBookingModal(packageKey) {
     if (nameEl) nameEl.textContent = pkg.title;
 
     const incEl = document.getElementById('hbm-inclusions-text');
-    if (incEl) incEl.textContent = `Includes ${pkg.mealPlan}. ${pkg.inclusions[0]}`;
+    if (incEl) incEl.textContent = `Includes ${pkg.mealPlan}. ${pkg.inclusions?.[0] || ''}`;
 
     const isKes = state.currency === 'KES';
     const rateEl = document.getElementById('hbm-base-rate');
     if (rateEl) {
-        rateEl.textContent = isKes ? `KES ${pkg.rate.toLocaleString()} / Sharing` : `$${Math.round(pkg.rate / 130)} / Sharing`;
+        rateEl.textContent = isKes ? `KES ${pkg.rate.toLocaleString()} / Sharing` : `$${Math.round(pkg.rate / 125)} / Sharing`;
     }
 
-    // Set dates
+    const roomSelect = document.getElementById('hbm-room-type');
+    if (roomSelect) {
+        const rooms = Array.isArray(pkg.roomTypes) && pkg.roomTypes.length
+            ? pkg.roomTypes
+            : [{ name: 'Standard Sharing Room', surcharge: 0 }];
+        roomSelect.replaceChildren();
+        rooms.forEach((rt, idx) => {
+            const opt = document.createElement('option');
+            opt.value = String(idx);
+            opt.textContent = rt.surcharge > 0
+                ? `${rt.name} (+KES ${Number(rt.surcharge).toLocaleString()} / night)`
+                : `${rt.name} (Included in package)`;
+            roomSelect.append(opt);
+        });
+    }
+
+    const sgrEl = document.getElementById('hbm-addon-sgr');
+    if (sgrEl) sgrEl.checked = false;
+    const excEl = document.getElementById('hbm-addon-excursion');
+    if (excEl) excEl.checked = false;
+
+    if (signedInAccount) {
+        const gName = document.getElementById('hbm-guest-name');
+        const gEmail = document.getElementById('hbm-guest-email');
+        if (gName && !gName.value) gName.value = signedInAccount.name || '';
+        if (gEmail && !gEmail.value) gEmail.value = signedInAccount.email || '';
+    }
+
+    // Set default dates
+    const defaultNights = resolvePkgDefaultNights(pkg);
     const checkin = document.getElementById('hbm-checkin-date');
     const checkout = document.getElementById('hbm-checkout-date');
     const today = new Date();
     const d1 = new Date(today);
     d1.setDate(d1.getDate() + 3);
     const d2 = new Date(d1);
-    d2.setDate(d2.getDate() + (pkg.duration.includes('5D') ? 4 : (pkg.duration.includes('4D') ? 3 : 2)));
+    d2.setDate(d2.getDate() + defaultNights);
 
     const fmt = d => d.toISOString().split('T')[0];
     if (checkin) {
@@ -1822,7 +1933,9 @@ function openHolidayBookingModal(packageKey) {
         checkin.value = fmt(d1);
     }
     if (checkout) {
-        checkout.min = fmt(d1);
+        const minOut = new Date(d1);
+        minOut.setDate(minOut.getDate() + 1);
+        checkout.min = fmt(minOut);
         checkout.value = fmt(d2);
     }
 
@@ -1868,7 +1981,7 @@ function openHolidayDetails(packageKey) {
                 <span class="text-emerald-700">${pkg.mealPlan}</span>
             </div>
             <div class="text-[11px] text-slate-500">
-                <strong>Cancellation Policy:</strong> Free cancellation up to 72 hours before arrival date. Instant confirmation with official resort reservation voucher upon payment.
+                <strong>Confirmation Policy:</strong> Instant verified holiday voucher, QR check-in passes, and downloadable PDF receipt upon M-Pesa confirmation.
             </div>
         `;
     }
@@ -1894,14 +2007,34 @@ function calculateHolidayTotal() {
     const pkg = currentHolidayBooking;
     if (!pkg) return;
 
+    const defaultNights = resolvePkgDefaultNights(pkg);
+    const checkinEl = document.getElementById('hbm-checkin-date');
+    const checkoutEl = document.getElementById('hbm-checkout-date');
+
+    let selectedNights = defaultNights;
+    if (checkinEl?.value) {
+        const inMs = Date.parse(checkinEl.value + 'T00:00:00Z');
+        if (Number.isFinite(inMs)) {
+            const minOut = new Date(inMs + 86400000).toISOString().split('T')[0];
+            if (checkoutEl) checkoutEl.min = minOut;
+            if (checkoutEl && (!checkoutEl.value || checkoutEl.value <= checkinEl.value)) {
+                checkoutEl.value = new Date(inMs + defaultNights * 86400000).toISOString().split('T')[0];
+            }
+            const outMs = checkoutEl?.value ? Date.parse(checkoutEl.value + 'T00:00:00Z') : NaN;
+            if (Number.isFinite(outMs) && outMs > inMs) {
+                selectedNights = Math.max(1, Math.min(30, Math.round((outMs - inMs) / 86400000)));
+            }
+        }
+    }
+
     const isKes = state.currency === 'KES';
     const adultsEl = document.getElementById('hbm-adults-count');
-    const adults = adultsEl ? Number(adultsEl.value) : 2;
+    const adults = Math.max(1, Number(adultsEl ? adultsEl.value : 2) || 2);
 
     const roomEl = document.getElementById('hbm-room-type');
-    const roomSurchargePerNight = roomEl ? Number(roomEl.value) : 0;
-    const nights = pkg.duration.includes('5D') ? 4 : (pkg.duration.includes('4D') ? 3 : 2);
-    const roomSurcharge = roomSurchargePerNight * nights;
+    const roomIdx = Math.max(0, Number(roomEl ? roomEl.value : 0) || 0);
+    const roomObj = pkg.roomTypes?.[roomIdx] || { surcharge: 0 };
+    const roomSurcharge = Math.round((Number(roomObj.surcharge) || 0) * selectedNights);
 
     let extras = 0;
     const sgrEl = document.getElementById('hbm-addon-sgr');
@@ -1910,46 +2043,42 @@ function calculateHolidayTotal() {
     const excEl = document.getElementById('hbm-addon-excursion');
     if (excEl && excEl.checked) extras += 6500 * adults;
 
-    const baseCost = pkg.rate * adults;
+    const basePerAdult = selectedNights === defaultNights
+        ? pkg.rate
+        : Math.round((pkg.rate / defaultNights) * selectedNights);
+    const baseCost = basePerAdult * adults;
     const tax = Math.round((baseCost + roomSurcharge) * 0.02);
-    const totalKes = baseCost + roomSurcharge + extras + tax;
-    const totalUsd = Math.round(totalKes / 130);
+    const totalKes = Math.round(baseCost + roomSurcharge + extras + tax);
+    const totalUsd = Math.round(totalKes / 125);
 
     const baseEl = document.getElementById('hbm-summary-base');
-    if (baseEl) baseEl.textContent = isKes ? `KES ${baseCost.toLocaleString()}` : `$${Math.round(baseCost / 130)}`;
+    if (baseEl) baseEl.textContent = isKes ? `KES ${baseCost.toLocaleString()}` : `$${Math.round(baseCost / 125)}`;
 
     const roomSumEl = document.getElementById('hbm-summary-room');
-    if (roomSumEl) roomSumEl.textContent = isKes ? `KES ${roomSurcharge.toLocaleString()}` : `$${Math.round(roomSurcharge / 130)}`;
+    if (roomSumEl) roomSumEl.textContent = isKes ? `KES ${roomSurcharge.toLocaleString()}` : `$${Math.round(roomSurcharge / 125)}`;
 
     const extrasEl = document.getElementById('hbm-summary-extras');
-    if (extrasEl) extrasEl.textContent = isKes ? `KES ${extras.toLocaleString()}` : `$${Math.round(extras / 130)}`;
+    if (extrasEl) extrasEl.textContent = isKes ? `KES ${extras.toLocaleString()}` : `$${Math.round(extras / 125)}`;
 
     const taxEl = document.getElementById('hbm-summary-tax');
-    if (taxEl) taxEl.textContent = isKes ? `KES ${tax.toLocaleString()}` : `$${Math.round(tax / 130)}`;
+    if (taxEl) taxEl.textContent = isKes ? `KES ${tax.toLocaleString()}` : `$${Math.round(tax / 125)}`;
 
     const totalEl = document.getElementById('hbm-summary-total');
-    if (totalEl) totalEl.textContent = isKes ? `KES ${totalKes.toLocaleString()}` : `$${totalUsd}`;
+    if (totalEl) totalEl.textContent = isKes ? `KES ${totalKes.toLocaleString()}` : `$${totalUsd} (KES ${totalKes.toLocaleString()})`;
 
     const btnLabel = document.getElementById('btn-hbm-label');
     if (btnLabel) {
-        btnLabel.textContent = isKes ? `PAY KES ${totalKes.toLocaleString()} VIA M-PESA` : `PAY $${totalUsd} VIA M-PESA`;
+        btnLabel.textContent = `BUY TICKETS · PAY KES ${totalKes.toLocaleString()} VIA M-PESA`;
     }
 
-    return { totalKes, totalUsd };
+    return { totalKes, totalUsd, selectedNights, roomTypeIndex: roomIdx };
 }
 
-async function handleHolidayBookingSubmit(event) {
-    event.preventDefault();
+function saveCurrentHolidayDraft() {
     if (!currentHolidayBooking) return;
-    const checkin = document.getElementById('hbm-checkin-date').value;
-    const checkout = document.getElementById('hbm-checkout-date').value;
-    const statusEl = document.getElementById('hbm-status');
-    const submitBtn = document.getElementById('btn-hbm-submit');
-    if (!checkin || !checkout || checkout <= checkin) {
-        if (statusEl) statusEl.textContent = 'Choose a check-out date after check-in.';
-        return;
-    }
-    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || 'Guest';
+    const checkin = document.getElementById('hbm-checkin-date')?.value || '';
+    const checkout = document.getElementById('hbm-checkout-date')?.value || '';
+    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || '';
     const guestEmail = document.getElementById('hbm-guest-email')?.value?.trim() || '';
     const guestPhone = document.getElementById('hbm-guest-phone')?.value?.trim() || '';
     const totals = calculateHolidayTotal() || { totalKes: currentHolidayBooking.rate };
@@ -1957,13 +2086,141 @@ async function handleHolidayBookingSubmit(event) {
         title: currentHolidayBooking.title,
         checkin,
         checkout,
-        travellers: document.getElementById('hbm-adults-count').value + ' Adults',
+        travellers: (document.getElementById('hbm-adults-count')?.value || '2') + ' Adults',
         guestName,
         guestEmail,
         guestPhone,
         totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
     });
+}
 
+async function handleHolidayBookingSubmit(event) {
+    event.preventDefault();
+    if (!currentHolidayBooking) return;
+    const checkin = document.getElementById('hbm-checkin-date')?.value;
+    const checkout = document.getElementById('hbm-checkout-date')?.value;
+    const statusEl = document.getElementById('hbm-status');
+    const submitBtn = document.getElementById('btn-hbm-submit');
+    if (!checkin || !checkout || checkout <= checkin) {
+        if (statusEl) statusEl.textContent = 'Choose a check-out date after check-in.';
+        return;
+    }
+
+    const guestName = document.getElementById('hbm-guest-name')?.value?.trim() || '';
+    const guestEmail = document.getElementById('hbm-guest-email')?.value?.trim() || '';
+    const guestPhone = document.getElementById('hbm-guest-phone')?.value?.trim() || '';
+    const adults = Math.max(1, Number(document.getElementById('hbm-adults-count')?.value || 2));
+    const roomTypeIndex = Math.max(0, Number(document.getElementById('hbm-room-type')?.value || 0));
+    const addons = [];
+    if (document.getElementById('hbm-addon-sgr')?.checked) addons.push('sgr');
+    if (document.getElementById('hbm-addon-excursion')?.checked) addons.push('excursion');
+
+    const payload = {
+        packageKey: currentHolidayBooking.key,
+        checkin,
+        checkout,
+        adults,
+        roomTypeIndex,
+        addons,
+        customer: { name: guestName, email: guestEmail, phone: guestPhone }
+    };
+    const fingerprint = JSON.stringify(payload);
+
+    if (submitBtn) submitBtn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Reserving holiday itinerary & verifying price...';
+
+    try {
+        if (!pendingHolidayOrder || pendingHolidayOrder.fingerprint !== fingerprint) {
+            const requestId = (typeof crypto?.randomUUID === 'function')
+                ? crypto.randomUUID()
+                : ('hol-' + Date.now() + '-' + Math.random().toString(16).slice(2, 14));
+            const booked = await commerceRequest('/travel/itineraries/book', { ...payload, requestId });
+            pendingHolidayOrder = {
+                fingerprint,
+                requestId,
+                orderReference: booked.orderReference,
+                totalKes: booked.totalKes
+            };
+        }
+
+        const { orderReference, totalKes } = pendingHolidayOrder;
+        const walletRef = document.getElementById('wallet-reference');
+        const walletEmail = document.getElementById('wallet-email');
+        if (walletRef) walletRef.value = orderReference;
+        if (walletEmail) walletEmail.value = guestEmail;
+
+        saveTravelPlan('holiday', 'hbm-status', {
+            orderReference,
+            title: currentHolidayBooking.title,
+            checkin,
+            checkout,
+            travellers: adults + ' Adults',
+            guestName,
+            guestEmail,
+            totalKes: `KES ${Number(totalKes || 0).toLocaleString()}`
+        });
+
+        if (statusEl) statusEl.textContent = `Sending M-Pesa STK Push for KES ${Number(totalKes || 0).toLocaleString()} (Order ${orderReference})...`;
+        const payment = await commerceRequest('/payments/mpesa/stkpush', {
+            orderReference,
+            phone: guestPhone
+        });
+
+        if (payment.mode === 'demo') {
+            const conf = await commerceRequest('/payments/demo/confirm', {
+                orderReference,
+                checkoutRequestId: payment.CheckoutRequestID
+            });
+            pendingHolidayOrder = null;
+            rememberOrder(conf.data, conf.passes || []);
+            closeHolidayBookingModal();
+            openTicketWallet();
+            if (conf.passes?.[0]) openDigitalPass(conf.passes[0]);
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.textContent = `${payment.CustomerMessage || 'Approve the M-Pesa prompt on your phone.'} Order ${orderReference}.`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(payment.CustomerMessage || `M-Pesa STK Push sent for Holiday Order ${orderReference}!`);
+        }
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 3500));
+            const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(guestEmail)).catch(() => null);
+            if (check?.status === 'COMPLETED') {
+                pendingHolidayOrder = null;
+                rememberOrder(check.order, check.passes || []);
+                closeHolidayBookingModal();
+                openTicketWallet();
+                if (check.passes?.[0]) openDigitalPass(check.passes[0]);
+                if (typeof showToast === 'function') {
+                    showToast('Holiday tickets confirmed! Your QR pass and PDF voucher are ready.');
+                }
+                return;
+            }
+            if (check?.status === 'FAILED') {
+                pendingHolidayOrder = null;
+                throw new Error(check.reason || 'M-Pesa payment was cancelled or declined.');
+            }
+            if (statusEl) {
+                statusEl.textContent = `Awaiting M-Pesa confirmation (${attempt + 1}/20)... Order: ${orderReference}`;
+            }
+        }
+        if (statusEl) {
+            statusEl.textContent = `Payment confirmation still pending. Click "Check My Holiday Tickets" with Order ${orderReference} once complete.`;
+        }
+    } catch (err) {
+        if ([400, 404, 409, 410, 422].includes(err.status)) {
+            pendingHolidayOrder = null;
+        }
+        if (statusEl) {
+            statusEl.textContent = err.message || 'Could not start M-Pesa holiday checkout. Please try again.';
+        }
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function saveTravelPlan(kind, statusId, plan) {
@@ -2209,7 +2466,8 @@ function showAccount(user) {
     if (user) {
         for (const [id, value] of [
             ['cust-name', user.name], ['cust-email', user.email],
-            ['wallet-email', user.email], ['ts-cust-name', user.name], ['ts-cust-email', user.email]
+            ['wallet-email', user.email], ['ts-cust-name', user.name], ['ts-cust-email', user.email],
+            ['hbm-guest-name', user.name], ['hbm-guest-email', user.email]
         ]) {
             const input = document.getElementById(id);
             if (input && !input.value) {

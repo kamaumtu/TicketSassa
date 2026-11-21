@@ -7,9 +7,19 @@ const {
 
 const router = express.Router();
 const catalog = require('../services/travelCatalog');
+const holidayCatalog = require('../services/holidayCatalog');
 router.get('/offers', route(async (req, res) => {
     const kind = ['flight', 'holiday'].includes(req.query.kind) ? req.query.kind : undefined;
     res.set('Cache-Control', 'no-store').json({ offers: await catalog.offers(kind), storageAvailable: require('../config/db').isConnected() });
+}));
+router.get('/itineraries', route(async (req, res) => {
+    res.set('Cache-Control', 'no-store').json({ success: true, ...holidayCatalog.listHolidayItineraries() });
+}));
+router.post('/itineraries/quote', route(async (req, res) => {
+    res.json({ success: true, quote: await holidayCatalog.quoteHolidayItinerary(req.body) });
+}));
+router.post('/itineraries/book', route(async (req, res) => {
+    res.status(201).json({ success: true, ...await holidayCatalog.createHolidayItineraryBooking(req.body) });
 }));
 router.post('/bookings', route(async (req, res) => {
     res.status(201).json({ success: true, ...await require('../services/travelBookings').createBooking(req.body) });

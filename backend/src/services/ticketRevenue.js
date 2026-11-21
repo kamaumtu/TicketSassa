@@ -4,7 +4,10 @@ const eatOffset = 3 * 3600000;
 function isLiveTicket(item) {
     // Older orders sometimes labelled travel lines as tickets. Their
     // original inventory key still identifies the product type.
-    return typeof item?.key === 'string' ? item.key.startsWith('ticket:') : item?.kind === 'ticket';
+    if (typeof item?.key === 'string') {
+        return item.key.startsWith('ticket:') || item.key.startsWith('itinerary:');
+    }
+    return ['ticket', 'itinerary_holiday'].includes(item?.kind);
 }
 
 function realCompletedOrder(order) {

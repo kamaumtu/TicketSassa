@@ -96,6 +96,45 @@ async function confirmTravelReservation(orderReference, receipt, mode) {
     if (!existing) return null;
     if (existing.status === 'CONFIRMED') return existing;
     if (existing.supplierManaged) return require('./travelBookings').confirm(existing, receipt);
+    if (existing.bookingType === 'itinerary_holiday') {
+        const confirmationCode = `HOLVCH-${randomBytes(4).toString('hex').toUpperCase()}`;
+        const webhookResult = await notifyExternalSupplier({
+            action: 'confirm_itinerary_holiday',
+            reservationRef: existing.reservationRef,
+            orderReference,
+            receipt,
+            kind: 'holiday',
+            supplier: existing.supplier
+        });
+        const confirmedAt = new Date().toISOString();
+        await resCol.updateOne(
+            { _id: existing._id },
+            {
+                $set: {
+                    status: 'CONFIRMED',
+                    confirmationCode,
+                    mpesaReceipt: receipt || null,
+                    supplierSync: webhookResult,
+                    confirmedAt
+                }
+            }
+        );
+        try {
+            const { isConnected } = require('../config/db');
+            if (isConnected()) {
+                const { AutomationBooking } = require('../models/automation');
+                await AutomationBooking.updateOne({ bookingRef: orderReference }, { $set: { status: 'CONFIRMED' } }).catch(() => {});
+            }
+        } catch {}
+        return {
+            ...existing,
+            status: 'CONFIRMED',
+            confirmationCode,
+            mpesaReceipt: receipt || null,
+            supplierSync: webhookResult,
+            confirmedAt
+        };
+    }
     if (mode !== 'demo') {
         await resCol.updateOne({ _id: existing._id }, {
             $set: { status: 'AWAITING_SUPPLIER', mpesaReceipt: receipt || null }

@@ -275,6 +275,7 @@
         }
         for (const hl of holidays) {
             const img = hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg';
+            const canBuyHere = hl.priceKes != null && Number(hl.priceKes) > 0 && hl.availability !== 'sold_out' && typeof window.openCustomHolidayBookingModal === 'function';
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm');
             card.innerHTML = `
                 <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
@@ -292,11 +293,18 @@
                             <div class="text-xs font-extrabold text-slate-900">${escapeHtml(formatKes(hl.priceKes))}</div>
                             <div class="text-[10px] text-slate-500">${escapeHtml(hl.priceLabel)}</div>
                         </div>
-                        <a href="${escapeHtml(hl.bookingUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">View Deal ↗</a>
+                        <div class="flex items-center gap-1.5">
+                            ${canBuyHere ? `<button type="button" data-buy-holiday class="px-3 py-1.5 rounded-lg bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold">Buy Tickets</button>` : ''}
+                            ${hl.bookingUrl ? `<a href="${escapeHtml(hl.bookingUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">View Deal ↗</a>` : ''}
+                        </div>
                     </div>
                     <div class="text-[10px] text-slate-400">Operator: ${escapeHtml(hl.provider)} · Verified ${escapeHtml(formatDate(hl.lastVerifiedAt))}</div>
                 </div>
             `;
+            const buyBtn = card.querySelector('[data-buy-holiday]');
+            if (buyBtn) {
+                buyBtn.addEventListener('click', () => window.openCustomHolidayBookingModal(hl));
+            }
             grid.append(card);
         }
     }

@@ -91,12 +91,24 @@ async function completeOrder(session, order, receipt) {
     for (const item of [...order.items].sort((a, b) => a.key.localeCompare(b.key))) {
         await collection('commerce_stock').updateOne({ _id: stockKey(item.key, order.mode) },
             { $inc: { sold: item.quantity } }, { upsert: true, session });
-        if (!['ticket', 'flight', 'holiday'].includes(item.kind) ||
+        if (!['ticket', 'flight', 'holiday', 'itinerary_holiday'].includes(item.kind) ||
             (order.mode === 'live' && /^(flight|holiday):/.test(item.key))) continue;
         for (let index = 0; index < item.quantity; index++) {
-            passes.push({ qrCodeToken: token('PASS-'), passReference: token('TSASA-'), orderReference,
-                attendeeName: order.customer.name, tierName: item.title, eventTitle: item.eventTitle,
-                designatedGate: item.designatedGate || 'Gate A', status: 'VALID', mode: order.mode });
+            const isItinerary = item.kind === 'itinerary_holiday';
+            passes.push({
+                qrCodeToken: token('PASS-'),
+                passReference: token(isItinerary ? 'HOL-' : 'TSASA-'),
+                orderReference,
+                attendeeName: order.customer.name,
+                tierName: isItinerary
+                    ? `${item.itinerary?.roomType || item.title} · ${item.itinerary?.checkin || ''} to ${item.itinerary?.checkout || ''} (Guest ${index + 1}/${item.quantity})`
+                    : item.title,
+                eventTitle: item.eventTitle,
+                designatedGate: item.designatedGate || 'Gate A',
+                ...(item.itinerary ? { itinerary: item.itinerary } : {}),
+                status: 'VALID',
+                mode: order.mode
+            });
         }
     }
     if (passes.length) await collection('commerce_passes').insertMany(
@@ -465,7 +477,7 @@ exports.confirmDemo = handler(async (req, res) => {
         if (order.paymentStatus !== 'PROCESSING') reject(409, 'This order is not awaiting payment.');
 
         for (const item of order.items) {
-            if (['flight', 'holiday'].includes(item.kind)) continue;
+            if (['flight', 'holiday', 'itinerary_holiday'].includes(item.kind)) continue;
             const current = inventory.get(item.key);
             if (!current || item.quantity > await availability(item.key, current.stock, session, orderReference)) reject(409, 'Insufficient stock for ' + item.title + '.');
         }
@@ -531,4 +543,17 @@ exports.passQr = handler(async (req, res) => {
     const qrToken = pass.qrCodeToken;
     const svg = await require('qrcode').toString(qrToken, { type: 'svg', errorCorrectionLevel: 'M', width: 200 });
     res.type('svg').set('Cache-Control', 'private, no-store').send(svg);
+});
+
+exports.passPdf = handler(async (req, res) => {
+    const code = req.params.qrToken.trim().toUpperCase();
+    const pass = await collection('commerce_passes').findOne({ $or: [{ _id: code }, { passReference: code }] }) ||
+        await DigitalPass.findOne({ $or: [{ qrCodeToken: req.params.qrToken }, { passReference: code }], status: 'VALID' }).lean();
+    if (!pass || (pass.mode === 'demo' && !demoEnabled())) reject(404, 'Ticket not found.');
+    const pdf = await require('../services/automation/pdfTicketService').renderPassPdfBuffer(pass);
+    const safeRef = String(pass.passReference || pass.qrCodeToken || 'ticketsasa-pass').replace(/[^A-Z0-9_-]/gi, '');
+    res.set('Cache-Control', 'private, no-store')
+        .set('Content-Type', 'application/pdf')
+        .set('Content-Disposition', `attachment; filename="${safeRef}.pdf"`)
+        .send(pdf);
 });
