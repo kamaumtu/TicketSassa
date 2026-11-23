@@ -1,5 +1,6 @@
 const { resolve } = require('node:path');
 const http = require('node:http');
+const zlib = require('node:zlib');
 require('dotenv').config({ path: resolve(__dirname, '../.env') });
 const express = require('express');
 const { timingSafeEqual } = require('node:crypto');
@@ -82,6 +83,24 @@ app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+// Fast native gzip compression for JSON APIs, HTML, JS, CSS, and SVG
+app.use((req, res, next) => {
+    if (req.method === 'HEAD' || !/\bgzip\b/i.test(req.get('Accept-Encoding') || '')) return next();
+    const origJson = res.json.bind(res);
+    res.json = payload => {
+        const body = Buffer.from(JSON.stringify(payload), 'utf8');
+        if (body.length < 1024) return origJson(payload);
+        zlib.gzip(body, (err, compressed) => {
+            if (err) return origJson(payload);
+            res.setHeader('Content-Encoding', 'gzip');
+            res.setHeader('Vary', 'Accept-Encoding');
+            res.type('application/json; charset=utf-8');
+            res.send(compressed);
+        });
+        return res;
+    };
     next();
 });
 app.use(cors({
@@ -187,7 +206,11 @@ function adminOnly(req, res, next) {
 }
 app.use('/api/admin/automation', adminOnly, automationAdminRoutes);
 app.use('/api/admin', adminOnly, require('./routes/admin'));
-app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), { index: false }));
+app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), {
+    index: false,
+    maxAge: '7d',
+    etag: true
+}));
 app.get(['/admin', '/admin/publishing', '/admin/travel', '/admin/discovery'], adminOnly, (req, res) => {
     res.sendFile('admin-ui/dist/index.html', { root: publicRoot });
 });
@@ -198,10 +221,14 @@ app.get('/staff/check-in', privateTool('PASS_SCANNER_KEY', 'Ticket check-in'), (
     res.sendFile('staff-check-in.html', { root: publicRoot });
 });
 app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
-    res.set('Cache-Control', 'no-cache');
+    res.set('Cache-Control', 'public, max-age=300');
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
-app.use('/assets', express.static(resolve(publicRoot, 'assets'), { index: false }));
+app.use('/assets', express.static(resolve(publicRoot, 'assets'), {
+    index: false,
+    maxAge: '7d',
+    etag: true
+}));
 
 // 404 Handler
 app.use((req, res) => {

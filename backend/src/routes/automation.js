@@ -53,7 +53,7 @@ const publicRouter = express.Router();
 // ---------------------------------------------------------------------------
 
 publicRouter.get('/meta', (req, res) => {
-    res.json({
+    res.set('Cache-Control', 'public, max-age=300').json({
         counties: KENYA_47_COUNTIES,
         eventCategories: EVENT_CATEGORIES,
         airports: KENYAN_AIRPORTS,
@@ -233,6 +233,8 @@ publicRouter.post('/tickets/redeem/:qrToken', route(async (req, res) => {
 // ADMIN AUTOMATION ROUTES (/api/admin/automation/*)
 // ---------------------------------------------------------------------------
 
+let autoOverviewCache = { payload: null, at: 0 };
+
 adminRouter.get('/overview', route(async (req, res) => {
     const connected = isConnected();
     const now = new Date();
@@ -242,6 +244,9 @@ adminRouter.get('/overview', route(async (req, res) => {
             stats: {},
             charts: { salesByDay: [], depositsByDay: [], popularEvents: [], topDestinations: [], discoveryActivity: [] }
         });
+    }
+    if (autoOverviewCache.payload && Date.now() - autoOverviewCache.at < 15000 && req.query.fresh !== '1') {
+        return res.json(autoOverviewCache.payload);
     }
     const [
         totalDiscovered,
@@ -306,7 +311,7 @@ adminRouter.get('/overview', route(async (req, res) => {
         if (dayMap.has(key)) dayMap.get(key).depositsCount += 1;
     }
 
-    res.json({
+    const overviewPayload = {
         storageAvailable: true,
         stats: {
             totalDiscoveredEvents: totalDiscovered,
@@ -334,7 +339,9 @@ adminRouter.get('/overview', route(async (req, res) => {
                 kind: j.kind
             }))
         }
-    });
+    };
+    autoOverviewCache = { payload: overviewPayload, at: Date.now() };
+    res.json(overviewPayload);
 }));
 
 // Settings & Automation Center

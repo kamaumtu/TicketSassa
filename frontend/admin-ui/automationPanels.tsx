@@ -478,7 +478,7 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
     }
     useEffect(() => {
         void load();
-        const t = window.setInterval(() => { if (!document.hidden) void load(); }, 5000);
+        const t = window.setInterval(() => { if (!document.hidden) void load(); }, 30000);
         return () => window.clearInterval(t);
     }, []);
 

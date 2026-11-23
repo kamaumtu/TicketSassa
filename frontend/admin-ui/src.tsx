@@ -128,27 +128,41 @@ function PaymentSettingsPanel() {
 }
 
 let sharedAudioCtx: AudioContext | null = null;
-function playToneSequence(notes: number[], { volume = 0.7, step = 0.12, duration = 0.32, wave = 'triangle' as OscillatorType } = {}) {
+async function ensureAudioContext() {
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return null;
+    if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
+    if (sharedAudioCtx.state === 'suspended') {
+        await sharedAudioCtx.resume();
+    }
+    return sharedAudioCtx;
+}
+
+async function playToneSequence(notes: number[], { volume = 0.85, step = 0.13, duration = 0.36, wave = 'triangle' as OscillatorType } = {}) {
     try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!AudioCtx) return false;
-        if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
-        if (sharedAudioCtx.state === 'suspended') void sharedAudioCtx.resume();
-        const now = sharedAudioCtx.currentTime;
-        const gainPeak = Math.max(0.02, Math.min(1, volume)) * 0.35;
+        const ctx = await ensureAudioContext();
+        if (!ctx) return false;
+        const now = ctx.currentTime + 0.02;
+        const gainPeak = Math.max(0.08, Math.min(1, volume)) * 0.65;
         notes.forEach((freq, idx) => {
             const start = now + idx * step;
-            const osc = sharedAudioCtx!.createOscillator();
-            const gain = sharedAudioCtx!.createGain();
+            const osc = ctx.createOscillator();
+            const overtone = ctx.createOscillator();
+            const gain = ctx.createGain();
             osc.type = wave;
+            overtone.type = 'sine';
             osc.frequency.setValueAtTime(freq, start);
+            overtone.frequency.setValueAtTime(freq * 2, start);
             gain.gain.setValueAtTime(0.001, start);
-            gain.gain.exponentialRampToValueAtTime(gainPeak, start + 0.02);
+            gain.gain.linearRampToValueAtTime(gainPeak, start + 0.015);
             gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
             osc.connect(gain);
-            gain.connect(sharedAudioCtx!.destination);
+            overtone.connect(gain);
+            gain.connect(ctx.destination);
             osc.start(start);
+            overtone.start(start);
             osc.stop(start + duration + 0.03);
+            overtone.stop(start + duration + 0.03);
         });
         return true;
     } catch {
@@ -157,13 +171,13 @@ function playToneSequence(notes: number[], { volume = 0.7, step = 0.12, duration
 }
 
 // Sound 1: Played once when a user initiates a deposit (stops automatically)
-function playDepositInitiatedSound(volume = 0.7) {
-    return playToneSequence([698.46, 880], { volume, step: 0.14, duration: 0.34, wave: 'sine' });
+function playDepositInitiatedSound(volume = 0.85) {
+    void playToneSequence([740, 987.77], { volume, step: 0.14, duration: 0.36, wave: 'triangle' });
 }
 
 // Sound 2: Played once when a payment succeeds (stops automatically)
-function playDepositSuccessSound(volume = 0.7) {
-    return playToneSequence([523.25, 659.25, 783.99, 1046.5], { volume, step: 0.1, duration: 0.42, wave: 'triangle' });
+function playDepositSuccessSound(volume = 0.85) {
+    void playToneSequence([523.25, 659.25, 783.99, 1046.5], { volume, step: 0.11, duration: 0.45, wave: 'triangle' });
 }
 
 function exportOrders(orders: Order[]) {
@@ -321,7 +335,7 @@ function App() {
     const filteredOrders = orders.filter(order => matches(order.orderReference, order.customer.email, order.paymentStatus));
     const eventPage = Math.min(page, Math.max(0, Math.ceil(filteredEvents.length / 10) - 1));
 
-    return <div className={dark ? 'shell dark' : 'shell'} onClick={() => { if (!audioUnlocked) setAudioUnlocked(true); }}>
+    return <div className={dark ? 'shell dark' : 'shell'} onClick={() => { if (!audioUnlocked) { setAudioUnlocked(true); void ensureAudioContext(); } }}>
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
             <div className="brand">
                 <strong>Ticketsasa Admin</strong>
@@ -405,7 +419,7 @@ function App() {
                 </select></div>
                 <div className="scroll"><table><thead><tr><th>Event</th><th>Venue</th><th>Starts</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>{filteredEvents.slice(eventPage * 10, eventPage * 10 + 10).map(event => <tr key={event.id}>
-                        <td>{event.image && <img src={event.image} alt="" />}{event.title}</td><td>{event.venue}</td><td>{date(event.startsAt)}</td><td>{eventStatus(event)}</td>
+                        <td>{event.image && <img src={event.image} alt="" loading="lazy" decoding="async" />}{event.title}</td><td>{event.venue}</td><td>{date(event.startsAt)}</td><td>{eventStatus(event)}</td>
                         <td className="actions">{['published', 'unpublished', 'archived'].filter(next => next !== eventStatus(event)).map(next =>
                             <button key={next} disabled={busy} onClick={() => void run(async () => {
                                 await request('/events/' + encodeURIComponent(event.id), 'PATCH', { status: next }); await load(); setNotice('Event status updated.');
