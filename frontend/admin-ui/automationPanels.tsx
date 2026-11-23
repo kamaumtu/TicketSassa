@@ -488,7 +488,7 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
             <button onClick={() => void load()}>Refresh</button>
         </div>
         <div className="scroll"><table>
-            <thead><tr><th>#</th><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status &amp; M-Pesa Code / Reason</th><th>Wallet Credited</th><th>Initiated</th><th>Action</th></tr></thead>
+            <thead><tr><th>#</th><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status &amp; M-Pesa Code / Reason</th><th>Wallet Credited</th><th>Initiated</th></tr></thead>
             <tbody>{deposits.map((d, idx) => <tr key={d._id}>
                 <td><strong>#{idx + 1}</strong></td>
                 <td><strong>{d.reference}</strong><small>{d.orderReference}</small></td>
@@ -510,7 +510,6 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
                 </td>
                 <td>{d.walletCredited ? 'Verified & Credited' : d.status === 'FAILED' ? 'Not Credited (Failed)' : 'Pending Verification'}</td>
                 <td>{dateFmt(d.initiatedAt)}</td>
-                <td>{!d.acknowledged ? <button className="primary" onClick={async () => { await onAcknowledge(d._id); await load(); }}>Acknowledge</button> : <span>Acknowledged</span>}</td>
             </tr>)}</tbody>
         </table></div>
         {!deposits.length && <p>No deposit requests recorded yet.</p>}
@@ -527,7 +526,7 @@ export function NotificationsPanel({ onAcknowledgeAll }: { onAcknowledgeAll: () 
     return <section className="panel">
         <div className="lobby-toolbar">
             <h2>Persistent Admin Notifications ({items.length})</h2>
-            <button className="primary" onClick={async () => { await onAcknowledgeAll(); await load(); }}>Acknowledge &amp; Mark All Read</button>
+            <button className="primary" onClick={async () => { await onAcknowledgeAll(); await load(); }}>Mark All Read</button>
         </div>
         <div className="scroll"><table>
             <thead><tr><th>Time</th><th>Title</th><th>Message</th><th>Status</th><th></th></tr></thead>

@@ -334,7 +334,7 @@ router.get('/google/callback', route(async (req, res) => {
     }
     if (!account) return res.redirect('/?view=login&auth=google-account');
     await startSession(req, res, account);
-    res.redirect('/?view=login');
+    res.redirect('/?view=events');
 }));
 
 async function resolveSessionAccount(req) {

@@ -468,14 +468,13 @@ function App() {
             {unacknowledgedDeposits.map(dep => (
                 <div className="deposit-banner" role="alert" key={dep.reference}>
                     <div>
-                        <strong>NEW DEPOSIT REQUEST!</strong>
+                        <strong>NEW DEPOSIT REQUEST</strong>
                         <span>
                             Customer: {dep.customerName} ({dep.customerPhone}) · Amount: {money(dep.amountKes)} · Method: {dep.method} · Reference: {dep.reference} · Status: {dep.status}
                         </span>
                     </div>
                     <div className="actions">
-                        <button className="primary" onClick={() => void acknowledgeOne(dep._id || dep.reference)}>Acknowledge &amp; Stop Sound</button>
-                        <button onClick={() => { setSection('Pending Deposits'); }}>Inspect</button>
+                        <button className="primary" onClick={() => { setSection('Pending Deposits'); }}>Inspect</button>
                     </div>
                 </div>
             ))}

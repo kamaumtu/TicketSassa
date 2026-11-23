@@ -3115,6 +3115,7 @@ async function handleAccountLogin(event) {
         setAccountMode(form, 'login');
         showAccount(result.user);
         if (form.closest('#ticketsasa-auth-modal')) closeTicketsasaAuthModal();
+        switchTab('events');
         showToast(registering ? 'Account created and signed in.' : 'You are signed in.');
     } catch (error) {
         status.textContent = error.message;
