@@ -280,13 +280,39 @@ function App() {
     soundEnabledRef.current = soundEnabled;
     const volumeRef = useRef(volume);
     volumeRef.current = volume;
+    const seenDepositStatusRef = useRef<Map<string, string>>(new Map());
+    const initialLoadDoneRef = useRef(false);
+
+    function handleDepositTransition(dep: DepositAlert, allowSound = true) {
+        if (!dep?.reference) return;
+        const prevStatus = seenDepositStatusRef.current.get(dep.reference);
+        if (prevStatus === dep.status) return;
+        seenDepositStatusRef.current.set(dep.reference, dep.status);
+        if (!allowSound || !initialLoadDoneRef.current) return;
+
+        if (!prevStatus && (dep.status === 'PENDING' || dep.status === 'PROCESSING')) {
+            if (soundEnabledRef.current) playDepositInitiatedSound(volumeRef.current);
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New Deposit Request', {
+                    body: `${dep.customerName} · KES ${Number(dep.amountKes).toLocaleString('en-KE')} · ${dep.method}`
+                });
+            }
+        } else if (dep.status === 'COMPLETED' && prevStatus !== 'COMPLETED') {
+            if (soundEnabledRef.current) playDepositSuccessSound(volumeRef.current);
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Payment Successful', {
+                    body: `${dep.customerName} · KES ${Number(dep.amountKes).toLocaleString('en-KE')} · ${dep.reference}`
+                });
+            }
+        }
+    }
 
     async function load() {
-        const [overview, logs, notifs, pendingDeps] = await Promise.all([
+        const [overview, logs, notifs, recentDeps] = await Promise.all([
             request<Data>('/overview').catch(() => undefined),
             request<{ data: Audit[] }>('/audit').catch(() => ({ data: [] })),
             autoRequest<{ unreadCount: number }>('/notifications').catch(() => ({ unreadCount: 0 })),
-            autoRequest<{ data: DepositAlert[] }>('/deposits?status=PENDING').catch(() => ({ data: [] }))
+            autoRequest<{ data: DepositAlert[] }>('/deposits').catch(() => ({ data: [] }))
         ]);
         if (overview) {
             setData(overview);
@@ -294,7 +320,12 @@ function App() {
         }
         setAudit(logs.data || []);
         setUnreadCount(notifs.unreadCount || 0);
-        setUnacknowledgedDeposits((pendingDeps.data || []).filter((d: any) => !d.acknowledged));
+        const allDeps = recentDeps.data || [];
+        for (const dep of allDeps) {
+            handleDepositTransition(dep, true);
+        }
+        initialLoadDoneRef.current = true;
+        setUnacknowledgedDeposits(allDeps.filter((d: any) => d.status === 'PENDING' && !d.acknowledged));
     }
 
     async function run(action: () => Promise<void>) {
@@ -306,27 +337,33 @@ function App() {
 
     useEffect(() => {
         void run(load);
+    }, []);
+
+    useEffect(() => {
+        const intervalMs = socketConnected ? 20000 : 8000;
         const interval = window.setInterval(() => {
             if (!document.hidden) void load().catch(() => {});
-        }, 30000);
+        }, intervalMs);
         return () => window.clearInterval(interval);
-    }, []);
+    }, [socketConnected]);
 
     // Socket.IO Real-Time Deposit Notifications
     useEffect(() => {
-        const socket = io({ path: '/socket.io', withCredentials: true });
+        const socket = io({
+            path: '/socket.io',
+            withCredentials: true,
+            transports: ['websocket', 'polling'],
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000
+        });
         socket.on('connect', () => setSocketConnected(true));
         socket.on('disconnect', () => setSocketConnected(false));
         socket.on('deposit:initiated', ({ deposit }: { deposit: DepositAlert }) => {
             if (!deposit) return;
             setUnacknowledgedDeposits(prev => [deposit, ...prev.filter(d => d.reference !== deposit.reference)]);
             setUnreadCount(c => c + 1);
-            if (soundEnabledRef.current) playDepositInitiatedSound(volumeRef.current);
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('NEW DEPOSIT REQUEST!', {
-                    body: `Customer: ${deposit.customerName}\nAmount: KES ${Number(deposit.amountKes).toLocaleString('en-KE')}\nMethod: ${deposit.method}\nReference: ${deposit.reference}\nStatus: ${deposit.status}`
-                });
-            }
+            handleDepositTransition(deposit, true);
+            void load().catch(() => {});
         });
         socket.on('deposit:acknowledged', ({ reference, id }: { reference?: string; id?: string }) => {
             setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== reference && d._id !== id));
@@ -334,14 +371,7 @@ function App() {
         socket.on('deposit:verified', ({ deposit }: { deposit: DepositAlert }) => {
             if (deposit) {
                 setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference));
-                if (deposit.status === 'COMPLETED') {
-                    if (soundEnabledRef.current) playDepositSuccessSound(volumeRef.current);
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('PAYMENT SUCCESSFUL!', {
-                            body: `Customer: ${deposit.customerName}\nAmount: KES ${Number(deposit.amountKes).toLocaleString('en-KE')}\nReference: ${deposit.reference}`
-                        });
-                    }
-                }
+                handleDepositTransition(deposit, true);
             }
             void load().catch(() => {});
         });

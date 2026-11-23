@@ -22,16 +22,26 @@ function initSocketHub(httpServer) {
     io.use((socket, next) => {
         const authHeader = socket.handshake.headers?.authorization || socket.handshake.auth?.authorization || '';
         const origin = socket.handshake.headers?.origin || '';
-        const host = socket.handshake.headers?.host || '';
+        const referer = socket.handshake.headers?.referer || '';
+        const host = (socket.handshake.headers?.['x-forwarded-host'] || socket.handshake.headers?.host || '').split(',')[0].trim();
         // Allow authenticated admin Basic header OR same-origin admin session from /admin
         if (organizerIdentity(authHeader)) {
             socket.data.adminActor = organizerIdentity(authHeader);
             return next();
         }
         try {
-            if (origin && new URL(origin).host === host) {
+            if (origin && host && new URL(origin).host === host) {
                 socket.data.adminActor = 'admin-dashboard';
                 return next();
+            }
+        } catch {}
+        try {
+            if (referer && host) {
+                const refUrl = new URL(referer);
+                if (refUrl.host === host && refUrl.pathname.startsWith('/admin')) {
+                    socket.data.adminActor = 'admin-dashboard';
+                    return next();
+                }
             }
         } catch {}
         return next(new Error('Admin authorization required.'));
