@@ -4,10 +4,10 @@ WORKDIR /app
 
 # Install frontend tooling, admin-ui, and backend dependencies
 COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN npm --prefix frontend ci
+RUN npm --prefix frontend ci --include=dev
 
 COPY frontend/admin-ui/package.json frontend/admin-ui/package-lock.json ./frontend/admin-ui/
-RUN npm --prefix frontend/admin-ui ci
+RUN npm --prefix frontend/admin-ui ci --include=dev
 
 COPY backend/package.json backend/package-lock.json ./backend/
 RUN npm --prefix backend ci --omit=dev
