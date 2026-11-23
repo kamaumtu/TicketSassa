@@ -61,43 +61,43 @@ const sections = [
 ] as const;
 type Section = typeof sections[number];
 
-const navGroups: { label: string; items: { id: Section; icon: string }[] }[] = [
+const navGroups: { label: string; items: Section[] }[] = [
     {
         label: 'Overview & Payments',
         items: [
-            { id: 'Dashboard Overview', icon: '📊' },
-            { id: 'Transactions', icon: '💳' },
-            { id: 'Pending Deposits', icon: '🔔' },
-            { id: 'Notifications', icon: '📬' },
-            { id: 'Reports', icon: '📈' }
+            'Dashboard Overview',
+            'Transactions',
+            'Pending Deposits',
+            'Notifications',
+            'Reports'
         ]
     },
     {
         label: 'Events & Tickets',
         items: [
-            { id: 'All Events', icon: '🎟️' },
-            { id: 'Event Discovery', icon: '🔎' },
-            { id: 'Ticket Management', icon: '🎫' }
+            'All Events',
+            'Event Discovery',
+            'Ticket Management'
         ]
     },
     {
         label: 'Flights & Holidays',
         items: [
-            { id: 'Travel Fulfillment & Pricing', icon: '✈️' },
-            { id: 'Travel Bookings', icon: '🧳' },
-            { id: 'Flight Discovery', icon: '🛫' },
-            { id: 'Flight Management', icon: '🗺️' },
-            { id: 'Holiday Packages', icon: '🏖️' }
+            'Travel Fulfillment & Pricing',
+            'Travel Bookings',
+            'Flight Discovery',
+            'Flight Management',
+            'Holiday Packages'
         ]
     },
     {
         label: 'Settings & Automation',
         items: [
-            { id: 'Automated Discovery Center', icon: '🤖' },
-            { id: 'Payment settings', icon: '⚙️' },
-            { id: 'Data Sources', icon: '🌐' },
-            { id: 'Automation Settings', icon: '🛠️' },
-            { id: 'System Logs', icon: '📜' }
+            'Automated Discovery Center',
+            'Payment settings',
+            'Data Sources',
+            'Automation Settings',
+            'System Logs'
         ]
     }
 ];
@@ -386,16 +386,16 @@ function App() {
                 <strong>Ticketsasa Admin</strong>
                 <span>{socketConnected ? '● Live Socket Connected' : '○ Connecting…'}</span>
             </div>
-            <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? '☰ Show Menu' : '✕ Hide Menu'}</button>
+            <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show Menu' : 'Hide Menu'}</button>
             <nav aria-label="Admin navigation">
                 {navGroups.map(group => (
-                    <div key={group.label} style={{ marginBottom: '0.65rem' }}>
-                        <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6, padding: '0.35rem 0.6rem' }}>
+                    <div key={group.label} style={{ marginBottom: '0.75rem' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', opacity: 0.55, padding: '0.35rem 0.65rem' }}>
                             {group.label}
                         </div>
-                        {group.items.map(({ id, icon }) => (
+                        {group.items.map(id => (
                             <button key={id} aria-current={section === id ? 'page' : undefined} onClick={() => goToSection(id)}>
-                                <span>{icon} {id}</span>
+                                <span>{id}</span>
                                 {id === 'Pending Deposits' && unacknowledgedDeposits.length > 0 && <span className="nav-badge">{unacknowledgedDeposits.length}</span>}
                                 {id === 'Notifications' && unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
                             </button>
@@ -403,14 +403,14 @@ function App() {
                     </div>
                 ))}
             </nav>
-            <a href="/">← Back to storefront</a>
+            <a href="/">Back to storefront</a>
         </aside>
         <main>
             <header>
                 <div><p className="eyebrow">Automated Discovery &amp; Payment Center</p><h1>{section}</h1></div>
                 <div className="actions sound-controls">
                     <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); if (next) { setAudioUnlocked(true); playDepositInitiatedSound(volume); } }}>
-                        {soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF'}
+                        {soundEnabled ? 'Sound: On' : 'Sound: Off'}
                     </button>
                     <label className="volume-control" title="Alert Volume">
                         <span>Vol</span>
