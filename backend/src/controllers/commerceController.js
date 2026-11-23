@@ -80,9 +80,38 @@ function getPasses(orderReference, session) {
     return collection('commerce_passes').find({ orderReference }, { session, projection: { _id: 0 } }).toArray();
 }
 
+function describePaymentFailure(rawCode, rawReason) {
+    const code = rawCode !== undefined && rawCode !== null ? String(rawCode).trim() : '';
+    const text = typeof rawReason === 'string' ? rawReason.trim() : '';
+    if (code === '1032' || /cancel(?:led|ed)?\s+by\s+user|request\s+cancel/i.test(text)) {
+        return 'Cancelled by user on phone';
+    }
+    if (code === '1' || /insufficient|low\s+funds|balance\s+is\s+insufficient|not\s+enough/i.test(text)) {
+        return 'Insufficient M-Pesa balance';
+    }
+    if (code === '1037' || /ds\s+timeout|timed?\s*out|unreachable|cannot\s+be\s+reached/i.test(text)) {
+        return 'Timed out — phone unreachable or prompt not answered';
+    }
+    if (code === '2001' || /wrong\s+pin|invalid\s+pin|initiator\s+information\s+is\s+invalid/i.test(text)) {
+        return 'Wrong M-Pesa PIN entered';
+    }
+    if (code === '1025' || code === '1019' || /transaction\s+expired|expired/i.test(text)) {
+        return 'Payment request expired';
+    }
+    if (code === '1001' || /unable\s+to\s+lock|another\s+transaction/i.test(text)) {
+        return 'Another M-Pesa transaction in progress on phone';
+    }
+    if (code === '1036' || /internal\s+error/i.test(text)) {
+        return 'M-Pesa system error — please retry';
+    }
+    if (text) return text.slice(0, 240);
+    if (code) return `Payment declined by M-Pesa (code ${code})`;
+    return 'Payment failed or was cancelled on the phone';
+}
+
 function orderSummary(order) {
-    const { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt } = order;
-    return { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt };
+    const { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt, failureReason, failureCode, failedAt } = order;
+    return { orderReference, items, currency, totalKes, totalUsd, totalTickets, paymentStatus, promoCode, tipKes, mode, expiresAt, provider, receipt, ...(failureReason ? { failureReason, failureCode, failedAt } : {}) };
 }
 
 async function completeOrder(session, order, receipt) {
@@ -201,7 +230,9 @@ exports.verifyCardPayment = handler(async (req, res) => {
         expectedAmountKes: order.totalKes
     });
     if (!check.verified) {
-        reject(402, check.reason || 'Card payment could not be verified.');
+        const reason = describePaymentFailure(null, check.reason || 'Card payment declined or not completed.');
+        await settle(order.orderReference, { status: 'failed', reason });
+        reject(402, reason);
     }
 
     const result = await transaction(async session => {
@@ -458,7 +489,8 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
         } catch (error) {
             console.error('M-Pesa initiation did not complete for order', orderReference);
             if (error.definitelyRejected || error.definitive) {
-                await settle(orderReference, { status: 'failed' });
+                const reason = describePaymentFailure(null, error.message || 'M-Pesa prompt rejected by provider');
+                await settle(orderReference, { status: 'failed', reason });
                 reject(422, 'M-Pesa could not start this payment. Please try again.');
             }
             // An unknown outcome keeps the hold and never sends a second prompt.
@@ -491,9 +523,22 @@ function settle(reference, result) {
         if (current.paymentStatus !== 'PROCESSING') return current;
         if (result.status === 'completed') return (await completeOrder(session, current, result.receipt ?? null)).order;
         if (['failed', 'cancelled'].includes(result.status)) {
+            const rawCode = result.resultCode ?? null;
+            const rawReason = result.reason || (result.status === 'cancelled' ? 'Cancelled by user on phone' : '');
+            const failureReason = describePaymentFailure(rawCode, rawReason);
             current.paymentStatus = 'FAILED';
+            current.failureReason = failureReason;
+            current.failureCode = rawCode ? String(rawCode) : null;
+            current.failedAt = new Date();
             await collection('commerce_holds').deleteMany({ orderReference: reference }, { session });
             await saveOrder(current, session);
+            void markDepositVerified({
+                orderReference: reference,
+                checkoutRequestId: current.checkoutRequestId,
+                status: 'FAILED',
+                failureReason,
+                failureCode: current.failureCode || ''
+            }).catch(() => null);
         }
         return current;
     });
@@ -502,7 +547,7 @@ function settle(reference, result) {
 const pendingQueries = new Map();
 const lastQueries = new Map();
 
-async function reconcile(order) {
+async function reconcile(order, callbackHint = null) {
     if (order.mode !== 'live' || order.paymentStatus !== 'PROCESSING' || !order.checkoutRequestId) return order;
     const reference = order.orderReference;
     if (pendingQueries.has(reference)) return pendingQueries.get(reference);
@@ -516,9 +561,21 @@ async function reconcile(order) {
                 const reply = await mpesa.query(order.checkoutRequestId);
                 if (reply.CheckoutRequestID !== order.checkoutRequestId) return order;
                 const code = String(reply.ResultCode);
-                result = { status: code === '0' ? 'completed'
-                    : ['1', '1032', '1037', '2001'].includes(code) ? 'failed' : 'pending' };
-            } else result = await paymentGateways.check(order.provider, providerDetails(order));
+                result = {
+                    status: code === '0' ? 'completed'
+                        : ['1', '1001', '1019', '1025', '1032', '1036', '1037', '2001'].includes(code) ? 'failed' : 'pending',
+                    resultCode: code,
+                    reason: reply.ResultDesc || callbackHint?.reason || ''
+                };
+            } else {
+                result = await paymentGateways.check(order.provider, providerDetails(order));
+                if (['failed', 'cancelled'].includes(result.status) && callbackHint) {
+                    if (!result.resultCode && callbackHint.resultCode) result.resultCode = callbackHint.resultCode;
+                    if ((!result.reason || /failed or was cancelled/i.test(result.reason)) && callbackHint.reason) {
+                        result.reason = callbackHint.reason;
+                    }
+                }
+            }
         } catch {
             return getOrder(reference);
         }
@@ -552,8 +609,15 @@ exports.getPaymentStatus = handler(async (req, res) => {
     const order = await getOrder(reference);
     if (!order || normalizeEmail(req.query.email) !== order.customer.email) reject(404, 'Order not found.');
     const current = await reconcile(order);
-    res.json({ success: true, status: current.paymentStatus, order: orderSummary(current),
-        passes: current.paymentStatus === 'COMPLETED' ? await getPasses(reference) : [] });
+    res.json({
+        success: true,
+        status: current.paymentStatus,
+        reason: current.failureReason || null,
+        failureReason: current.failureReason || null,
+        failureCode: current.failureCode || null,
+        order: orderSummary(current),
+        passes: current.paymentStatus === 'COMPLETED' ? await getPasses(reference) : []
+    });
 });
 
 exports.adminCheckPayment = handler(async (req, res) => {
@@ -563,12 +627,16 @@ exports.adminCheckPayment = handler(async (req, res) => {
         reject(409, 'Verify the payment in the merchant account. The provider did not return a checkout reference.');
     }
     const current = await reconcile(order);
-    res.json({ paymentStatus: current.paymentStatus });
+    res.json({
+        paymentStatus: current.paymentStatus,
+        failureReason: current.failureReason || null,
+        failureCode: current.failureCode || null
+    });
 });
 
 function callback(provider, identify) {
     return handler(async (req, res) => {
-        const { id, reference } = identify(req.body);
+        const { id, reference, resultCode, reason } = identify(req.body);
         const matches = [];
         if (typeof id === 'string' && id.length <= 128) matches.push({ checkoutRequestId: id });
         if (typeof reference === 'string' && /^ORD-[A-F0-9]{32}$/.test(reference)) matches.push({ _id: reference });
@@ -576,19 +644,30 @@ function callback(provider, identify) {
         const order = await collection('commerce_orders').findOne({
             mode: 'live', provider: provider === 'daraja' ? { $in: ['daraja', null] } : provider, $or: matches
         });
-        if (order) await reconcile(order);
+        if (order) await reconcile(order, (resultCode || reason) ? { resultCode, reason } : null);
         res.json({ success: true, ResultCode: 0, ResultDesc: 'Accepted' });
     });
 }
 
-exports.mpesaCallback = callback('daraja', body => ({ id: body?.Body?.stkCallback?.CheckoutRequestID }));
+exports.mpesaCallback = callback('daraja', body => ({
+    id: body?.Body?.stkCallback?.CheckoutRequestID,
+    resultCode: body?.Body?.stkCallback?.ResultCode,
+    reason: body?.Body?.stkCallback?.ResultDesc
+}));
 exports.payheroCallback = callback('payhero', body => {
     const raw = body?.response ?? body;
-    return { id: raw?.CheckoutRequestID ?? raw?.checkout_request_id,
-        reference: raw?.ExternalReference ?? raw?.external_reference };
+    return {
+        id: raw?.CheckoutRequestID ?? raw?.checkout_request_id,
+        reference: raw?.ExternalReference ?? raw?.external_reference,
+        resultCode: raw?.ResultCode,
+        reason: raw?.ResultDesc ?? raw?.status_reason ?? raw?.message
+    };
 });
 exports.nexuspayCallback = callback('nexuspay', body => ({
-    id: body?.checkoutRequestId, reference: body?.reference ?? body?.external_reference
+    id: body?.checkoutRequestId,
+    reference: body?.reference ?? body?.external_reference,
+    resultCode: body?.resultCode ?? body?.ResultCode,
+    reason: body?.resultDesc ?? body?.ResultDesc ?? body?.reason ?? body?.message
 }));
 
 exports.confirmDemo = handler(async (req, res) => {

@@ -488,14 +488,21 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
             <button onClick={() => void load()}>Refresh</button>
         </div>
         <div className="scroll"><table>
-            <thead><tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status</th><th>Wallet Credited</th><th>Initiated</th><th>Action</th></tr></thead>
+            <thead><tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status &amp; Reason</th><th>Wallet Credited</th><th>Initiated</th><th>Action</th></tr></thead>
             <tbody>{deposits.map(d => <tr key={d._id}>
                 <td><strong>{d.reference}</strong><small>{d.orderReference}</small></td>
                 <td>{d.customerName}<small>{d.customerPhone}</small></td>
                 <td><strong>{money(d.amountKes)}</strong></td>
                 <td>{d.method}</td>
-                <td><span className="payment-badge" data-status={d.status}>{d.status}</span></td>
-                <td>{d.walletCredited ? 'Verified & Credited' : 'Pending Verification'}</td>
+                <td>
+                    <span className="payment-badge" data-status={d.status}>{d.status}</span>
+                    {d.status === 'FAILED' && (
+                        <small style={{ display: 'block', color: '#b91c1c', fontWeight: 600, marginTop: 4 }}>
+                            {d.failureReason || 'Payment failed or cancelled'}{d.failureCode ? ` (Code ${d.failureCode})` : ''}
+                        </small>
+                    )}
+                </td>
+                <td>{d.walletCredited ? 'Verified & Credited' : d.status === 'FAILED' ? 'Not Credited (Failed)' : 'Pending Verification'}</td>
                 <td>{dateFmt(d.initiatedAt)}</td>
                 <td>{!d.acknowledged ? <button className="primary" onClick={async () => { await onAcknowledge(d._id); await load(); }}>Acknowledge &amp; Stop Sound</button> : <span>Acknowledged</span>}</td>
             </tr>)}</tbody>

@@ -129,7 +129,7 @@ async function notifyDepositInitiated({ orderReference, customerName, customerPh
     return { deposit: depositDoc, notification: notificationDoc };
 }
 
-async function markDepositVerified({ orderReference, checkoutRequestId, receipt, status }) {
+async function markDepositVerified({ orderReference, checkoutRequestId, receipt, status, failureReason = '', failureCode = '' }) {
     if (!isConnected()) return null;
     const filter = orderReference ? { orderReference } : { checkoutRequestId };
     const existing = await DepositRequest.findOne(filter);
@@ -143,14 +143,27 @@ async function markDepositVerified({ orderReference, checkoutRequestId, receipt,
     if (isSuccess) {
         existing.walletCredited = true;
         existing.verifiedAt = new Date();
+        existing.failureReason = '';
+        existing.failureCode = '';
+    } else {
+        existing.failureReason = String(failureReason || 'Payment failed').slice(0, 240);
+        existing.failureCode = String(failureCode || '').slice(0, 40);
     }
     await existing.save();
 
+    const reasonSuffix = !isSuccess && existing.failureReason ? ` · Reason: ${existing.failureReason}` : '';
     const notif = await AdminNotification.create({
         type: 'deposit_verified',
-        title: isSuccess ? 'DEPOSIT VERIFIED & CREDITED' : 'DEPOSIT FAILED',
-        message: `${existing.customerName} · KES ${existing.amountKes.toLocaleString('en-KE')} · ${existing.reference} · ${existing.status}${receipt ? ` (${receipt})` : ''}`,
-        payload: { reference: existing.reference, orderReference: existing.orderReference, status: existing.status, receipt },
+        title: isSuccess ? 'DEPOSIT VERIFIED & CREDITED' : `DEPOSIT FAILED${existing.failureReason ? ': ' + existing.failureReason.slice(0, 60) : ''}`,
+        message: `${existing.customerName} · KES ${existing.amountKes.toLocaleString('en-KE')} · ${existing.reference} · ${existing.status}${receipt ? ` (${receipt})` : ''}${reasonSuffix}`,
+        payload: {
+            reference: existing.reference,
+            orderReference: existing.orderReference,
+            status: existing.status,
+            receipt,
+            failureReason: existing.failureReason || undefined,
+            failureCode: existing.failureCode || undefined
+        },
         read: false,
         acknowledged: !isSuccess
     }).catch(() => null);

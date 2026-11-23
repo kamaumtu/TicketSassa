@@ -21,7 +21,7 @@ import { TravelOpsPanel } from './travelOpsPanel';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
-type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string };
+type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string; failureReason?: string; failureCode?: string; failedAt?: string };
 type Audit = { action: string; target: string; timestamp: string };
 type PaymentSettings = { provider: string | null; storageAvailable: boolean; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
@@ -414,16 +414,29 @@ function App() {
                         <button disabled={!filteredOrders.length} onClick={() => exportOrders(filteredOrders)}>Download CSV</button>
                     </div>
                     {!filteredOrders.length && <p>No matching live transactions.</p>}
-                    <div className="scroll"><table><thead><tr><th>Reference</th><th>Customer</th><th>Status</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map(order =>
-                        <tr key={order.orderReference}><td>{order.orderReference}</td><td>{order.customer.name}</td><td><PaymentBadge status={order.paymentStatus}/></td>
-                        <td>{money(order.totalKes)}</td><td><button onClick={() => setSelected(order)}>View order</button></td></tr>)}</tbody></table></div>
+                    <div className="scroll"><table><thead><tr><th>Reference</th><th>Customer</th><th>Status</th><th>Failure Reason / Details</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map(order =>
+                        <tr key={order.orderReference}>
+                            <td>{order.orderReference}</td>
+                            <td>{order.customer.name}</td>
+                            <td><PaymentBadge status={order.paymentStatus}/></td>
+                            <td>{order.paymentStatus === 'FAILED'
+                                ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed or cancelled'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
+                                : order.paidAt ? `Paid ${date(order.paidAt)}` : '—'}</td>
+                            <td>{money(order.totalKes)}</td>
+                            <td><button onClick={() => setSelected(order)}>View order</button></td>
+                        </tr>)}</tbody></table></div>
                     {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.email}</p>
                         <p>Payment status: {paymentLabel(selected.paymentStatus)}{selected.paidAt ? ' · ' + date(selected.paidAt) : ''}</p>
+                        {selected.paymentStatus === 'FAILED' && (
+                            <p style={{ color: '#b91c1c', fontWeight: 700 }}>
+                                Failure reason: {selected.failureReason || 'Payment failed or cancelled'}{selected.failureCode ? ` (M-Pesa code ${selected.failureCode})` : ''}{selected.failedAt ? ' · ' + date(selected.failedAt) : ''}
+                            </p>
+                        )}
                         <ul>{selected.items.map((item, index) => <li key={index}>{item.quantity} × {item.title}</li>)}</ul>
                         {selected.paymentStatus === 'PROCESSING' && <button disabled={busy} onClick={() => void run(async () => {
-                            const result = await request<{ paymentStatus: string }>('/orders/' + encodeURIComponent(selected.orderReference) + '/check-payment', 'POST');
-                            setSelected({ ...selected, paymentStatus: result.paymentStatus });
-                            setNotice('Payment status: ' + paymentLabel(result.paymentStatus));
+                            const result = await request<{ paymentStatus: string; failureReason?: string; failureCode?: string }>('/orders/' + encodeURIComponent(selected.orderReference) + '/check-payment', 'POST');
+                            setSelected({ ...selected, paymentStatus: result.paymentStatus, failureReason: result.failureReason || selected.failureReason, failureCode: result.failureCode || selected.failureCode });
+                            setNotice('Payment status: ' + paymentLabel(result.paymentStatus) + (result.failureReason ? ' — ' + result.failureReason : ''));
                             await load();
                         })}>Check M-Pesa status</button>}
                         <button onClick={() => setSelected(undefined)}>Close details</button></section>}

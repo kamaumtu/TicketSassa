@@ -54,10 +54,11 @@ router.get('/overview', async (req, res, next) => {
         }
         const orders = liveOrders
             .filter(order => order.provider !== 'demo' && !/^DEMO-/i.test(order.receipt ?? ''))
-            .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt }) => ({
+            .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt, failureReason, failureCode, failedAt }) => ({
                 orderReference, customer: { name: customer?.name, email: customer?.email }, items,
                 totalTickets: (items ?? []).filter(isLiveTicket).reduce((sum, item) => sum + item.quantity, 0),
-                totalKes, paymentStatus, provider, receipt, paidAt
+                totalKes, paymentStatus, provider, receipt, paidAt,
+                ...(failureReason ? { failureReason, failureCode, failedAt } : {})
             }));
 
         const sold = new Map();

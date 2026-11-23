@@ -171,6 +171,8 @@ const DepositRequestSchema = new mongoose.Schema({
     checkoutRequestId: { type: String, default: '', index: true },
     mpesaReceipt: { type: String, default: '' },
     status: { type: String, enum: ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED'], default: 'PENDING', index: true },
+    failureReason: { type: String, default: '' },
+    failureCode: { type: String, default: '' },
     walletCredited: { type: Boolean, default: false },
     acknowledged: { type: Boolean, default: false, index: true },
     acknowledgedBy: { type: String, default: '' },

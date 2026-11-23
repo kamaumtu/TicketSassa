@@ -63,7 +63,8 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
     }
     return verified(deposit, { status, amount: raw.amount ?? raw.Amount, phone: raw.phone_number || raw.Phone || raw.PhoneNumber,
       receipt: raw.provider_reference || raw.mpesa_reference || raw.MpesaReceiptNumber || raw.third_party_reference || raw.receipt,
-      reason: raw.status_reason || raw.ResultDesc || 'Payment failed or was cancelled on the phone.', raw });
+      resultCode: hasCode ? String(code) : null,
+      reason: raw.status_reason || raw.ResultDesc || raw.result_desc || raw.failure_reason || raw.message || (state === 'cancelled' || state === 'canceled' ? 'Cancelled by user on phone.' : 'Payment failed or was cancelled on the phone.'), raw });
   }
   async function initiateNexusPay(baseURL, deposit) {
     let response;
@@ -125,7 +126,9 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       if (!['pending', 'completed', 'failed', 'cancelled'].includes(data.status)) throw error('Payment status could not be verified.');
       if (data.status === 'completed' && !data.phoneNumber) throw error('Payment phone could not be verified.');
       return verified(deposit, { status: data.status, amount: data.amount, phone: data.phoneNumber,
-        receipt: data.mpesaReceiptNumber, reason: data.status === 'cancelled' ? 'Payment cancelled on the phone.' : 'Payment failed on the phone.', raw: data });
+        receipt: data.mpesaReceiptNumber,
+        resultCode: data.resultCode !== undefined && data.resultCode !== null ? String(data.resultCode) : (data.ResultCode !== undefined && data.ResultCode !== null ? String(data.ResultCode) : null),
+        reason: data.resultDesc || data.ResultDesc || data.reason || data.failureReason || data.message || (data.status === 'cancelled' ? 'Cancelled by user on phone.' : 'Payment failed on the phone.'), raw: data });
     }
     if (deposit.provider_reference) {
       // The account history is paginated and can omit request identifiers. Query
