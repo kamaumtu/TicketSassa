@@ -80,33 +80,37 @@ function getPasses(orderReference, session) {
     return collection('commerce_passes').find({ orderReference }, { session, projection: { _id: 0 } }).toArray();
 }
 
-function describePaymentFailure(rawCode, rawReason) {
+function describePaymentFailure(rawCode, rawReason, providerName = '') {
     const code = rawCode !== undefined && rawCode !== null ? String(rawCode).trim() : '';
     const text = typeof rawReason === 'string' ? rawReason.trim() : '';
-    if (code === '1032' || /cancel(?:led|ed)?\s+by\s+user|request\s+cancel/i.test(text)) {
-        return 'Cancelled by user on phone';
+    if (/^Payment gateway error/i.test(text)) {
+        return text.slice(0, 240);
+    }
+    if (code === '1032' || /cancel(?:led|ed)?\s+by\s+user|request\s+cancel|user\s+cancel/i.test(text)) {
+        return 'Cancelled by user';
     }
     if (code === '1' || /insufficient|low\s+funds|balance\s+is\s+insufficient|not\s+enough/i.test(text)) {
-        return 'Insufficient M-Pesa balance';
+        return 'Insufficient balance';
+    }
+    if (code === '2001' || /wrong\s+pin|invalid\s+pin|initiator\s+information\s+is\s+invalid/i.test(text)) {
+        return 'Wrong M-Pesa PIN';
     }
     if (code === '1037' || /ds\s+timeout|timed?\s*out|unreachable|cannot\s+be\s+reached/i.test(text)) {
         return 'Timed out — phone unreachable or prompt not answered';
     }
-    if (code === '2001' || /wrong\s+pin|invalid\s+pin|initiator\s+information\s+is\s+invalid/i.test(text)) {
-        return 'Wrong M-Pesa PIN entered';
-    }
     if (code === '1025' || code === '1019' || /transaction\s+expired|expired/i.test(text)) {
-        return 'Payment request expired';
+        return 'Payment prompt expired';
     }
     if (code === '1001' || /unable\s+to\s+lock|another\s+transaction/i.test(text)) {
         return 'Another M-Pesa transaction in progress on phone';
     }
-    if (code === '1036' || /internal\s+error/i.test(text)) {
-        return 'M-Pesa system error — please retry';
+    if (code === '1036' || /internal\s+error|service\s+unavailable|bad\s+gateway|econn|etimedout|socket\s+hang\s+up|http\s+[45]\d\d/i.test(text)) {
+        const label = providerName === 'nexuspay' ? 'NexusPay' : providerName === 'payhero' ? 'PayHero' : (providerName || 'M-Pesa');
+        return `Payment gateway error (${label}): ${text || 'Internal gateway error'}`.slice(0, 240);
     }
     if (text) return text.slice(0, 240);
-    if (code) return `Payment declined by M-Pesa (code ${code})`;
-    return 'Payment failed or was cancelled on the phone';
+    if (code) return `Payment declined (code ${code})`;
+    return 'Payment failed';
 }
 
 function orderSummary(order) {
@@ -487,13 +491,26 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
             order.providerReference = result.providerReference;
             await saveOrder(order);
         } catch (error) {
-            console.error('M-Pesa initiation did not complete for order', orderReference);
+            console.error('M-Pesa initiation did not complete for order', orderReference, error.gatewayReason || error.message);
+            const reason = describePaymentFailure(
+                error.code || null,
+                error.gatewayReason || `Payment gateway error (${order.provider || 'M-Pesa'}): ${error.message || 'Request failed'}`,
+                order.provider
+            );
             if (error.definitelyRejected || error.definitive) {
-                const reason = describePaymentFailure(null, error.message || 'M-Pesa prompt rejected by provider');
                 await settle(orderReference, { status: 'failed', reason });
                 reject(422, 'M-Pesa could not start this payment. Please try again.');
+            } else {
+                // Keep the hold so we never send a duplicate prompt, but record the exact gateway error for the admin.
+                order.failureReason = reason;
+                await saveOrder(order).catch(() => null);
+                void markDepositVerified({
+                    orderReference,
+                    checkoutRequestId: order.checkoutRequestId || '',
+                    status: 'FAILED',
+                    failureReason: reason
+                }).catch(() => null);
             }
-            // An unknown outcome keeps the hold and never sends a second prompt.
         }
     }
     res.json({
@@ -524,8 +541,8 @@ function settle(reference, result) {
         if (result.status === 'completed') return (await completeOrder(session, current, result.receipt ?? null)).order;
         if (['failed', 'cancelled'].includes(result.status)) {
             const rawCode = result.resultCode ?? null;
-            const rawReason = result.reason || (result.status === 'cancelled' ? 'Cancelled by user on phone' : '');
-            const failureReason = describePaymentFailure(rawCode, rawReason);
+            const rawReason = result.reason || (result.status === 'cancelled' ? 'Cancelled by user' : '');
+            const failureReason = describePaymentFailure(rawCode, rawReason, current.provider);
             current.paymentStatus = 'FAILED';
             current.failureReason = failureReason;
             current.failureCode = rawCode ? String(rawCode) : null;

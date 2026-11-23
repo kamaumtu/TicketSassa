@@ -420,8 +420,10 @@ function App() {
                             <td>{order.customer.name}</td>
                             <td><PaymentBadge status={order.paymentStatus}/></td>
                             <td>{order.paymentStatus === 'FAILED'
-                                ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed or cancelled'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
-                                : order.paidAt ? `Paid ${date(order.paidAt)}` : '—'}</td>
+                                ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
+                                : order.failureReason
+                                    ? <span style={{ color: '#b45309', fontWeight: 600 }}>{order.failureReason}</span>
+                                    : order.paidAt ? `Paid ${date(order.paidAt)}` : '—'}</td>
                             <td>{money(order.totalKes)}</td>
                             <td><button onClick={() => setSelected(order)}>View order</button></td>
                         </tr>)}</tbody></table></div>

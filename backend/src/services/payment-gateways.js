@@ -2,6 +2,23 @@ const axios = require('axios');
 
 const PROVIDERS = ['nexuspay', 'payhero'];
 const error = (message, status = 502, definitive = false) => Object.assign(new Error(message), { status, definitive });
+function extractGatewayDetail(payload, fallback = '') {
+  if (!payload || typeof payload !== 'object') return fallback;
+  const raw = payload.response && typeof payload.response === 'object' ? payload.response : payload;
+  const msg = raw.error_message || raw.errorMessage || raw.ResultDesc || raw.resultDesc || raw.status_reason || raw.failure_reason || raw.failureReason || raw.ResponseDescription || raw.responseDescription || raw.message || raw.error || payload.message || payload.error || '';
+  return typeof msg === 'string' && msg.trim() ? msg.trim().slice(0, 220) : fallback;
+}
+function gatewayError(provider, detail, status = 502, definitive = false, httpStatus = null) {
+  const label = provider === 'nexuspay' ? 'NexusPay' : provider === 'payhero' ? 'PayHero' : String(provider || 'Gateway');
+  const suffix = [httpStatus ? `HTTP ${httpStatus}` : '', detail].filter(Boolean).join(' — ');
+  const gatewayReason = `Payment gateway error (${label})${suffix ? ': ' + suffix : ''}`;
+  return Object.assign(new Error(definitive ? 'The payment prompt was rejected. Please try again later.' : 'The payment request could not be confirmed. Check with support before retrying.'), {
+    status,
+    definitive,
+    gatewayError: true,
+    gatewayReason
+  });
+}
 function phoneNumber(value) {
   let digits = String(value || '').replace(/[\s+().-]/g, '');
   if (/^0[17]\d{8}$/.test(digits)) digits = '254' + digits.slice(1);
@@ -85,8 +102,12 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
       }, { headers: { 'X-API-Key': env.NEXUSPAY_API_KEY.trim(), 'Content-Type': 'application/json' }, timeout: 25000 });
     }
     const data = response.data;
-    if (data?.responseCode !== undefined && String(data.responseCode) !== '0') throw error('The payment prompt was rejected. Please try again later.', 502, true);
-    if (typeof data?.checkoutRequestId !== 'string' || !data.checkoutRequestId.trim()) throw error('The payment request could not be confirmed. Check with support before retrying.');
+    if (data?.responseCode !== undefined && String(data.responseCode) !== '0') {
+      throw gatewayError('nexuspay', extractGatewayDetail(data, `Response code ${data.responseCode}`), 502, true, response.status);
+    }
+    if (typeof data?.checkoutRequestId !== 'string' || !data.checkoutRequestId.trim()) {
+      throw gatewayError('nexuspay', extractGatewayDetail(data, 'Missing checkoutRequestId from gateway'), 502, false, response.status);
+    }
     return { provider: 'nexuspay', checkoutRequestId: data.checkoutRequestId, providerReference: String(data.transactionId ?? data.merchantRequestId ?? '') };
   }
   async function initiate(provider, deposit, customerName) {
@@ -102,14 +123,20 @@ function createPaymentGateways({ http = axios, env = process.env } = {}) {
         ...(env.PAYHERO_CALLBACK_URL ? { callback_url: env.PAYHERO_CALLBACK_URL } : {})
       }, { headers: { Authorization: authorization(), 'Content-Type': 'application/json' }, timeout: 15000 });
       const data = response.data;
-      if (!data || data.status === false || (data.ResponseCode !== undefined && String(data.ResponseCode) !== '0')) throw error('The payment prompt was rejected. Please try again later.', 502, true);
-      if (data.status !== true && String(data.status).toLowerCase() !== 'success' && !data.CheckoutRequestID && !data.checkout_request_id && !data.reference && String(data.ResponseCode) !== '0') throw error('The payment request could not be confirmed. Check with support before retrying.');
+      if (!data || data.status === false || (data.ResponseCode !== undefined && String(data.ResponseCode) !== '0')) {
+        throw gatewayError('payhero', extractGatewayDetail(data, data?.ResponseCode ? `Response code ${data.ResponseCode}` : 'Gateway rejected STK request'), 502, true, response.status);
+      }
+      if (data.status !== true && String(data.status).toLowerCase() !== 'success' && !data.CheckoutRequestID && !data.checkout_request_id && !data.reference && String(data.ResponseCode) !== '0') {
+        throw gatewayError('payhero', extractGatewayDetail(data, 'Unconfirmed gateway response'), 502, false, response.status);
+      }
       return { provider: 'payhero', checkoutRequestId: data.CheckoutRequestID || data.checkout_request_id || deposit.external_reference,
         providerReference: String(data.reference ?? data.MerchantRequestID ?? '') };
     } catch (cause) {
       if (cause.definitive !== undefined) throw cause;
-      const rejected = cause.response?.status >= 400 && cause.response.status < 500 && cause.response.status !== 408;
-      throw error(rejected ? 'The payment prompt was rejected. Please try again later.' : 'The payment request could not be confirmed. Check with support before retrying.', 502, rejected);
+      const httpStatus = cause.response?.status || null;
+      const rejected = httpStatus >= 400 && httpStatus < 500 && httpStatus !== 408;
+      const detail = extractGatewayDetail(cause.response?.data, cause.code || cause.message || 'Gateway request failed');
+      throw gatewayError(provider, detail, 502, rejected, httpStatus);
     }
   }
   async function check(provider, deposit) {
