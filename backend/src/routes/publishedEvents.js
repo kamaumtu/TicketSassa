@@ -8,33 +8,63 @@ const router = express.Router();
 const { isConnected } = require('../config/db');
 const { route } = require('../services/http');
 const { ticketsasaEvents } = require('../config/ticketsasaEvents');
+const { buildAutoEventTiers } = require('../services/eventAllocations');
 
-async function events() {
-    const dbEvents = await collection('commerce_events').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 }).sort({ startsAt: 1 }).toArray().catch(() => []);
-    const defaultPublished = ticketsasaEvents.map(ev => ({
+function toPublishedEvent(ev) {
+    const tiers = buildAutoEventTiers(ev);
+    const startingPrice = tiers.length
+        ? Math.min(...tiers.map(t => t.priceKes))
+        : (ev.startingPrice ?? ev.price?.amount ?? 1000);
+    return {
+        ...ev,
         id: ev.id,
         title: ev.title,
-        venue: ev.locationFull || ev.venue,
-        description: ev.description,
-        salesOpen: '2026-01-01T00:00:00.000Z',
+        venue: ev.locationFull || ev.venue || ev.city || 'Kenya',
+        description: ev.description || [ev.title, ev.locationFull || ev.venue || ev.city].filter(Boolean).join(' · '),
+        salesOpen: ev.salesOpen && Date.parse(ev.salesOpen) <= Date.now() ? ev.salesOpen : '2026-01-01T00:00:00.000Z',
         salesClose: ev.startsAt,
         startsAt: ev.startsAt,
         formattedDate: ev.formattedDate,
         startAtLabel: ev.startAtLabel,
-        image: ev.imageUrl,
-        imageUrl: ev.imageUrl,
-        remoteImageUrl: ev.remoteImageUrl,
-        category: ev.category,
-        host: ev.host,
-        startingPrice: ev.startingPrice,
-        isFree: ev.isFree,
-        status: 'published',
+        image: ev.image || ev.imageUrl || null,
+        imageUrl: ev.imageUrl || ev.image || null,
+        remoteImageUrl: ev.remoteImageUrl || ev.imageUrl || ev.image || null,
+        category: ev.category || 'Featured Event',
+        host: ev.host || ev.source || 'Ticketsasa Official Organizer',
+        startingPrice,
+        isFree: Boolean(ev.isFree),
+        status: ev.status || 'published',
         discoveryOnly: false,
-        tiers: (ev.tiers || []).map(t => ({ ...t, published: true }))
-    }));
-    const byId = new Map(defaultPublished.map(e => [e.id, e]));
-    for (const ev of dbEvents) byId.set(ev.id, ev);
-    return [...byId.values()].filter(event => !isRemovedVenue(event));
+        checkout: tiers.length > 0,
+        tiers
+    };
+}
+
+async function events() {
+    const [dbEvents, catalogData] = await Promise.all([
+        collection('commerce_events').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 }).sort({ startsAt: 1 }).toArray().catch(() => []),
+        Promise.resolve().then(() => require('./eventRoutes').catalog?.get()).catch(() => null)
+    ]);
+    const byId = new Map();
+    for (const ev of ticketsasaEvents) {
+        byId.set(ev.id, toPublishedEvent(ev));
+    }
+    for (const ev of (catalogData?.events || [])) {
+        if (ev?.id) byId.set(ev.id, toPublishedEvent({ ...byId.get(ev.id), ...ev }));
+    }
+    for (const ev of dbEvents) {
+        if (ev?.id) {
+            const existing = byId.get(ev.id);
+            byId.set(ev.id, toPublishedEvent({
+                ...existing,
+                ...ev,
+                tiers: ev.tiers?.length ? ev.tiers : existing?.tiers
+            }));
+        }
+    }
+    return [...byId.values()]
+        .filter(event => !isRemovedVenue(event))
+        .sort((a, b) => String(a.startsAt || '').localeCompare(String(b.startsAt || '')));
 }
 
 function visible(event) {
@@ -43,18 +73,18 @@ function visible(event) {
 
 function onSale(event, now = Date.now()) {
     return !event.discoveryOnly && visible(event) && Date.parse(event.startsAt) > now && withinSalesWindow(event, now) &&
-        (!event.source || (Date.parse(event.allocationExpiresAt) > now &&
-            event.tiers.some(tier => tier.remainingAllocation > 0)));
+        Array.isArray(event.tiers) && event.tiers.some(tier => tier.remainingAllocation > 0);
 }
 
 function withinSalesWindow(event, now) {
-    return Date.parse(event.salesOpen) <= now && now < Date.parse(event.salesClose);
+    const open = event.salesOpen ? Date.parse(event.salesOpen) : 0;
+    const close = event.salesClose ? Date.parse(event.salesClose) : Date.parse(event.startsAt);
+    return (!Number.isFinite(open) || open <= now) && (!Number.isFinite(close) || now < close);
 }
 
 router.get('/', route(async (req, res) => {
     const now = Date.now();
-    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > now &&
-        (!event.source || Date.parse(event.allocationExpiresAt) > now))
+    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > now)
         .map(event => ({ ...event, onSale: onSale(event) })) });
 }));
 

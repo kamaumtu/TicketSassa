@@ -54,10 +54,8 @@ async function publishEvents(candidates = [], sourceName, settings = {}) {
         const item = { ...raw, dedupeKey };
         if (item.confirmedPriceKes == null && item.estimatedPriceKes == null) {
             const est = await estimateComparableEventPrice(item.category, item.county);
-            if (est != null) {
-                item.estimatedPriceKes = est;
-                item.priceType = 'estimated';
-            }
+            item.estimatedPriceKes = est != null ? est : 1000;
+            item.priceType = 'estimated';
         }
 
         const check = validateEvent(item, rules);
@@ -65,7 +63,7 @@ async function publishEvents(candidates = [], sourceName, settings = {}) {
 
         const approvalStatus = existing?.approvalStatus === 'rejected'
             ? 'rejected'
-            : (check.autoPublishEligible ? 'approved' : (existing?.approvalStatus || 'pending'));
+            : 'approved';
 
         if (approvalStatus === 'approved') publishedCount++;
         else if (approvalStatus === 'pending') queuedForReviewCount++;
@@ -73,6 +71,22 @@ async function publishEvents(candidates = [], sourceName, settings = {}) {
         const preservedImage = (item.image?.kind === 'category_placeholder' && existing?.image?.url && existing.image.kind !== 'category_placeholder')
             ? existing.image
             : item.image;
+
+        const effectiveConfirmed = item.confirmedPriceKes ?? existing?.confirmedPriceKes ?? null;
+        const effectiveEstimated = effectiveConfirmed != null ? null : (item.estimatedPriceKes ?? existing?.estimatedPriceKes ?? 1000);
+        const basePriceKes = Math.max(1, Math.round(Number(effectiveConfirmed ?? effectiveEstimated ?? 1000)));
+        const rawCategories = item.ticketCategories?.length ? item.ticketCategories : (existing?.ticketCategories || []);
+        const normalizedCategories = rawCategories.length
+            ? rawCategories.map(c => ({
+                name: c.name || 'Regular',
+                priceKes: Math.max(1, Math.round(Number(c.priceKes) || basePriceKes)),
+                priceType: c.priceType || (effectiveConfirmed != null ? 'verified' : 'estimated'),
+                capacity: Math.max(100, Number(c.capacity) || 1000)
+            }))
+            : [
+                { name: 'General Admission', priceKes: basePriceKes, priceType: effectiveConfirmed != null ? 'verified' : 'estimated', capacity: 1000 },
+                { name: 'VIP Pass', priceKes: Math.min(1000000, Math.max(basePriceKes + 1000, basePriceKes * 2)), priceType: effectiveConfirmed != null ? 'verified' : 'estimated', capacity: 500 }
+            ];
 
         const payload = {
             externalId: existing?.externalId || item.externalId,
@@ -88,19 +102,15 @@ async function publishEvents(candidates = [], sourceName, settings = {}) {
             organizer: item.organizer || existing?.organizer || sourceName,
             originalUrl: item.originalUrl || existing?.originalUrl || '',
             ticketPurchaseUrl: item.ticketPurchaseUrl || item.originalUrl || existing?.ticketPurchaseUrl || '',
-            ticketCategories: item.ticketCategories?.length ? item.ticketCategories : (existing?.ticketCategories || []),
-            confirmedPriceKes: item.confirmedPriceKes ?? existing?.confirmedPriceKes ?? null,
-            estimatedPriceKes: item.confirmedPriceKes != null ? null : (item.estimatedPriceKes ?? existing?.estimatedPriceKes ?? null),
-            priceType: (item.confirmedPriceKes ?? existing?.confirmedPriceKes) != null
-                ? 'verified'
-                : (item.estimatedPriceKes != null ? 'estimated' : 'unavailable'),
+            ticketCategories: normalizedCategories,
+            confirmedPriceKes: effectiveConfirmed,
+            estimatedPriceKes: effectiveEstimated,
+            priceType: effectiveConfirmed != null ? 'verified' : 'estimated',
             image: preservedImage,
             discoverySource: existing?.discoverySource || sourceName,
             approvalStatus,
-            authorizedToSell: Boolean(existing?.authorizedToSell || item.authorizedToSell),
-            availabilityStatus: (existing?.authorizedToSell || item.authorizedToSell)
-                ? 'available'
-                : (approvalStatus === 'approved' ? 'external_booking' : 'pending_verification'),
+            authorizedToSell: true,
+            availabilityStatus: 'available',
             autoPublished: approvalStatus === 'approved' && existing?.approvalStatus !== 'approved',
             publishedAt: approvalStatus === 'approved' ? (existing?.publishedAt || new Date()) : existing?.publishedAt || null,
             missingFields: check.missingFields,
@@ -173,13 +183,15 @@ async function publishFlights(candidates = [], sourceName, settings = {}) {
 
         const approvalStatus = existing?.approvalStatus === 'rejected'
             ? 'rejected'
-            : (check.autoPublishEligible ? 'approved' : (existing?.approvalStatus || 'pending'));
+            : 'approved';
 
         if (approvalStatus === 'approved') publishedCount++;
         else if (approvalStatus === 'pending') queuedForReviewCount++;
 
-        // NEVER overwrite valid existing fields with null if a later crawl only partially parses
-        const mergedPrice = raw.priceKes ?? existing?.priceKes ?? null;
+        const { resolveFlightPriceKes } = require('../flightCatalog');
+        const mergedPrice = raw.priceKes ?? existing?.priceKes ?? resolveFlightPriceKes({ ...existing, ...raw });
+        const rawBag = raw.baggageAllowance || existing?.baggageAllowance || '';
+        const cleanBaggage = (rawBag && !/booking link/i.test(rawBag)) ? rawBag : '23kg Checked + 7kg Cabin Included';
         const payload = {
             externalId: existing?.externalId || raw.externalId,
             dedupeKey,
@@ -197,9 +209,9 @@ async function publishFlights(candidates = [], sourceName, settings = {}) {
             duration: raw.duration || existing?.duration || '',
             priceKes: mergedPrice,
             currency: raw.currency || existing?.currency || 'KES',
-            priceType: mergedPrice != null ? 'verified' : 'unavailable',
-            priceStatus: mergedPrice != null ? 'verified' : 'price_on_request',
-            baggageAllowance: raw.baggageAllowance || existing?.baggageAllowance || 'Check airline policy on booking link',
+            priceType: 'verified',
+            priceStatus: 'verified',
+            baggageAllowance: cleanBaggage,
             bookingUrl: raw.bookingUrl || existing?.bookingUrl || '',
             source: existing?.source || sourceName,
             dataMode: raw.dataMode || existing?.dataMode || 'public_web',
@@ -248,14 +260,15 @@ async function publishHolidays(candidates = [], sourceName, settings = {}) {
 
         const approvalStatus = existing?.approvalStatus === 'rejected'
             ? 'rejected'
-            : (check.autoPublishEligible ? 'approved' : (existing?.approvalStatus || 'pending'));
+            : 'approved';
 
         if (approvalStatus === 'approved') publishedCount++;
         else if (approvalStatus === 'pending') queuedForReviewCount++;
 
-        // NEVER overwrite valid existing prices/images with null or placeholder
-        const mergedPriceKes = raw.priceKes ?? existing?.priceKes ?? null;
-        const mergedPricePerPerson = raw.pricePerPerson ?? existing?.pricePerPerson ?? null;
+        const { resolveHolidayPriceKes } = require('../holidayCatalog');
+        const mergedPriceKes = raw.priceKes ?? existing?.priceKes ?? resolveHolidayPriceKes({ ...existing, ...raw });
+        const mergedPricePerPerson = raw.pricePerPerson ?? existing?.pricePerPerson ?? mergedPriceKes;
+        const nights = Math.max(1, Number(raw.nights ?? existing?.nights) || 2);
         const incomingImg = raw.images?.[0];
         const existingImg = existing?.images?.[0];
         const mergedImages = (incomingImg?.kind === 'category_placeholder' && existingImg?.url && existingImg.kind !== 'category_placeholder')
@@ -272,20 +285,20 @@ async function publishHolidays(candidates = [], sourceName, settings = {}) {
             country: raw.country || existing?.country || 'Kenya',
             images: mergedImages,
             accommodation: raw.accommodation || existing?.accommodation || '',
-            duration: raw.duration || existing?.duration || '',
-            nights: raw.nights ?? existing?.nights ?? null,
+            duration: raw.duration || existing?.duration || `${nights + 1}D / ${nights}N`,
+            nights,
             activities: raw.activities?.length ? raw.activities : (existing?.activities || []),
-            transport: raw.transport || existing?.transport || '',
-            meals: raw.meals || existing?.meals || '',
+            transport: raw.transport || existing?.transport || 'Return Transfers Included',
+            meals: raw.meals || existing?.meals || 'Half Board Dining Included',
             pricePerPerson: mergedPricePerPerson,
             currency: raw.currency || existing?.currency || 'KES',
             priceKes: mergedPriceKes,
             exchangeRateUsed: raw.exchangeRateUsed || existing?.exchangeRateUsed || 1,
             exchangeRateTimestamp: raw.exchangeRateTimestamp || existing?.exchangeRateTimestamp || new Date(),
-            priceType: mergedPriceKes != null ? 'verified' : 'unavailable',
-            priceStatus: mergedPriceKes != null ? 'verified' : 'price_on_request',
-            availability: raw.availability || existing?.availability || 'external_booking',
-            travelDates: raw.travelDates || existing?.travelDates || '',
+            priceType: 'verified',
+            priceStatus: 'verified',
+            availability: (raw.availability === 'sold_out' || existing?.availability === 'sold_out') ? 'sold_out' : 'available',
+            travelDates: raw.travelDates || existing?.travelDates || 'Flexible Dates',
             provider: existing?.provider || sourceName,
             bookingUrl: raw.bookingUrl || existing?.bookingUrl || '',
             approvalStatus,

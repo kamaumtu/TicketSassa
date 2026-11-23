@@ -10,7 +10,7 @@
     <title>Ticketsasa | Events, Flights & Holidays</title>
     <link rel="stylesheet" href="/assets/storefront.css">
     <script defer src="/assets/lucide.js"></script>
-    <link rel="stylesheet" href="/styles.css?v=travel-offers-1">
+    <link rel="stylesheet" href="/styles.css?v=support-chat-1-bookable-2">
 </head>
 <body class="bg-[#F8FAFC] text-slate-800 antialiased selection:bg-rose-500 selection:text-white">
 
@@ -1801,6 +1801,23 @@
                 </form>
                 <div id="check-ticket-result" role="status" class="text-xs text-slate-700"></div>
             </div>
+
+            <!-- My Trips, Saved Favorites & Price-Drop Alerts Dashboard -->
+            <div id="my-trips-dashboard" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                        <h2 class="text-lg font-black text-slate-900">My Trips, Saved Deals &amp; Price Alerts</h2>
+                        <p class="text-xs text-slate-500">All your booked flights, holidays &amp; events plus saved favorites and live price-drop alerts.</p>
+                    </div>
+                    <button type="button" onclick="loadMyTripsDashboard()" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold">Refresh</button>
+                </div>
+                <div id="my-price-alerts" class="space-y-2"></div>
+                <div id="my-booked-trips" class="space-y-2 text-xs text-slate-600">Loading your trips…</div>
+                <div class="pt-3 border-t border-slate-100 space-y-2">
+                    <h3 class="text-sm font-extrabold text-slate-900">Saved Favorites (Wishlist)</h3>
+                    <div id="my-saved-favorites" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600"></div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -2005,32 +2022,34 @@
         </div>
     </footer>
 
-    <script src="/app.js?v=travel-offers-1"></script>
+    <script src="/app.js?v=support-chat-1"></script>
     <script type="module" src="frontend-angular/src/kenya-event-catalog.js?v=advertised-prices-1"></script>
 
-    <!-- Floating "Let's Chat" Live Support Widget (Exact from Images 1, 2, 3, 6) -->
-    <button id="support-launcher" type="button" onclick="toggleChatSupport()" aria-controls="chat-support-modal" aria-expanded="false">Help</button>
-    <div id="chat-support-modal" role="region" aria-label="Support chat" class="hidden fixed bottom-12 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
-        <div class="bg-[#BE123C] text-white p-4 flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-                <div>
-                    <h4 class="font-bold text-xs">Ticketsasa Help</h4>
-                    <p class="text-[10px] text-rose-200">Automated help</p>
-                </div>
-            </div>
-            <button type="button" onclick="toggleChatSupport()" aria-label="Close support chat" class="text-white hover:text-slate-200 text-sm font-bold">&times;</button>
-        </div>
-        <div data-support-messages role="log" aria-live="polite" class="p-4 h-64 overflow-y-auto space-y-3 bg-slate-50 text-xs">
-            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm max-w-[85%] text-slate-800">
-                Hello! Welcome to Ticketsasa. How can we assist you with event passes, flights, or holiday packages today?
-            </div>
-        </div>
-        <div class="p-3 bg-white border-t border-slate-200 flex gap-2">
-            <input type="text" data-support-input maxlength="500" aria-label="Support question" placeholder="Ask about tickets or checkout" class="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-rose-600" onkeydown="if(event.key==='Enter') submitSupportQuestion(this)">
-            <button onclick="submitSupportQuestion(this)" class="bg-[#BE123C] text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-[#9F1239]">Send</button>
-        </div>
-    </div>
+    <!-- Customer support guide -->
+    <button id="support-launcher" type="button" onclick="toggleChatSupport()" aria-controls="chat-support-modal" aria-expanded="false"><span aria-hidden="true">✦</span> Help</button>
+    <section id="chat-support-modal" aria-label="Ticketsassa support assistant" class="hidden">
+        <header class="support-header">
+            <div class="support-avatar" aria-hidden="true">T</div>
+            <div><h2>Ticketsassa Help</h2><p>Automated guide</p></div>
+            <button type="button" onclick="toggleChatSupport(false)" aria-label="Close support chat" class="support-close">×</button>
+        </header>
+        <div class="support-toolbar"><span data-support-status>Checking service status…</span><button type="button" data-support-clear>New chat</button></div>
+        <div data-support-messages role="log" aria-label="Conversation" aria-live="polite" aria-relevant="additions"></div>
+        <nav class="support-topics" aria-label="Help topics">
+            <button type="button" data-support-topic="orders">Find my tickets</button>
+            <button type="button" data-support-topic="Payment failed">Payment help</button>
+            <button type="button" data-support-topic="Login help">Login</button>
+            <button type="button" data-support-topic="Holiday and flight booking">Travel</button>
+            <button type="button" data-support-topic="Refund request">Refunds</button>
+        </nav>
+        <form class="support-composer">
+            <label for="support-question" class="sr-only">Your support question</label>
+            <input id="support-question" type="text" data-support-input maxlength="500" autocomplete="off" placeholder="How can we help?">
+            <button type="submit" aria-label="Send support question">Send <span aria-hidden="true">↗</span></button>
+            <span data-support-progress role="status"></span>
+        </form>
+        <footer class="support-footer"><span>Never share your PIN or password.</span><button type="button" data-support-contact>Contact support</button></footer>
+    </section>
 
 
     <!-- ========================================================================= -->
@@ -2213,8 +2232,8 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                     </div>
                     <div>
-                        <h3 class="font-extrabold text-xl text-slate-900" id="fbm-title">Flight itinerary estimate</h3>
-                        <p class="text-xs text-slate-500" id="fbm-subtitle">Sample itinerary. Live airline booking is unavailable.</p>
+                        <h3 class="font-extrabold text-xl text-slate-900" id="fbm-title">Book Flight &amp; E-Ticket</h3>
+                        <p class="text-xs text-slate-500" id="fbm-subtitle">Instant on-site booking with M-Pesa checkout &amp; digital boarding pass.</p>
                     </div>
                 </div>
                 <button type="button" onclick="closeFlightBookingModal()" class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center font-bold text-lg transition">
@@ -2303,13 +2322,59 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Trip Type</label>
+                        <select id="fbm-trip-type" onchange="syncFlightModalTripType(); calculateFlightTotal()" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="oneway">One-Way</option>
+                            <option value="round">Round-Trip (5% off return)</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Departure Date *</label>
+                        <input type="date" id="fbm-depart-date" required onchange="syncFlightModalDate()" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="space-y-1 hidden" id="fbm-return-wrap">
+                        <label class="text-[11px] font-bold text-slate-600">Return Date *</label>
+                        <input type="date" id="fbm-return-date" onchange="syncFlightModalDate()" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Adults (12+)</label>
+                        <select id="fbm-adults" onchange="calculateFlightTotal()" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="1" selected>1 Adult</option>
+                            <option value="2">2 Adults</option>
+                            <option value="3">3 Adults</option>
+                            <option value="4">4 Adults</option>
+                            <option value="5">5 Adults</option>
+                            <option value="6">6 Adults</option>
+                        </select>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Children / Infants</label>
+                        <div class="grid grid-cols-2 gap-1.5">
+                            <select id="fbm-children" aria-label="Children" onchange="calculateFlightTotal()" class="h-11 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="0" selected>0 Chd</option>
+                                <option value="1">1 Chd</option>
+                                <option value="2">2 Chd</option>
+                                <option value="3">3 Chd</option>
+                                <option value="4">4 Chd</option>
+                            </select>
+                            <select id="fbm-infants" aria-label="Infants" onchange="calculateFlightTotal()" class="h-11 px-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                                <option value="0" selected>0 Inf</option>
+                                <option value="1">1 Inf</option>
+                                <option value="2">2 Inf</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div class="space-y-1">
                         <label class="text-[11px] font-bold text-slate-600">E-Ticket Email *</label>
                         <input type="email" id="fbm-email" required placeholder="passenger@email.com" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[11px] font-bold text-slate-600">M-Pesa Phone Number *</label>
+                        <label class="text-[11px] font-bold text-slate-600">M-Pesa / WhatsApp Phone Number *</label>
                         <input type="tel" id="fbm-phone" required placeholder="07XX XXX XXX" class="w-full h-11 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
                     </div>
                 </div>
@@ -2333,6 +2398,25 @@
                     </label>
                 </div>
 
+                <!-- Promo Code & Payment Method -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Promo Code (e.g. FLYKE5)</label>
+                        <div class="flex gap-1.5">
+                            <input type="text" id="fbm-promo-code" placeholder="Enter promo code" class="flex-1 h-10 px-3 text-xs font-semibold uppercase bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                            <button type="button" onclick="applyFlightPromoCode()" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold">Apply</button>
+                        </div>
+                        <div id="fbm-promo-msg" class="text-[11px] font-semibold text-emerald-700"></div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Payment Method</label>
+                        <select id="fbm-pay-method" onchange="calculateFlightTotal()" class="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500">
+                            <option value="MPESA">M-Pesa STK Push (KES)</option>
+                            <option value="CARD">Visa / Mastercard / Apple Pay</option>
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Price Breakdown & Status -->
                 <div class="bg-sky-50/60 rounded-2xl p-4 border border-sky-100 space-y-2 text-xs">
                     <div class="flex justify-between text-slate-600">
@@ -2347,8 +2431,12 @@
                         <span>Add-ons &amp; Protection:</span>
                         <span id="fbm-summary-addons" class="font-semibold">KES 750</span>
                     </div>
+                    <div id="fbm-summary-discount-row" class="hidden flex justify-between text-emerald-700 font-bold">
+                        <span id="fbm-summary-discount-label">Promo Discount:</span>
+                        <span id="fbm-summary-discount">-KES 0</span>
+                    </div>
                     <div class="pt-2 border-t border-sky-200 flex justify-between items-center text-sm font-black text-slate-900">
-                        <span>Total Due (M-Pesa STK):</span>
+                        <span>Total Due:</span>
                         <span id="fbm-summary-total" class="text-lg text-rose-600 font-extrabold">KES 8,992</span>
                     </div>
                 </div>
@@ -2359,7 +2447,7 @@
                 <div class="flex gap-3 pt-2">
                     <button type="submit" id="btn-fbm-submit" class="flex-1 h-12 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-700/25 transition">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
-                        <span id="btn-fbm-label">Save itinerary</span>
+                        <span id="btn-fbm-label">PAY VIA M-PESA</span>
                     </button>
                     <button type="button" onclick="closeFlightBookingModal()" class="px-5 h-12 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase transition">
                         Cancel
@@ -2477,6 +2565,32 @@
                         </span>
                         <span class="font-bold text-slate-900">KES 6,500 pp</span>
                     </label>
+                    <label class="flex items-center justify-between text-xs text-slate-700 cursor-pointer pt-1 border-t border-slate-200">
+                        <span class="flex items-center gap-2">
+                            <input type="checkbox" id="hbm-addon-flight" onchange="calculateHolidayTotal()" class="rounded text-sky-600">
+                            <span class="font-bold text-sky-900">✈️ Add Return Flight Bundle: <span id="hbm-flight-bundle-label">Nairobi ⇄ Destination</span></span>
+                        </span>
+                        <span id="hbm-flight-bundle-price" class="font-bold text-sky-700">KES 14,000 pp</span>
+                    </label>
+                </div>
+
+                <!-- Promo Code & Payment Method -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Promo Code (e.g. HOLIDAY10 / BUNDLE15)</label>
+                        <div class="flex gap-1.5">
+                            <input type="text" id="hbm-promo-code" placeholder="Enter promo code" class="flex-1 h-10 px-3 text-xs font-semibold uppercase bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                            <button type="button" onclick="applyHolidayPromoCode()" class="px-3 h-10 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold">Apply</button>
+                        </div>
+                        <div id="hbm-promo-msg" class="text-[11px] font-semibold text-emerald-700"></div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[11px] font-bold text-slate-600">Payment Method</label>
+                        <select id="hbm-pay-method" onchange="calculateHolidayTotal()" class="w-full h-10 px-3 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500">
+                            <option value="MPESA">M-Pesa STK Push (KES)</option>
+                            <option value="CARD">Visa / Mastercard / Apple Pay</option>
+                        </select>
+                    </div>
                 </div>
 
                 <!-- Price Summary -->
@@ -2493,9 +2607,17 @@
                         <span>Excursions &amp; Extras:</span>
                         <span id="hbm-summary-extras" class="font-semibold">KES 0</span>
                     </div>
+                    <div id="hbm-summary-flight-row" class="hidden flex justify-between text-sky-800 font-semibold">
+                        <span>Bundled Return Flights:</span>
+                        <span id="hbm-summary-flight">KES 0</span>
+                    </div>
                     <div class="flex justify-between text-slate-600">
                         <span>Tourism &amp; Catering Levy (2%):</span>
                         <span id="hbm-summary-tax" class="font-semibold">KES 2,710</span>
+                    </div>
+                    <div id="hbm-summary-discount-row" class="hidden flex justify-between text-emerald-700 font-bold">
+                        <span id="hbm-summary-discount-label">Promo Discount:</span>
+                        <span id="hbm-summary-discount">-KES 0</span>
                     </div>
                     <div class="pt-2 border-t border-emerald-200 flex justify-between items-center text-sm font-black text-slate-900">
                         <span>Total Package Due:</span>
@@ -2684,7 +2806,6 @@
                         <div id="ts-advertised-prices" class="hidden">
                             <h4 class="text-sm font-bold text-slate-900">Advertised ticket prices</h4>
                             <ul class="text-sm text-slate-700 space-y-1"></ul>
-                            <a class="hidden text-xs underline text-rose-700" target="_blank" rel="noopener noreferrer">View price source</a>
                         </div>
                         <p id="ts-checkout-status" role="status" class="text-xs font-bold text-slate-700"></p>
 
@@ -2806,7 +2927,9 @@
             <button type="button" class="px-4 py-2" onclick="document.getElementById('holiday-plan').close()">Close</button>
         </form>
     </dialog>
-    <script src="/travel-offers.js?v=1" defer></script>
-    <script src="/discovered-marketplace.js?v=1" defer></script>
+    <script src="/travel-offers.js?v=bookable-2" defer></script>
+    <script src="/discovered-marketplace.js?v=bookable-2" defer></script>
+    <script src="/support-answers.js?v=1" defer></script>
+    <script src="/support-chat.js?v=1" defer></script>
 </body>
 </html>

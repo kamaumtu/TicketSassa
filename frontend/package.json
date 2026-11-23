@@ -1,0 +1,27 @@
+{
+  "name": "ticketsassa-frontend",
+  "version": "1.0.0",
+  "description": "Ticketsassa storefront, admin dashboard and optional Angular client",
+  "private": true,
+  "scripts": {
+    "start": "npm --prefix ../backend start",
+    "build:storefront": "tailwindcss -i storefront.css -o assets/storefront.css --minify && node scripts/copy-storefront-icons.cjs",
+    "build:admin": "npm --prefix admin-ui run build",
+    "build:angular": "npm --prefix frontend-angular run build",
+    "build": "npm run build:storefront && npm run build:admin && npm run build:angular"
+  },
+  "keywords": [
+    "ticketsasa",
+    "talanta-sports-city",
+    "hustlesasa",
+    "event-ticketing",
+    "safari-holidays",
+    "flights-gds"
+  ],
+  "author": "Antigravity Engineering",
+  "license": "ISC",
+  "devDependencies": {
+    "lucide": "^0.468.0",
+    "tailwindcss": "^3.4.19"
+  }
+}

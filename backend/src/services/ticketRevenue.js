@@ -5,9 +5,9 @@ function isLiveTicket(item) {
     // Older orders sometimes labelled travel lines as tickets. Their
     // original inventory key still identifies the product type.
     if (typeof item?.key === 'string') {
-        return item.key.startsWith('ticket:') || item.key.startsWith('itinerary:');
+        return item.key.startsWith('ticket:') || item.key.startsWith('itinerary:') || item.key.startsWith('flight-itinerary:');
     }
-    return ['ticket', 'itinerary_holiday'].includes(item?.kind);
+    return ['ticket', 'itinerary_holiday', 'itinerary_flight'].includes(item?.kind);
 }
 
 function realCompletedOrder(order) {

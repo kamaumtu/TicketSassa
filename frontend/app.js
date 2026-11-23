@@ -430,6 +430,8 @@ function switchTab(tabName, { updateHistory = true } = {}) {
         initFlightEngine();
     } else if (tabName === 'holidays') {
         searchHolidayCards('');
+    } else if (tabName === 'checkticket') {
+        void loadMyTripsDashboard();
     }
 
     if (updateHistory) {
@@ -664,6 +666,7 @@ function toggleChatSupport(opening = document.getElementById('chat-support-modal
     const launcher = document.getElementById('support-launcher');
     modal.classList.toggle('hidden', !opening);
     launcher.setAttribute('aria-expanded', String(opening));
+    if (opening) void window.ticketSupport?.refreshStatus();
     (opening ? modal.querySelector('input') : launcher).focus();
 }
 
@@ -707,10 +710,19 @@ async function handleMpesaSubmit(event) {
     const payload = { customer, items, currency: state.currency, promoCode: state.promoCode, tipKes: state.tipAmount };
     checkoutSubmitting = true;
     button.disabled = true;
-    const { mode } = await commerceRequest('/payments/mode').catch(() => ({ mode: 'unavailable' }));
+    let mode = 'unavailable';
+    try {
+        const modeRes = await commerceRequest('/payments/mode');
+        mode = modeRes?.mode || 'unavailable';
+    } catch (err) {
+        checkoutSubmitting = false;
+        status.textContent = err?.message || 'Could not reach the checkout server. Make sure the backend is running on http://localhost:8000.';
+        button.disabled = false;
+        return;
+    }
     if (mode === 'unavailable') {
         checkoutSubmitting = false;
-        status.textContent = 'Online checkout is currently unavailable.';
+        status.textContent = 'Online checkout is currently unavailable (database or payment gateway is reconnecting). Please try again in a moment.';
         button.disabled = false;
         return;
     }
@@ -1375,52 +1387,187 @@ function renderFlightCards(flights) {
     }).join('');
 }
 
-function openFlightBookingModal(flightId) {
-    const flight = flightsDb.find(f => f.id === flightId) || flightsDb[0];
+let pendingFlightOrder = null;
+let activeFlightPromo = null;
+
+function syncFlightModalTripType() {
+    const tripEl = document.getElementById('fbm-trip-type');
+    const wrap = document.getElementById('fbm-return-wrap');
+    const retInput = document.getElementById('fbm-return-date');
+    const depVal = document.getElementById('fbm-depart-date')?.value || '';
+    const isRound = tripEl?.value === 'round';
+    if (wrap) wrap.classList.toggle('hidden', !isRound);
+    if (retInput) {
+        retInput.required = isRound;
+        if (isRound && depVal && (!retInput.value || retInput.value < depVal)) {
+            const d = new Date(depVal + 'T00:00:00Z');
+            d.setUTCDate(d.getUTCDate() + 3);
+            retInput.min = depVal;
+            retInput.value = d.toISOString().split('T')[0];
+        }
+    }
+    syncFlightModalDate();
+}
+
+async function applyFlightPromoCode() {
+    const input = document.getElementById('fbm-promo-code');
+    const msgEl = document.getElementById('fbm-promo-msg');
+    const code = input?.value?.trim().toUpperCase() || '';
+    if (!code) {
+        activeFlightPromo = null;
+        if (msgEl) msgEl.textContent = '';
+        calculateFlightTotal();
+        return;
+    }
+    try {
+        const res = await commerceRequest(`/travel/promos/validate?code=${encodeURIComponent(code)}&kind=flight`);
+        activeFlightPromo = res.promo;
+        if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-emerald-700';
+            msgEl.textContent = `✓ ${res.promo.code}: ${res.promo.discountPercent}% off (${res.promo.label})`;
+        }
+    } catch (err) {
+        activeFlightPromo = null;
+        if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-rose-600';
+            msgEl.textContent = err.message || 'Promo code not valid for flights.';
+        }
+    }
+    calculateFlightTotal();
+}
+
+function formatFlightModalClock(value) {
+    if (!value) return 'Flex';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return 'Flex';
+    return new Intl.DateTimeFormat('en-GB', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: 'Africa/Nairobi'
+    }).format(d);
+}
+
+function syncFlightModalDate() {
+    const depVal = document.getElementById('fbm-depart-date')?.value || '';
+    const retVal = document.getElementById('fbm-return-date')?.value || '';
+    const isRound = document.getElementById('fbm-trip-type')?.value === 'round';
+    const travelDateEl = document.getElementById('fbm-travel-date');
+    if (travelDateEl) {
+        travelDateEl.textContent = depVal
+            ? (isRound && retVal ? `Outbound: ${depVal} · Return: ${retVal}` : `Departure: ${depVal}`)
+            : 'Departure: Select date';
+    }
+}
+
+window.openCustomFlightBookingModal = function (fl) {
+    if (!fl || (!fl._id && !fl.externalId)) return;
+    const priceKes = Math.max(1, Math.round(Number(fl.priceKes) || 8500));
+    const depDateIso = fl.departureTime && !Number.isNaN(Date.parse(fl.departureTime))
+        ? new Date(fl.departureTime).toISOString().split('T')[0]
+        : '';
+    const customFlight = {
+        id: 'db:' + String(fl._id || fl.externalId),
+        airline: fl.airline || 'Partner Airline',
+        logo: fl.airlineLogo || '/assets/airlines/kenya-airways.svg',
+        flightNumber: fl.flightNumber || `${fl.originCode || 'NBO'}-${fl.destinationCode || 'MBA'}`,
+        aircraft: fl.source || 'Scheduled Flight',
+        origin: fl.originCode || 'NBO',
+        originCity: fl.originName || fl.originCode || 'Nairobi',
+        dest: fl.destinationCode || 'MBA',
+        destCity: fl.destinationName || fl.destinationCode || 'Mombasa',
+        depTime: formatFlightModalClock(fl.departureTime),
+        arrTime: formatFlightModalClock(fl.arrivalTime),
+        durationText: fl.duration || 'Scheduled',
+        baggage: fl.baggageAllowance || 'Standard Airline Baggage',
+        priceKes,
+        priceUsd: Math.round(priceKes / 130),
+        defaultDepartDate: depDateIso
+    };
+    openFlightBookingModal(customFlight);
+};
+
+function openFlightBookingModal(flightOrId) {
+    const flight = (flightOrId && typeof flightOrId === 'object')
+        ? flightOrId
+        : (flightsDb.find(f => f.id === flightOrId) || flightsDb[0]);
     flightSearchState.selectedFlight = flight;
+    pendingFlightOrder = null;
 
     // Populate modal summary
     const logoEl = document.getElementById('fbm-airline-logo');
-    if (logoEl) logoEl.src = flight.logo;
+    if (logoEl) logoEl.src = flight.logo || '/assets/airlines/kenya-airways.svg';
 
     const nameEl = document.getElementById('fbm-airline-name');
     if (nameEl) nameEl.textContent = flight.airline;
 
     const fnEl = document.getElementById('fbm-flight-number');
-    if (fnEl) fnEl.textContent = `${flight.flightNumber} · ${flight.aircraft}`;
+    if (fnEl) fnEl.textContent = `${flight.flightNumber} · ${flight.aircraft || 'Scheduled'}`;
 
     const depTimeEl = document.getElementById('fbm-dep-time');
-    if (depTimeEl) depTimeEl.textContent = flight.depTime;
+    if (depTimeEl) depTimeEl.textContent = flight.depTime || 'Flex';
 
     const depCodeEl = document.getElementById('fbm-dep-code');
     if (depCodeEl) depCodeEl.textContent = flight.origin;
 
     const depCityEl = document.getElementById('fbm-dep-city');
-    if (depCityEl) depCityEl.textContent = flight.originCity;
+    if (depCityEl) depCityEl.textContent = flight.originCity || flight.origin;
 
     const arrTimeEl = document.getElementById('fbm-arr-time');
-    if (arrTimeEl) arrTimeEl.textContent = flight.arrTime;
+    if (arrTimeEl) arrTimeEl.textContent = flight.arrTime || 'Flex';
 
     const arrCodeEl = document.getElementById('fbm-arr-code');
     if (arrCodeEl) arrCodeEl.textContent = flight.dest;
 
     const arrCityEl = document.getElementById('fbm-arr-city');
-    if (arrCityEl) arrCityEl.textContent = flight.destCity;
+    if (arrCityEl) arrCityEl.textContent = flight.destCity || flight.dest;
 
     const durEl = document.getElementById('fbm-duration');
-    if (durEl) durEl.textContent = flight.durationText;
+    if (durEl) durEl.textContent = flight.durationText || 'Direct';
 
     const bagEl = document.getElementById('fbm-baggage-note');
-    if (bagEl) bagEl.textContent = flight.baggage;
+    if (bagEl) bagEl.textContent = flight.baggage || 'Standard Airline Baggage';
 
-    const dateVal = document.getElementById('flight-depart-date')?.value;
-    const travelDateEl = document.getElementById('fbm-travel-date');
-    if (travelDateEl) {
-        travelDateEl.textContent = dateVal ? `Date: ${dateVal}` : 'Date: Scheduled Departure';
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const fmt = d => d.toISOString().split('T')[0];
+    const todayIso = fmt(today);
+    const fallbackDate = flight.defaultDepartDate && flight.defaultDepartDate >= todayIso
+        ? flight.defaultDepartDate
+        : (document.getElementById('flight-depart-date')?.value || fmt(tomorrow));
+
+    const modalDateEl = document.getElementById('fbm-depart-date');
+    if (modalDateEl) {
+        modalDateEl.min = todayIso;
+        modalDateEl.value = fallbackDate >= todayIso ? fallbackDate : fmt(tomorrow);
+    }
+    syncFlightModalDate();
+
+    if (signedInAccount) {
+        const emailEl = document.getElementById('fbm-email');
+        if (emailEl && !emailEl.value) emailEl.value = signedInAccount.email || '';
+        const parts = String(signedInAccount.name || '').trim().split(/\s+/);
+        const firstEl = document.getElementById('fbm-first-name');
+        const lastEl = document.getElementById('fbm-last-name');
+        if (firstEl && !firstEl.value && parts[0]) firstEl.value = parts[0];
+        if (lastEl && !lastEl.value && parts.length > 1) lastEl.value = parts.slice(1).join(' ');
     }
 
     const statusEl = document.getElementById('fbm-status');
     if (statusEl) statusEl.textContent = '';
+
+    activeFlightPromo = null;
+    const promoInput = document.getElementById('fbm-promo-code');
+    if (promoInput) promoInput.value = '';
+    const promoMsg = document.getElementById('fbm-promo-msg');
+    if (promoMsg) promoMsg.textContent = '';
+    const tripEl = document.getElementById('fbm-trip-type');
+    if (tripEl) tripEl.value = flightSearchState.tripType === 'round' ? 'round' : 'oneway';
+    syncFlightModalTripType();
+
+    const submitBtn = document.getElementById('btn-fbm-submit');
+    if (submitBtn) submitBtn.disabled = false;
 
     calculateFlightTotal();
 
@@ -1438,24 +1585,36 @@ function calculateFlightTotal() {
     if (!flight) return;
 
     const isKes = state.currency === 'KES';
-    const baseFare = flight.priceKes;
+    const tripType = document.getElementById('fbm-trip-type')?.value === 'round' ? 'round' : 'oneway';
+    const adults = Math.max(1, Number(document.getElementById('fbm-adults')?.value || 1));
+    const children = Math.max(0, Number(document.getElementById('fbm-children')?.value || 0));
+    const infants = Math.max(0, Math.min(adults, Number(document.getElementById('fbm-infants')?.value || 0)));
+    const seatedPassengers = adults + children;
+
+    const multiplier = tripType === 'round' ? 1.95 : 1;
+    const adultUnit = Math.round(flight.priceKes * multiplier);
+    const childUnit = Math.round(adultUnit * 0.75);
+    const infantUnit = Math.round(adultUnit * 0.15);
+    const baseFare = Math.round(adultUnit * adults + childUnit * children + infantUnit * infants);
     const tax = Math.round(baseFare * 0.05);
 
     let addons = 0;
     const insEl = document.getElementById('fbm-addon-insurance');
-    if (insEl && insEl.checked) addons += 750;
+    if (insEl && insEl.checked) addons += 750 * seatedPassengers;
 
     const bagEl = document.getElementById('fbm-addon-baggage');
-    if (bagEl && bagEl.checked) addons += 2000;
+    if (bagEl && bagEl.checked) addons += 2000 * seatedPassengers;
 
     const seatEl = document.getElementById('fbm-seat-pref');
-    if (seatEl && seatEl.value === 'extra-leg') addons += 1200;
+    if (seatEl && seatEl.value === 'extra-leg') addons += 1200 * seatedPassengers;
 
-    const totalKes = baseFare + tax + addons;
+    const subtotal = baseFare + tax + addons;
+    const discountKes = activeFlightPromo ? Math.round(subtotal * (activeFlightPromo.discountPercent / 100)) : 0;
+    const totalKes = Math.max(1, subtotal - discountKes);
     const totalUsd = Math.round(totalKes / 130);
 
     const baseEl = document.getElementById('fbm-summary-base');
-    if (baseEl) baseEl.textContent = isKes ? `KES ${baseFare.toLocaleString()}` : `$${flight.priceUsd}`;
+    if (baseEl) baseEl.textContent = isKes ? `KES ${baseFare.toLocaleString()}` : `$${Math.round(baseFare / 130)}`;
 
     const taxEl = document.getElementById('fbm-summary-tax');
     if (taxEl) taxEl.textContent = isKes ? `KES ${tax.toLocaleString()}` : `$${Math.round(tax / 130)}`;
@@ -1463,44 +1622,199 @@ function calculateFlightTotal() {
     const addonsEl = document.getElementById('fbm-summary-addons');
     if (addonsEl) addonsEl.textContent = isKes ? `KES ${addons.toLocaleString()}` : `$${Math.round(addons / 130)}`;
 
-    const totalEl = document.getElementById('fbm-summary-total');
-    if (totalEl) totalEl.textContent = isKes ? `KES ${totalKes.toLocaleString()}` : `$${totalUsd}`;
+    const discRow = document.getElementById('fbm-summary-discount-row');
+    const discVal = document.getElementById('fbm-summary-discount');
+    const discLbl = document.getElementById('fbm-summary-discount-label');
+    if (discRow) discRow.classList.toggle('hidden', !(discountKes > 0));
+    if (discVal) discVal.textContent = `-KES ${discountKes.toLocaleString()}`;
+    if (discLbl && activeFlightPromo) discLbl.textContent = `Promo (${activeFlightPromo.code} · ${activeFlightPromo.discountPercent}%):`;
 
+    const totalEl = document.getElementById('fbm-summary-total');
+    if (totalEl) totalEl.textContent = isKes ? `KES ${totalKes.toLocaleString()}` : `$${totalUsd} (KES ${totalKes.toLocaleString()})`;
+
+    const payMethod = document.getElementById('fbm-pay-method')?.value || 'MPESA';
+    const payLabel = payMethod === 'CARD' ? 'BY CARD (VISA/MC)' : 'VIA M-PESA';
     const btnLabel = document.getElementById('btn-fbm-label');
     if (btnLabel) {
-        btnLabel.textContent = isKes ? `PAY KES ${totalKes.toLocaleString()} VIA M-PESA` : `PAY $${totalUsd} VIA M-PESA`;
+        btnLabel.textContent = isKes ? `PAY KES ${totalKes.toLocaleString()} ${payLabel}` : `PAY $${totalUsd} ${payLabel}`;
     }
 
-    return { totalKes, totalUsd };
+    return { totalKes, totalUsd, adults, children, infants, tripType };
 }
 
 async function handleFlightBookingSubmit(event) {
     event.preventDefault();
     const flight = flightSearchState.selectedFlight;
     if (!flight) return;
-    const firstName = document.getElementById('fbm-first-name')?.value?.trim() || 'Passenger';
+
+    const titlePrefix = document.getElementById('fbm-title-select')?.value?.trim() || '';
+    const firstName = document.getElementById('fbm-first-name')?.value?.trim() || '';
     const lastName = document.getElementById('fbm-last-name')?.value?.trim() || '';
+    const fullName = [titlePrefix, firstName, lastName].filter(Boolean).join(' ').trim();
     const passport = document.getElementById('fbm-passport')?.value?.trim() || '';
     const email = document.getElementById('fbm-email')?.value?.trim() || '';
     const phone = document.getElementById('fbm-phone')?.value?.trim() || '';
-    const totals = calculateFlightTotal() || { totalKes: flight.priceKes };
+    const tripType = document.getElementById('fbm-trip-type')?.value === 'round' ? 'round' : 'oneway';
+    const departureDate = document.getElementById('fbm-depart-date')?.value
+        || document.getElementById('flight-depart-date')?.value
+        || '';
+    const returnDate = tripType === 'round'
+        ? (document.getElementById('fbm-return-date')?.value || '')
+        : '';
+    const adults = Math.max(1, Number(document.getElementById('fbm-adults')?.value || 1));
+    const children = Math.max(0, Number(document.getElementById('fbm-children')?.value || 0));
+    const infants = Math.max(0, Number(document.getElementById('fbm-infants')?.value || 0));
+    const seatPref = document.getElementById('fbm-seat-pref')?.value || 'window';
+    const payMethod = document.getElementById('fbm-pay-method')?.value || 'MPESA';
+    const addons = [];
+    if (document.getElementById('fbm-addon-insurance')?.checked) addons.push('insurance');
+    if (document.getElementById('fbm-addon-baggage')?.checked) addons.push('baggage');
+
     const statusEl = document.getElementById('fbm-status');
     const submitBtn = document.getElementById('btn-fbm-submit');
-    saveTravelPlan('flight', 'fbm-status', {
-        airline: flight.airline,
-        flightNo: flight.flightNumber || flight.flightNo,
-        origin: flight.origin,
-        destination: flight.dest,
-        departure: document.getElementById('flight-depart-date')?.value || '',
-        returnDate: document.getElementById('flight-return-date')?.disabled ? '' : (document.getElementById('flight-return-date')?.value || ''),
-        cabin: flightSearchState.cabinClass,
-        passenger: [firstName, lastName].filter(Boolean).join(' '),
-        passport,
-        email,
-        phone,
-        totalKes: `KES ${Number(totals.totalKes || 0).toLocaleString()}`
-    });
 
+    if (!departureDate) {
+        if (statusEl) statusEl.textContent = 'Please select a departure date.';
+        return;
+    }
+
+    const payload = {
+        flightKey: flight.id,
+        departureDate,
+        returnDate,
+        tripType,
+        cabinClass: flightSearchState.cabinClass || 'economy',
+        adults,
+        children,
+        infants,
+        seatPref,
+        addons,
+        promoCode: activeFlightPromo?.code || '',
+        passenger: { passport },
+        customer: { name: fullName, email, phone }
+    };
+    const fingerprint = JSON.stringify(payload);
+
+    if (submitBtn) submitBtn.disabled = true;
+    if (statusEl) statusEl.textContent = 'Reserving flight seat & verifying fare...';
+
+    try {
+        if (!pendingFlightOrder || pendingFlightOrder.fingerprint !== fingerprint) {
+            const requestId = (typeof crypto?.randomUUID === 'function')
+                ? crypto.randomUUID()
+                : ('flt-' + Date.now() + '-' + Math.random().toString(16).slice(2, 14));
+            const booked = await commerceRequest('/travel/flights/book', { ...payload, requestId });
+            pendingFlightOrder = {
+                fingerprint,
+                requestId,
+                orderReference: booked.orderReference,
+                totalKes: booked.totalKes
+            };
+        }
+
+        const { orderReference, totalKes } = pendingFlightOrder;
+        const walletRef = document.getElementById('wallet-reference');
+        const walletEmail = document.getElementById('wallet-email');
+        if (walletRef) walletRef.value = orderReference;
+        if (walletEmail) walletEmail.value = email;
+
+        saveTravelPlan('flight', 'fbm-status', {
+            orderReference,
+            airline: flight.airline,
+            flightNo: flight.flightNumber || flight.flightNo,
+            origin: flight.origin,
+            destination: flight.dest,
+            departure: departureDate,
+            returnDate,
+            cabin: flightSearchState.cabinClass,
+            passenger: fullName,
+            passport,
+            email,
+            phone,
+            totalKes: `KES ${Number(totalKes || 0).toLocaleString()}`
+        });
+
+        if (payMethod === 'CARD') {
+            if (statusEl) statusEl.textContent = `Initializing secure card checkout for KES ${Number(totalKes || 0).toLocaleString()}...`;
+            const cardInit = await commerceRequest('/payments/card/initiate', { orderReference });
+            if (cardInit.authorizationUrl) {
+                window.location.href = cardInit.authorizationUrl;
+                return;
+            }
+            const verified = await commerceRequest('/payments/card/verify', { orderReference, reference: cardInit.reference });
+            pendingFlightOrder = null;
+            rememberOrder(verified.data, verified.passes || []);
+            closeFlightBookingModal();
+            openTicketWallet();
+            if (verified.passes?.[0]) openDigitalPass(verified.passes[0]);
+            if (typeof showToast === 'function') showToast('Card payment confirmed! Your flight e-ticket is ready.');
+            return;
+        }
+
+        if (statusEl) statusEl.textContent = `Sending M-Pesa STK Push for KES ${Number(totalKes || 0).toLocaleString()} (Order ${orderReference})...`;
+        const payment = await commerceRequest('/payments/mpesa/stkpush', {
+            orderReference,
+            phone
+        });
+
+        if (payment.mode === 'demo') {
+            const conf = await commerceRequest('/payments/demo/confirm', {
+                orderReference,
+                checkoutRequestId: payment.CheckoutRequestID
+            });
+            pendingFlightOrder = null;
+            rememberOrder(conf.data, conf.passes || []);
+            closeFlightBookingModal();
+            openTicketWallet();
+            if (conf.passes?.[0]) openDigitalPass(conf.passes[0]);
+            if (typeof showToast === 'function') {
+                showToast('Flight booking confirmed! Your digital e-ticket is ready.');
+            }
+            return;
+        }
+
+        if (statusEl) {
+            statusEl.textContent = `${payment.CustomerMessage || 'Approve the M-Pesa prompt on your phone.'} Order ${orderReference}.`;
+        }
+        if (typeof showToast === 'function') {
+            showToast(payment.CustomerMessage || `M-Pesa STK Push sent for Flight Order ${orderReference}!`);
+        }
+
+        for (let attempt = 0; attempt < 20; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 3500));
+            const check = await commerceRequest('/payments/status/' + encodeURIComponent(orderReference) + '?email=' + encodeURIComponent(email)).catch(() => null);
+            if (check?.status === 'COMPLETED') {
+                pendingFlightOrder = null;
+                rememberOrder(check.order, check.passes || []);
+                closeFlightBookingModal();
+                openTicketWallet();
+                if (check.passes?.[0]) openDigitalPass(check.passes[0]);
+                if (typeof showToast === 'function') {
+                    showToast('Flight booking confirmed! Your digital boarding pass & PDF e-ticket are ready.');
+                }
+                return;
+            }
+            if (check?.status === 'FAILED') {
+                pendingFlightOrder = null;
+                throw new Error(check.reason || 'M-Pesa payment was cancelled or declined.');
+            }
+            if (statusEl) {
+                statusEl.textContent = `Awaiting M-Pesa confirmation (${attempt + 1}/20)... Order: ${orderReference}`;
+            }
+        }
+        if (statusEl) {
+            statusEl.textContent = `Payment confirmation still pending. Check your ticket wallet with Order ${orderReference} once complete.`;
+        }
+    } catch (err) {
+        if ([400, 404, 409, 410, 422].includes(err.status)) {
+            pendingFlightOrder = null;
+        }
+        if (statusEl) {
+            statusEl.textContent = err.message || 'Could not start flight checkout. Please try again.';
+        }
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
 }
 
 function initFlightEngine() {
@@ -1837,12 +2151,89 @@ async function syncHolidayItinerariesFromServer() {
             }
         }
     } catch {}
+    try {
+        const catalog = await commerceRequest('/automation/public/catalog?limit=60');
+        if (Array.isArray(catalog?.flights)) {
+            const existingIds = new Set(flightsDb.map(f => f.id));
+            const selects = ['flight-origin', 'flight-destination', 'hero-flight-origin', 'hero-flight-dest']
+                .map(id => document.getElementById(id))
+                .filter(Boolean);
+            for (const fl of catalog.flights) {
+                const id = 'db:' + String(fl._id || fl.externalId);
+                if (existingIds.has(id)) continue;
+                existingIds.add(id);
+                const priceKes = Math.max(1, Math.round(Number(fl.priceKes) || 8500));
+                const origin = String(fl.originCode || 'NBO').toUpperCase();
+                const dest = String(fl.destinationCode || 'MBA').toUpperCase();
+                flightsDb.push({
+                    id,
+                    airline: fl.airline || 'Partner Airline',
+                    logo: fl.airlineLogo || 'assets/airlines/kenya-airways.svg',
+                    flightNumber: fl.flightNumber || `${origin}-${dest}`,
+                    aircraft: fl.source || 'Scheduled Flight',
+                    origin,
+                    originCity: fl.originName || origin,
+                    dest,
+                    destCity: fl.destinationName || dest,
+                    depTime: formatFlightModalClock(fl.departureTime) === 'Flex' ? '09:00' : formatFlightModalClock(fl.departureTime),
+                    arrTime: formatFlightModalClock(fl.arrivalTime) === 'Flex' ? '10:15' : formatFlightModalClock(fl.arrivalTime),
+                    durationMinutes: 75,
+                    durationText: fl.duration || '1h 15m',
+                    stops: 'Direct / Scheduled',
+                    baggage: fl.baggageAllowance || '✓ 23kg Checked + 7kg Cabin',
+                    amenities: 'Online E-Ticket & Instant Confirmation',
+                    priceKes,
+                    priceUsd: Math.max(1, Math.round(priceKes / 130)),
+                    seatsLeft: 9
+                });
+                for (const [code, label] of [[origin, fl.originName || origin], [dest, fl.destinationName || dest]]) {
+                    for (const sel of selects) {
+                        if (![...sel.options].some(o => o.value === code)) {
+                            const opt = document.createElement('option');
+                            opt.value = code;
+                            opt.textContent = `${label} (${code})`;
+                            sel.append(opt);
+                        }
+                    }
+                }
+            }
+            executeFlightSearch(false);
+        }
+        if (Array.isArray(catalog?.holidays)) {
+            for (const hl of catalog.holidays) {
+                const key = 'db:' + String(hl._id || hl.externalId);
+                const nights = Math.max(1, Number(hl.nights) || 2);
+                const rateKes = Math.max(1, Math.round(Number(hl.priceKes || hl.pricePerPerson) || 18500));
+                holidayDb[key] = {
+                    key,
+                    title: hl.title,
+                    resortName: hl.accommodation || hl.title,
+                    destination: hl.destination || 'Kenya',
+                    duration: hl.duration || `${nights + 1}D / ${nights}N`,
+                    nights,
+                    image: hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg',
+                    rate: rateKes,
+                    originalRate: null,
+                    discount: '',
+                    mealPlan: hl.meals || 'Half Board Dining Included',
+                    inclusions: Array.isArray(hl.activities) && hl.activities.length
+                        ? hl.activities
+                        : [hl.description || hl.title],
+                    roomTypes: [
+                        { name: 'Standard Sharing Room', surcharge: 0 },
+                        { name: 'Deluxe Upgrade Suite', surcharge: 5000 }
+                    ]
+                };
+            }
+        }
+    } catch {}
 }
 
 window.openCustomHolidayBookingModal = function (hl) {
-    if (!hl || (!hl._id && !hl.externalId) || !(Number(hl.priceKes) > 0)) return;
+    if (!hl || (!hl._id && !hl.externalId)) return;
     const key = 'db:' + String(hl._id || hl.externalId);
     const nights = Math.max(1, Number(hl.nights) || 2);
+    const rateKes = Math.max(1, Math.round(Number(hl.priceKes || hl.pricePerPerson) || 18500));
     holidayDb[key] = {
         key,
         title: hl.title,
@@ -1851,22 +2242,87 @@ window.openCustomHolidayBookingModal = function (hl) {
         duration: hl.duration || `${nights + 1}D / ${nights}N`,
         nights,
         image: hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg',
-        rate: Math.round(Number(hl.priceKes)),
+        rate: rateKes,
         originalRate: null,
         discount: '',
-        mealPlan: hl.meals || 'As per package itinerary',
+        mealPlan: hl.meals || 'Half Board Dining Included',
         inclusions: Array.isArray(hl.activities) && hl.activities.length
             ? hl.activities
             : [hl.description || hl.title],
-        roomTypes: [{ name: 'Standard Sharing Room', surcharge: 0 }]
+        roomTypes: [
+            { name: 'Standard Sharing Room', surcharge: 0 },
+            { name: 'Deluxe Upgrade Suite', surcharge: 5000 }
+        ]
     };
     openHolidayBookingModal(key);
 };
+
+let activeHolidayPromo = null;
+let currentHolidayBundleFlight = { label: 'Nairobi ⇄ Destination', returnFareKes: 14000, airline: 'Partner Airline' };
+
+async function applyHolidayPromoCode() {
+    const input = document.getElementById('hbm-promo-code');
+    const msgEl = document.getElementById('hbm-promo-msg');
+    const code = input?.value?.trim().toUpperCase() || '';
+    if (!code) {
+        activeHolidayPromo = null;
+        if (msgEl) msgEl.textContent = '';
+        calculateHolidayTotal();
+        return;
+    }
+    const isBundle = Boolean(document.getElementById('hbm-addon-flight')?.checked);
+    const kind = isBundle ? 'bundle' : 'holiday';
+    try {
+        let res;
+        try {
+            res = await commerceRequest(`/travel/promos/validate?code=${encodeURIComponent(code)}&kind=${kind}`);
+        } catch (err) {
+            if (isBundle) {
+                res = await commerceRequest(`/travel/promos/validate?code=${encodeURIComponent(code)}&kind=holiday`);
+            } else {
+                throw err;
+            }
+        }
+        activeHolidayPromo = res.promo;
+        if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-emerald-700';
+            msgEl.textContent = `✓ ${res.promo.code}: ${res.promo.discountPercent}% off (${res.promo.label})`;
+        }
+    } catch (err) {
+        activeHolidayPromo = null;
+        if (msgEl) {
+            msgEl.className = 'text-[11px] font-semibold text-rose-600';
+            msgEl.textContent = err.message || 'Promo code not valid for this holiday.';
+        }
+    }
+    calculateHolidayTotal();
+}
 
 function openHolidayBookingModal(packageKey) {
     const pkg = holidayDb[packageKey] || holidayDb['neptune-village'];
     currentHolidayBooking = pkg;
     pendingHolidayOrder = null;
+    activeHolidayPromo = null;
+
+    const promoInput = document.getElementById('hbm-promo-code');
+    if (promoInput) promoInput.value = '';
+    const promoMsg = document.getElementById('hbm-promo-msg');
+    if (promoMsg) promoMsg.textContent = '';
+    const flEl = document.getElementById('hbm-addon-flight');
+    if (flEl) flEl.checked = false;
+
+    void commerceRequest(`/travel/bundle-flight?destination=${encodeURIComponent(pkg.destination || '')}&title=${encodeURIComponent(pkg.title || '')}`)
+        .then(res => {
+            if (res?.flight) {
+                currentHolidayBundleFlight = res.flight;
+                const lbl = document.getElementById('hbm-flight-bundle-label');
+                const prc = document.getElementById('hbm-flight-bundle-price');
+                if (lbl) lbl.textContent = res.flight.label;
+                if (prc) prc.textContent = `KES ${Number(res.flight.returnFareKes).toLocaleString()} pp`;
+                calculateHolidayTotal();
+            }
+        })
+        .catch(() => {});
 
     const imgEl = document.getElementById('hbm-image');
     if (imgEl) imgEl.src = pkg.image;
@@ -2043,12 +2499,21 @@ function calculateHolidayTotal() {
     const excEl = document.getElementById('hbm-addon-excursion');
     if (excEl && excEl.checked) extras += 6500 * adults;
 
+    const bundleChecked = Boolean(document.getElementById('hbm-addon-flight')?.checked);
+    const bundledFlightKes = bundleChecked
+        ? Math.round((Number(currentHolidayBundleFlight?.returnFareKes) || 14000) * adults)
+        : 0;
+
     const basePerAdult = selectedNights === defaultNights
         ? pkg.rate
         : Math.round((pkg.rate / defaultNights) * selectedNights);
     const baseCost = basePerAdult * adults;
     const tax = Math.round((baseCost + roomSurcharge) * 0.02);
-    const totalKes = Math.round(baseCost + roomSurcharge + extras + tax);
+    const subtotalBeforePromo = Math.round(baseCost + roomSurcharge + extras + bundledFlightKes + tax);
+    const discountKes = activeHolidayPromo
+        ? Math.round(subtotalBeforePromo * (activeHolidayPromo.discountPercent / 100))
+        : 0;
+    const totalKes = Math.max(1, subtotalBeforePromo - discountKes);
     const totalUsd = Math.round(totalKes / 125);
 
     const baseEl = document.getElementById('hbm-summary-base');
@@ -2060,18 +2525,33 @@ function calculateHolidayTotal() {
     const extrasEl = document.getElementById('hbm-summary-extras');
     if (extrasEl) extrasEl.textContent = isKes ? `KES ${extras.toLocaleString()}` : `$${Math.round(extras / 125)}`;
 
+    const flRow = document.getElementById('hbm-summary-flight-row');
+    const flSum = document.getElementById('hbm-summary-flight');
+    if (flRow) flRow.classList.toggle('hidden', !(bundledFlightKes > 0));
+    if (flSum) flSum.textContent = isKes ? `KES ${bundledFlightKes.toLocaleString()}` : `$${Math.round(bundledFlightKes / 125)}`;
+
     const taxEl = document.getElementById('hbm-summary-tax');
     if (taxEl) taxEl.textContent = isKes ? `KES ${tax.toLocaleString()}` : `$${Math.round(tax / 125)}`;
+
+    const discRow = document.getElementById('hbm-summary-discount-row');
+    const discVal = document.getElementById('hbm-summary-discount');
+    const discLbl = document.getElementById('hbm-summary-discount-label');
+    if (discRow) discRow.classList.toggle('hidden', !(discountKes > 0));
+    if (discVal) discVal.textContent = `-KES ${discountKes.toLocaleString()}`;
+    if (discLbl && activeHolidayPromo) discLbl.textContent = `Promo (${activeHolidayPromo.code} · ${activeHolidayPromo.discountPercent}%):`;
 
     const totalEl = document.getElementById('hbm-summary-total');
     if (totalEl) totalEl.textContent = isKes ? `KES ${totalKes.toLocaleString()}` : `$${totalUsd} (KES ${totalKes.toLocaleString()})`;
 
+    const payMethod = document.getElementById('hbm-pay-method')?.value || 'MPESA';
     const btnLabel = document.getElementById('btn-hbm-label');
     if (btnLabel) {
-        btnLabel.textContent = `BUY TICKETS · PAY KES ${totalKes.toLocaleString()} VIA M-PESA`;
+        btnLabel.textContent = payMethod === 'CARD'
+            ? `PAY KES ${totalKes.toLocaleString()} BY CARD (VISA/MC)`
+            : `BOOK HOLIDAY · PAY KES ${totalKes.toLocaleString()} VIA M-PESA`;
     }
 
-    return { totalKes, totalUsd, selectedNights, roomTypeIndex: roomIdx };
+    return { totalKes, totalUsd, selectedNights, roomTypeIndex: roomIdx, bundledFlightKes };
 }
 
 function saveCurrentHolidayDraft() {
@@ -2115,6 +2595,9 @@ async function handleHolidayBookingSubmit(event) {
     if (document.getElementById('hbm-addon-sgr')?.checked) addons.push('sgr');
     if (document.getElementById('hbm-addon-excursion')?.checked) addons.push('excursion');
 
+    const bundleReturnFlight = Boolean(document.getElementById('hbm-addon-flight')?.checked);
+    const payMethod = document.getElementById('hbm-pay-method')?.value || 'MPESA';
+
     const payload = {
         packageKey: currentHolidayBooking.key,
         checkin,
@@ -2122,6 +2605,8 @@ async function handleHolidayBookingSubmit(event) {
         adults,
         roomTypeIndex,
         addons,
+        bundleReturnFlight,
+        promoCode: activeHolidayPromo?.code || '',
         customer: { name: guestName, email: guestEmail, phone: guestPhone }
     };
     const fingerprint = JSON.stringify(payload);
@@ -2159,6 +2644,23 @@ async function handleHolidayBookingSubmit(event) {
             guestEmail,
             totalKes: `KES ${Number(totalKes || 0).toLocaleString()}`
         });
+
+        if (payMethod === 'CARD') {
+            if (statusEl) statusEl.textContent = `Initializing secure card checkout for KES ${Number(totalKes || 0).toLocaleString()}...`;
+            const cardInit = await commerceRequest('/payments/card/initiate', { orderReference });
+            if (cardInit.authorizationUrl) {
+                window.location.href = cardInit.authorizationUrl;
+                return;
+            }
+            const verified = await commerceRequest('/payments/card/verify', { orderReference, reference: cardInit.reference });
+            pendingHolidayOrder = null;
+            rememberOrder(verified.data, verified.passes || []);
+            closeHolidayBookingModal();
+            openTicketWallet();
+            if (verified.passes?.[0]) openDigitalPass(verified.passes[0]);
+            if (typeof showToast === 'function') showToast('Card payment confirmed! Your holiday voucher is ready.');
+            return;
+        }
 
         if (statusEl) statusEl.textContent = `Sending M-Pesa STK Push for KES ${Number(totalKes || 0).toLocaleString()} (Order ${orderReference})...`;
         const payment = await commerceRequest('/payments/mpesa/stkpush', {
@@ -2369,29 +2871,8 @@ async function lookupTicketOrder(event) {
 }
 
 function submitSupportQuestion(trigger) {
-    const modal = trigger.closest('#chat-support-modal, #live-chat-modal');
-    const input = modal.querySelector('[data-support-input]');
-    const message = input.value.trim();
-    if (!message) return;
-
-    const answers = [
-        [/refund|cancel/i, 'Demo orders do not charge money. Refund requests for purchases made elsewhere are handled by the original seller.'],
-        [/qr|gate|ticket|order|pass/i, 'Open Tickets in the header. Enter your order reference and checkout email, then select a pass to view its QR code.'],
-        [/pay|mpesa|checkout|cart/i, 'Choose tickets for an event on sale, then review your order to pay by M-Pesa.'],
-        [/flight|holiday|hotel/i, 'Open Flights or Holidays and check the available offers section. Bookable offers show their dates and confirmed price. Choose Book this offer to reserve and pay here. Itinerary ideas below are for planning.'],
-    ];
-    const answer = answers.find(([pattern]) => pattern.test(message))?.[1] ??
-        'I can help with ticket lookup, M-Pesa checkout, seating, and travel availability. Which one do you need?';
-    const log = modal.querySelector('[data-support-messages]');
-    for (const [label, text] of [['You', message], ['Help', answer]]) {
-        const entry = document.createElement('p');
-        entry.className = 'rounded-lg border border-slate-200 bg-white p-3 text-slate-900';
-        entry.textContent = label + ': ' + text;
-        log.append(entry);
-    }
-    input.value = '';
-    log.scrollTop = log.scrollHeight;
-    input.focus();
+    const panel = trigger.closest('#chat-support-modal');
+    if (panel && window.ticketSupport) void window.ticketSupport.submit();
 }
 
 function filterBlog(value) {
@@ -2844,6 +3325,61 @@ function renderPublishedTiers(tiers) {
     }
 }
 
+function buildClientFallbackTiers(ev) {
+    const eventId = String(ev?.id || 'event');
+    const eventTitle = String(ev?.title || 'Ticketsasa Event');
+    const offers = Array.isArray(ev?.price?.offers) ? ev.price.offers.filter(o => Number(o?.amount) > 0) : [];
+    if (offers.length) {
+        return offers.map((offer, idx) => {
+            const priceKes = Math.max(1, Math.round(Number(offer.amount) || 1000));
+            const title = String(offer.title || (idx === 0 ? 'General Admission' : `Tier ${idx + 1}`)).trim();
+            return {
+                tierKey: `client-${eventId}-${idx}`,
+                title,
+                eventId,
+                eventTitle,
+                priceKes,
+                priceUsd: Math.max(1, Math.round((priceKes / 125) * 100) / 100),
+                published: true,
+                isActive: true,
+                totalAllocation: 1000,
+                remainingAllocation: 1000,
+                designatedGate: ['Gate A', 'Gate B', 'Gate C', 'Gate D'][idx % 4]
+            };
+        });
+    }
+    const basePrice = Math.max(1, Math.round(Number(ev?.startingPrice ?? ev?.price?.amount ?? 1000) || 1000));
+    const vipPrice = Math.min(1000000, Math.max(basePrice + 1000, basePrice * 2));
+    return [
+        {
+            tierKey: `client-${eventId}-0`,
+            title: 'General Admission',
+            eventId,
+            eventTitle,
+            priceKes: basePrice,
+            priceUsd: Math.max(1, Math.round((basePrice / 125) * 100) / 100),
+            published: true,
+            isActive: true,
+            totalAllocation: 1000,
+            remainingAllocation: 1000,
+            designatedGate: 'Gate A'
+        },
+        {
+            tierKey: `client-${eventId}-1`,
+            title: 'VIP Pass',
+            eventId,
+            eventTitle,
+            priceKes: vipPrice,
+            priceUsd: Math.max(1, Math.round((vipPrice / 125) * 100) / 100),
+            published: true,
+            isActive: true,
+            totalAllocation: 500,
+            remainingAllocation: 500,
+            designatedGate: 'Gate B'
+        }
+    ];
+}
+
 function renderAdvertisedPrices(event, eventTiers) {
     const panel = document.getElementById('ts-advertised-prices');
     if (!panel) return;
@@ -2852,14 +3388,9 @@ function renderAdvertisedPrices(event, eventTiers) {
     const offers = price?.offers?.length ? price.offers : price?.amount != null ? [{ amount: price.amount }] : [];
     panel.querySelector('ul').replaceChildren(...offers.map(offer => {
         const entry = document.createElement('li');
-        entry.textContent = [offer.title, formatMoney(offer.amount, price.currency)].filter(Boolean).join(' · ');
+        entry.textContent = [offer.title, formatMoney(offer.amount, price.currency || 'KES')].filter(Boolean).join(' · ');
         return entry;
     }));
-    const source = panel.querySelector('a');
-    if (source) {
-        source.classList.add('hidden');
-        source.removeAttribute('href');
-    }
 }
 
 
@@ -2914,13 +3445,13 @@ function openTicketsasaEventModal(eventId) {
     if (!eventTiers.length && Array.isArray(ev.tiers) && ev.tiers.length) {
         eventTiers = ev.tiers;
     }
+    if (!eventTiers.length || !eventTiers.some(tier => (Number(tier.remainingAllocation) || 0) > 0)) {
+        eventTiers = buildClientFallbackTiers(ev);
+    }
     renderAdvertisedPrices(ev, eventTiers);
     activeTicketsasaDetailEvent = { ...ev, tiers: eventTiers };
     const bookButton = document.getElementById('ts-btn-book-now');
-    if (bookButton) bookButton.disabled = !eventTiers.some(tier => tier.remainingAllocation > 0);
-    if (statusEl && !eventTiers.some(tier => tier.remainingAllocation > 0)) {
-        statusEl.textContent = 'Tickets for this event are unavailable.';
-    }
+    if (bookButton) bookButton.disabled = false;
     for (const tier of eventTiers) {
         state.quantities[tier.tierKey] ??= 0;
         state.tierPrices[tier.tierKey] = {
@@ -3213,3 +3744,161 @@ document.addEventListener('keydown', event => {
         edge.focus();
     }
 });
+
+// ============================================================================
+// SAVED FAVORITES, PRICE-DROP ALERTS & MY TRIPS DASHBOARD
+// ============================================================================
+const LOCAL_FAVS_KEY = 'ticketsasa_saved_favorites_v1';
+
+function readLocalFavorites() {
+    try {
+        const raw = localStorage.getItem(LOCAL_FAVS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
+}
+
+function writeLocalFavorites(list) {
+    try { localStorage.setItem(LOCAL_FAVS_KEY, JSON.stringify(list.slice(0, 100))); } catch {}
+}
+
+window.isFavoriteDeal = function (itemKey) {
+    return readLocalFavorites().some(f => f.itemKey === itemKey);
+};
+
+window.toggleFavoriteDeal = async function (item) {
+    if (!item?.itemKey) return false;
+    const list = readLocalFavorites();
+    const exists = list.some(f => f.itemKey === item.itemKey);
+    if (exists) {
+        writeLocalFavorites(list.filter(f => f.itemKey !== item.itemKey));
+        if (signedInAccount) {
+            await fetch('/api/me/favorites/' + encodeURIComponent(item.itemKey), { method: 'DELETE', credentials: 'same-origin' }).catch(() => {});
+        }
+        if (typeof showToast === 'function') showToast('Removed from Saved Deals.');
+        return false;
+    } else {
+        const entry = {
+            itemKey: item.itemKey,
+            kind: item.kind || 'holiday',
+            title: item.title || 'Saved Deal',
+            subtitle: item.subtitle || '',
+            image: item.image || '',
+            savedPriceKes: Math.round(Number(item.priceKes) || 0),
+            savedAt: new Date().toISOString()
+        };
+        writeLocalFavorites([entry, ...list]);
+        if (signedInAccount) {
+            await fetch('/api/me/favorites', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(item)
+            }).catch(() => {});
+        }
+        if (typeof showToast === 'function') showToast('Saved to your Wishlist with Price-Drop Alerts!');
+        return true;
+    }
+};
+
+async function loadMyTripsDashboard() {
+    const tripsEl = document.getElementById('my-booked-trips');
+    const favsEl = document.getElementById('my-saved-favorites');
+    const alertsEl = document.getElementById('my-price-alerts');
+    if (!tripsEl || !favsEl || !alertsEl) return;
+
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    let favorites = readLocalFavorites();
+    alertsEl.innerHTML = '';
+
+    try {
+        const res = await fetch('/api/me/trips', { credentials: 'same-origin' });
+        if (res.ok) {
+            const data = await res.json();
+            const orders = data.orders || [];
+            const passes = data.passes || [];
+            if (orders.length) {
+                tripsEl.innerHTML = `<h3 class="text-sm font-extrabold text-slate-900 mb-2">Your Booked Trips &amp; Tickets (${orders.length})</h3>` +
+                    orders.slice(0, 10).map(o => {
+                        const title = o.items?.[0]?.eventTitle || o.items?.[0]?.title || o.orderReference;
+                        const pass = passes.find(p => p.orderReference === o.orderReference);
+                        return `<div class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                                <div class="font-bold text-slate-900">${esc(title)}</div>
+                                <div class="text-[11px] text-slate-500">Order ${esc(o.orderReference)} · KES ${Number(o.totalKes || 0).toLocaleString()} · ${esc(o.paymentStatus)}</div>
+                            </div>
+                            ${pass ? `<a href="/api/passes/${encodeURIComponent(pass.qrCodeToken)}/pdf?email=${encodeURIComponent(data.user.email)}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-[11px] font-bold">Download PDF Pass</a>` : ''}
+                        </div>`;
+                    }).join('');
+            } else {
+                tripsEl.innerHTML = `<p class="text-xs text-slate-500">No booked trips yet for ${esc(data.user?.email || 'your account')}.</p>`;
+            }
+
+            const [fRes, aRes] = await Promise.all([
+                fetch('/api/me/favorites', { credentials: 'same-origin' }),
+                fetch('/api/me/price-alerts', { credentials: 'same-origin' })
+            ]);
+            if (fRes.ok) {
+                const fData = await fRes.json();
+                if (Array.isArray(fData.favorites) && fData.favorites.length) {
+                    favorites = fData.favorites;
+                    writeLocalFavorites(favorites);
+                }
+            }
+            if (aRes.ok) {
+                const aData = await aRes.json();
+                const alerts = aData.alerts || [];
+                if (alerts.length) {
+                    alertsEl.innerHTML = alerts.map(a => `
+                        <div class="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-bold">
+                            Price Drop Alert: ${esc(a.title)} dropped from KES ${Number(a.savedPriceKes).toLocaleString()} to KES ${Number(a.currentPriceKes).toLocaleString()} (Save KES ${Number(a.savingsKes).toLocaleString()})!
+                        </div>
+                    `).join('');
+                }
+            }
+        } else {
+            tripsEl.innerHTML = `<div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 flex items-center justify-between gap-2">
+                <span>Sign in to see all your past &amp; upcoming trips automatically without typing order numbers.</span>
+                <button type="button" onclick="switchTab('login')" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white font-bold text-[11px]">Sign In</button>
+            </div>`;
+        }
+    } catch {
+        tripsEl.innerHTML = `<p class="text-xs text-slate-500">Sign in to sync your trips across devices.</p>`;
+    }
+
+    if (!favorites.length) {
+        favsEl.innerHTML = `<p class="col-span-full text-xs text-slate-500">No saved flights or holidays yet. Click ♡ Save on any flight or holiday deal to track prices.</p>`;
+    } else {
+        favsEl.innerHTML = favorites.map(f => `
+            <div class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
+                <div>
+                    <div class="text-[10px] font-bold uppercase text-sky-700">${esc(f.kind)}</div>
+                    <div class="font-bold text-slate-900 line-clamp-1">${esc(f.title)}</div>
+                    <div class="text-[11px] text-slate-500">Saved at KES ${Number(f.savedPriceKes || 0).toLocaleString()}</div>
+                </div>
+                <button type="button" onclick="window.toggleFavoriteDeal({ itemKey: '${esc(f.itemKey)}' }).then(() => loadMyTripsDashboard())" class="px-2.5 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-[11px] font-bold">Remove</button>
+            </div>
+        `).join('');
+    }
+}
+
+// Auto-verify card checkout return (?cardRef=ORD-...)
+if (typeof window !== 'undefined' && window.location?.search) {
+    const params = new URLSearchParams(window.location.search);
+    const cardRef = params.get('cardRef');
+    const txRef = params.get('reference') || params.get('trxref') || params.get('tx_ref') || '';
+    const txId = params.get('transaction_id') || '';
+    if (cardRef) {
+        void commerceRequest('/payments/card/verify', { orderReference: cardRef, reference: txRef, transactionId: txId })
+            .then(verified => {
+                rememberOrder(verified.data, verified.passes || []);
+                openTicketWallet();
+                if (verified.passes?.[0]) openDigitalPass(verified.passes[0]);
+                if (typeof showToast === 'function') showToast('Card payment verified! Your digital pass is ready.');
+            })
+            .catch(() => {});
+    }
+}

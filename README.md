@@ -10,34 +10,33 @@ A full-stack, enterprise-grade event ticketing and arena management ecosystem co
 
 ```text
 traffic/
-├── backend/                  # Node.js + Express + MongoDB Atlas Backend API
+├── backend/                      # Express API, MongoDB, auth and payments
 │   ├── src/
-│   │   ├── config/db.js      # MongoDB Atlas Mongoose connection & graceful fallback
-│   │   ├── models/           # Mongoose schemas (Event, StadiumZone, TicketTier, Order, DigitalPass)
-│   │   ├── controllers/      # Business logic & server-side demo checkout
-│   │   ├── routes/           # REST endpoints (/api/events, /api/zones, /api/tickets, /api/orders, /api/payments)
-│   │   ├── seed.js           # Database seeder for MongoDB Atlas
-│   │   └── server.js         # Express server running on port 5000
-│   ├── .env                  # MongoDB Atlas URI & configuration
+│   ├── test/
+│   ├── .env                      # Private backend configuration
 │   └── package.json
-│
-├── frontend-angular/         # Angular 19 Client Application
-│   ├── src/
-│   │   ├── app/
-│   │   │   ├── services/api.service.ts  # Angular HttpClient connected to Node.js backend
-│   │   │   ├── app.component.ts         # Reactive state, cart, zone inspection, M-Pesa modal
-│   │   │   └── app.component.html       # Modern UI with responsive stadium telemetry & ticketing
-│   │   ├── index.html
-│   │   ├── main.ts
-│   │   └── styles.css
-│   ├── angular.json
-│   ├── tsconfig.json
+├── frontend/                     # All client applications and public files
+│   ├── index.html                # Storefront served at http://localhost:8000
+│   ├── app.js
+│   ├── styles.css
+│   ├── assets/
+│   ├── admin-ui/                 # React admin dashboard
+│   ├── frontend-angular/         # Optional Angular client
+│   ├── android/                  # Android WebView wrapper
+│   ├── scripts/                  # Frontend build helpers and legacy archive
+│   ├── dist/                     # Optional downloadable APK output
 │   └── package.json
-│
-├── index.html                # Standalone Interactive Client (Runs directly on http://localhost:8000)
-├── app.js                    # Client-side engine with SVG QR generator & Web Audio API
-└── styles.css                # Glassmorphism, animations & print stylesheet for digital passes
+├── package.json                  # Root convenience commands
+├── Dockerfile
+└── render.yaml
 ```
+
+Run `npm run install:all` from the project root to install all application dependencies.
+Run `npm start` to serve the API and frontend together on port 8000.
+Run `npm run build` to build the storefront, admin dashboard and Angular client.
+Backend secrets stay in `backend/.env`; never copy them into `frontend`.
+Existing URLs such as `/admin`, `/assets` and `/api` remain unchanged.
+
 
 ---
 
@@ -81,13 +80,13 @@ different SQLite file. The migration reads the old file without modifying it.
 
 ---
 
-## 2. Angular Application (`frontend-angular/`)
+## 2. Angular Application (`frontend/frontend-angular/`)
 
 The Angular client utilizes Angular 19 with standalone components and Angular's `HttpClient` to communicate with the Node.js backend.
 
 ### Running Angular:
 ```bash
-cd frontend-angular
+cd frontend/frontend-angular
 npm install
 npm start
 ```
@@ -121,16 +120,16 @@ can use **Install app** in a browser that supports the install prompt, or
 **Add to Home Screen** from their browser menu. Localhost is suitable for
 testing on this computer. Booking and wallet requests still need a connection.
 
-The `android/` project packages the same HTTPS storefront. Build it with
+The `frontend/android/` project packages the same HTTPS storefront. Build it with
 JDK 17, Gradle 8.9, and Android SDK Platform 35. Set
 `TICKETSASA_WEB_ORIGIN` to your deployed origin, with no path. For a local
-Android smoke test run `gradle -p android :app:assembleDebug`. For release,
+Android smoke test run `gradle -p frontend/android :app:assembleDebug`. For release,
 configure `TICKETSASA_KEYSTORE`, `TICKETSASA_STORE_PASSWORD`,
 `TICKETSASA_KEY_ALIAS`, and `TICKETSASA_KEY_PASSWORD` in your build environment,
-then run `gradle -p android :app:prepareDownload`. Keep the keystore and its
+then run `gradle -p frontend/android :app:prepareDownload`. Keep the keystore and its
 passwords outside the repository and reuse the signing key for updates.
 
-Deploy `dist/ticketsasa.apk` with the backend. The server serves it at
+Deploy `frontend/dist/ticketsasa.apk` with the backend. The server serves it at
 `/downloads/ticketsasa.apk`, and the storefront displays **Android APK**
 when the file is available.
 
@@ -246,7 +245,7 @@ the same keys for their API requests.
 
 ## Administration dashboard
 
-Build the dashboard with `npm ci` followed by `npm run build` in `admin-ui`.
+Build the dashboard with `npm ci` followed by `npm run build` in `frontend/admin-ui`.
 Restart the backend and open `/admin`. Sign in as `admin` with the private
 `ORGANIZER_KEY` from the backend environment.
 

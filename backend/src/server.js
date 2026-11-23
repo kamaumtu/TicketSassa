@@ -111,7 +111,16 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount Routes
+app.get('/api/support/contact', (req, res) => {
+    const email = String(process.env.SUPPORT_EMAIL || '').trim();
+    const phone = String(process.env.SUPPORT_PHONE || '').trim();
+    res.set('Cache-Control', 'no-store').json({
+        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254 ? email : null,
+        phone: /^\+?[\d ()-]{7,25}$/.test(phone) ? phone : null
+    });
+});
 app.use('/api/auth', authRoutes);
+app.use('/api/me', require('./routes/customerTrips'));
 app.use('/api/events', eventRoutes);
 app.use('/api/tickets', ticketRoutes);
 app.use('/api/orders', orderRoutes);
@@ -121,7 +130,7 @@ app.use('/api/travel', travelRoutes);
 app.use('/api/automation', automationPublicRoutes);
 
 // Serve the standalone client and its public assets from the API origin.
-const publicRoot = resolve(__dirname, '../..');
+const publicRoot = resolve(__dirname, '../../frontend');
 app.get('/', (req, res) => res.sendFile('index.html', { root: publicRoot }));
 app.get(['/manifest.webmanifest', '/offline.html', '/install-app.js', '/service-worker.js'], (req, res) => {
     if (req.path === '/manifest.webmanifest') res.type('application/manifest+json');
@@ -181,7 +190,8 @@ app.get('/organizer', adminOnly, (req, res) => {
 app.get('/staff/check-in', privateTool('PASS_SCANNER_KEY', 'Ticket check-in'), (req, res) => {
     res.sendFile('staff-check-in.html', { root: publicRoot });
 });
-app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
 app.use('/assets', express.static(resolve(publicRoot, 'assets'), { index: false }));

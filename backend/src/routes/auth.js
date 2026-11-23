@@ -337,12 +337,23 @@ router.get('/google/callback', route(async (req, res) => {
     res.redirect('/?view=login');
 }));
 
-router.get('/me', route(async (req, res) => {
+async function resolveSessionAccount(req) {
     const id = sessionId(req);
-    const session = id && await collection('customer_sessions').findOne({ _id: id, expiresAt: { $gt: new Date() } });
-    const account = session && await collection('customer_accounts').findOne({ _id: session.account });
-    if (!account?.emailVerifiedAt) return res.status(401).json({ success: false, message: 'Sign in to continue.' });
-    res.json({ success: true, user: publicAccount(account) });
+    if (!id) return null;
+    try {
+        const session = await collection('customer_sessions').findOne({ _id: id, expiresAt: { $gt: new Date() } });
+        if (!session) return null;
+        const account = await collection('customer_accounts').findOne({ _id: session.account });
+        return account?.emailVerifiedAt ? publicAccount(account) : null;
+    } catch {
+        return null;
+    }
+}
+
+router.get('/me', route(async (req, res) => {
+    const user = await resolveSessionAccount(req);
+    if (!user) return res.status(401).json({ success: false, message: 'Sign in to continue.' });
+    res.json({ success: true, user });
 }));
 
 router.post('/logout', route(async (req, res) => {
@@ -350,4 +361,4 @@ router.post('/logout', route(async (req, res) => {
     res.clearCookie(cookieName, cookieOptions(req)).json({ success: true });
 }));
 
-module.exports = { router, createAuthIndexes };
+module.exports = { router, createAuthIndexes, resolveSessionAccount };

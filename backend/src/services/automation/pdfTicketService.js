@@ -6,7 +6,7 @@ const { randomBytes } = require('node:crypto');
 const { publicOrigin, emailConfig } = require('../accountProviders');
 const { GeneratedTicket } = require('../../models/automation');
 
-const publicRoot = path.resolve(__dirname, '../../..');
+const publicRoot = path.resolve(__dirname, '../../../../frontend');
 
 function generateTicketIdentifiers() {
     const year = new Date().getFullYear();
@@ -185,12 +185,21 @@ async function renderPassPdfBuffer(pass) {
         const pageW = doc.page.width;
         const pageH = doc.page.height;
         const isHoliday = Boolean(pass.itinerary);
+        const isFlight = Boolean(pass.flightItinerary);
 
-        doc.rect(0, 0, pageW, 56).fill(isHoliday ? '#15803D' : '#D81A21');
+        doc.rect(0, 0, pageW, 56).fill(isHoliday ? '#15803D' : isFlight ? '#0369A1' : '#D81A21');
         doc.fillColor('#FFFFFF').font('Helvetica-Bold').fontSize(20)
-            .text(isHoliday ? 'TICKETSASA HOLIDAYS' : 'TICKETSASA KENYA', 28, 16);
+            .text(isHoliday ? 'TICKETSASA HOLIDAYS' : isFlight ? 'TICKETSASA FLIGHTS' : 'TICKETSASA KENYA', 28, 16);
         doc.font('Helvetica').fontSize(9)
-            .text(isHoliday ? 'CONFIRMED HOLIDAY ITINERARY VOUCHER & CHECK-IN PASS' : 'OFFICIAL DIGITAL ADMISSION PASS', 28, 39);
+            .text(
+                isHoliday
+                    ? 'CONFIRMED HOLIDAY ITINERARY VOUCHER & CHECK-IN PASS'
+                    : isFlight
+                        ? 'CONFIRMED FLIGHT E-TICKET & BOARDING VOUCHER'
+                        : 'OFFICIAL DIGITAL ADMISSION PASS',
+                28,
+                39
+            );
         doc.font('Helvetica-Bold').fontSize(11)
             .text(pass.passReference || '', pageW - 220, 22, { width: 192, align: 'right' });
 
@@ -220,8 +229,26 @@ async function renderPassPdfBuffer(pass) {
             if (pass.itinerary.mealPlan) {
                 doc.text(`Meal Plan: ${pass.itinerary.mealPlan}`, { width: detailsW });
             }
+            if (pass.itinerary.bundledFlight) {
+                doc.text(`Return Flight Bundle: ${pass.itinerary.bundledFlight.label} (${pass.itinerary.bundledFlight.airline})`, { width: detailsW });
+            }
             if (Array.isArray(pass.itinerary.addons) && pass.itinerary.addons.length) {
                 doc.text(`Add-ons: ${pass.itinerary.addons.join(', ')}`, { width: detailsW });
+            }
+        } else if (pass.flightItinerary) {
+            const fl = pass.flightItinerary;
+            doc.text(`Airline: ${fl.airline || ''} ${fl.flightNumber || ''}`.trim(), { width: detailsW });
+            doc.text(`Route: ${fl.originCode} (${fl.originName || fl.originCode}) → ${fl.destinationCode} (${fl.destinationName || fl.destinationCode})`, { width: detailsW });
+            doc.text(`Departure: ${fl.departureDate}${fl.depTime && fl.depTime !== 'Scheduled' ? ' · ' + fl.depTime : ''}${fl.returnDate ? ' | Return: ' + fl.returnDate : ''}`, { width: detailsW });
+            doc.text(`Cabin & Seat: ${String(fl.cabinClass || 'economy').toUpperCase()} · ${fl.seatPref || 'Standard Seat'}`, { width: detailsW });
+            if (fl.passport) {
+                doc.text(`Passport / ID: ${fl.passport}`, { width: detailsW });
+            }
+            if (fl.baggage) {
+                doc.text(`Baggage: ${fl.baggage}`, { width: detailsW });
+            }
+            if (Array.isArray(fl.addons) && fl.addons.length) {
+                doc.text(`Add-ons: ${fl.addons.join(', ')}`, { width: detailsW });
             }
         } else {
             doc.text(`Ticket Tier: ${pass.tierName}`, { width: detailsW });
@@ -229,7 +256,7 @@ async function renderPassPdfBuffer(pass) {
 
         doc.moveDown(0.5);
         doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(10.5)
-            .text(`Lead Guest / Holder: ${pass.attendeeName}`, { width: detailsW })
+            .text(`${isFlight ? 'Passenger' : 'Lead Guest / Holder'}: ${pass.attendeeName}`, { width: detailsW })
             .text(`Check-in Point: ${pass.designatedGate || 'Travel Desk'}`, { width: detailsW });
 
         doc.moveDown(0.35);
@@ -241,7 +268,7 @@ async function renderPassPdfBuffer(pass) {
         doc.roundedRect(qrX - 10, 72, 152, 198, 8).lineWidth(1).strokeColor('#CBD5E1').stroke();
         doc.image(qrBuffer, qrX + 6, 84, { width: 120, height: 120 });
         doc.fillColor('#0F172A').font('Helvetica-Bold').fontSize(8)
-            .text(isHoliday ? 'SCAN AT RESORT / DESK' : 'SCAN AT ENTRY GATE', qrX - 4, 212, { width: 140, align: 'center' });
+            .text(isHoliday ? 'SCAN AT RESORT / DESK' : isFlight ? 'SCAN AT CHECK-IN DESK' : 'SCAN AT ENTRY GATE', qrX - 4, 212, { width: 140, align: 'center' });
         doc.fillColor('#475569').font('Helvetica').fontSize(7.5)
             .text(pass.qrCodeToken, qrX - 4, 226, { width: 140, align: 'center' });
         doc.fillColor('#64748B').fontSize(6.5)

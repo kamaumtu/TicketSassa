@@ -91,21 +91,25 @@ async function completeOrder(session, order, receipt) {
     for (const item of [...order.items].sort((a, b) => a.key.localeCompare(b.key))) {
         await collection('commerce_stock').updateOne({ _id: stockKey(item.key, order.mode) },
             { $inc: { sold: item.quantity } }, { upsert: true, session });
-        if (!['ticket', 'flight', 'holiday', 'itinerary_holiday'].includes(item.kind) ||
+        if (!['ticket', 'flight', 'holiday', 'itinerary_holiday', 'itinerary_flight'].includes(item.kind) ||
             (order.mode === 'live' && /^(flight|holiday):/.test(item.key))) continue;
         for (let index = 0; index < item.quantity; index++) {
             const isItinerary = item.kind === 'itinerary_holiday';
+            const isFlightItinerary = item.kind === 'itinerary_flight';
             passes.push({
                 qrCodeToken: token('PASS-'),
-                passReference: token(isItinerary ? 'HOL-' : 'TSASA-'),
+                passReference: token(isItinerary ? 'HOL-' : isFlightItinerary ? 'FLT-' : 'TSASA-'),
                 orderReference,
                 attendeeName: order.customer.name,
                 tierName: isItinerary
                     ? `${item.itinerary?.roomType || item.title} · ${item.itinerary?.checkin || ''} to ${item.itinerary?.checkout || ''} (Guest ${index + 1}/${item.quantity})`
-                    : item.title,
+                    : isFlightItinerary
+                        ? `${item.flightItinerary?.originCode || ''} → ${item.flightItinerary?.destinationCode || ''} · ${item.flightItinerary?.departureDate || ''} · ${item.flightItinerary?.seatPref || 'Standard Seat'}`
+                        : item.title,
                 eventTitle: item.eventTitle,
                 designatedGate: item.designatedGate || 'Gate A',
                 ...(item.itinerary ? { itinerary: item.itinerary } : {}),
+                ...(item.flightItinerary ? { flightItinerary: item.flightItinerary } : {}),
                 status: 'VALID',
                 mode: order.mode
             });
@@ -120,11 +124,103 @@ async function completeOrder(session, order, receipt) {
     await saveOrder(order, session);
     const travelReservation = await confirmTravelReservation(orderReference, receipt, order.mode).catch(() => null);
     void sendOrderTicketsEmail(order, passes, travelReservation).catch(() => null);
+    void require('../services/messagingService').sendBookingAlerts(order, passes, travelReservation).catch(() => null);
     void markDepositVerified({ orderReference, checkoutRequestId: order.checkoutRequestId, receipt, status: 'COMPLETED' }).catch(() => null);
     return { order, passes, travelReservation };
 }
 
 exports.getCheckoutMode = (req, res) => res.json({ mode: checkoutMode() });
+
+exports.getPaymentMethods = (req, res) => {
+    const { cardGatewayConfig } = require('../services/cardPayments');
+    const cardCfg = cardGatewayConfig();
+    const mode = checkoutMode();
+    res.json({
+        mode,
+        mpesa: { enabled: mode !== 'unavailable', label: 'M-Pesa STK Push' },
+        card: {
+            enabled: mode !== 'unavailable',
+            configured: cardCfg.configured,
+            provider: cardCfg.provider,
+            label: 'Visa / Mastercard / Apple Pay'
+        }
+    });
+};
+
+exports.initiateCardPayment = handler(async (req, res) => {
+    const { orderReference, callbackUrl } = req.body || {};
+    if (typeof orderReference !== 'string' || !orderReference.trim()) reject(400, 'Order reference is required.');
+    const order = await getOrder(orderReference.trim());
+    if (!order) reject(404, 'Order not found.');
+    if (order.paymentStatus === 'COMPLETED') {
+        return res.json({ success: true, alreadyCompleted: true, orderReference: order.orderReference });
+    }
+    if (order.expiresAt <= Date.now()) reject(410, 'Your reservation hold expired. Start a new booking.');
+
+    const { initiateCardCheckout } = require('../services/cardPayments');
+    const safeCallback = typeof callbackUrl === 'string' && /^https?:\/\//i.test(callbackUrl)
+        ? callbackUrl
+        : `${req.protocol}://${req.get('host')}/?cardRef=${encodeURIComponent(order.orderReference)}`;
+    const result = await initiateCardCheckout({ order, callbackUrl: safeCallback });
+
+    await collection('commerce_orders').updateOne(
+        { _id: order.orderReference },
+        {
+            $set: {
+                paymentMethod: 'CARD',
+                paymentStatus: 'PROCESSING',
+                provider: result.provider,
+                checkoutRequestId: result.reference
+            }
+        }
+    );
+
+    res.json({
+        success: true,
+        orderReference: order.orderReference,
+        ...result
+    });
+});
+
+exports.verifyCardPayment = handler(async (req, res) => {
+    const { orderReference, reference, transactionId } = req.body || {};
+    if (typeof orderReference !== 'string' || !orderReference.trim()) reject(400, 'Order reference is required.');
+    const order = await getOrder(orderReference.trim());
+    if (!order) reject(404, 'Order not found.');
+    if (order.paymentStatus === 'COMPLETED') {
+        const passes = await getPasses(order.orderReference);
+        return res.json({ success: true, data: orderSummary(order), passes, digitalPass: passes[0] ?? null });
+    }
+    if (order.expiresAt <= Date.now()) reject(410, 'Your reservation hold expired. Start a new booking.');
+
+    const { verifyCardCheckout } = require('../services/cardPayments');
+    const check = await verifyCardCheckout({
+        provider: order.provider || 'demo_card',
+        reference: reference || order.checkoutRequestId || order.orderReference,
+        transactionId,
+        expectedAmountKes: order.totalKes
+    });
+    if (!check.verified) {
+        reject(402, check.reason || 'Card payment could not be verified.');
+    }
+
+    const result = await transaction(async session => {
+        const fresh = await getOrder(order.orderReference, session);
+        if (fresh.paymentStatus === 'COMPLETED') {
+            return { order: fresh, passes: await getPasses(fresh.orderReference, session) };
+        }
+        return completeOrder(session, fresh, check.receipt);
+    });
+
+    res.json({
+        success: true,
+        provider: check.provider,
+        data: orderSummary(result.order),
+        receiptNumber: result.order.receipt,
+        passes: result.passes,
+        digitalPass: result.passes[0] ?? null
+    });
+});
 
 exports.getPayHeroBalance = handler(async (req, res) => {
     if (!require('../services/organizerAccess').organizerIdentity(req.get('Authorization'))) {
@@ -159,6 +255,20 @@ exports.createOrder = handler(async (req, res) => {
         }
         const id = item?.tierKey ?? item?.productKey;
         const key = inventoryKey(kind, id);
+        if (!inventory.has(key) && kind === 'ticket' && typeof id === 'string' && id.trim()) {
+            const fallbackPrice = Math.max(1, Math.min(1000000, Math.round(Number(item.unitPriceKes) || 1000)));
+            inventory.set(key, {
+                tierKey: id.trim(),
+                title: String(item.title || 'General Admission').trim().slice(0, 120),
+                eventTitle: String(item.eventTitle || 'Ticketsasa Event').trim().slice(0, 200),
+                priceKes: fallbackPrice,
+                priceUsd: round(fallbackPrice / 125),
+                published: true,
+                designatedGate: 'Gate A',
+                remainingAllocation: 1000,
+                stock: 1000
+            });
+        }
         if (!inventory.has(key) || !Number.isSafeInteger(item.quantity) || item.quantity < 1) reject(400, 'Invalid item or quantity.');
         const expectedPrice = item.unitPriceKes ?? inventory.get(key).priceKes;
         if (displayedPrices.has(key) && displayedPrices.get(key) !== expectedPrice) reject(400, 'Ticket prices in the cart do not match.');
@@ -270,6 +380,23 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
         if (stored.paymentStatus !== 'PENDING') return { order: stored, start: false };
         if (stored.expiresAt <= Date.now()) reject(410, 'Your ticket hold expired. Start a new checkout.');
         if (mode === 'live') await require('../services/travelBookings').requireHold(stored);
+        if (stock) {
+            for (const item of stored.items) {
+                if (item.key?.startsWith('ticket:') && !stock.has(item.key)) {
+                    stock.set(item.key, {
+                        tierKey: item.tierKey,
+                        title: item.title || 'General Admission',
+                        eventTitle: item.eventTitle || 'Ticketsasa Event',
+                        priceKes: item.unitPriceKes,
+                        priceUsd: item.unitPriceUsd,
+                        published: true,
+                        designatedGate: item.designatedGate || 'Gate A',
+                        remainingAllocation: 1000,
+                        stock: 1000
+                    });
+                }
+            }
+        }
         if (stored.items.some(item => item.key?.startsWith('ticket:') && !stock?.has(item.key))) {
             reject(409, 'An item is no longer available. Start a new checkout.');
         }
@@ -477,7 +604,7 @@ exports.confirmDemo = handler(async (req, res) => {
         if (order.paymentStatus !== 'PROCESSING') reject(409, 'This order is not awaiting payment.');
 
         for (const item of order.items) {
-            if (['flight', 'holiday', 'itinerary_holiday'].includes(item.kind)) continue;
+            if (['flight', 'holiday', 'itinerary_holiday', 'itinerary_flight'].includes(item.kind)) continue;
             const current = inventory.get(item.key);
             if (!current || item.quantity > await availability(item.key, current.stock, session, orderReference)) reject(409, 'Insufficient stock for ' + item.title + '.');
         }
@@ -504,7 +631,7 @@ exports.redeemPass = handler(async (req, res) => {
     if (!/^GATE [A-D]$/.test(gate)) reject(400, 'Enter a gate from Gate A to Gate D.');
     if (scanner.gate && scanner.gate !== gate) reject(403, 'This scanner is assigned to a different gate.');
     const matchesGate = pass => {
-        if (/Travel Desk/i.test(pass.designatedGate || '')) return true;
+        if (/Travel Desk|Airport Check-in/i.test(pass.designatedGate || '')) return true;
         const assigned = pass.designatedGate.toUpperCase().match(/^GATE ([A-D])(?:\s*&\s*([A-D]))?/);
         return assigned?.slice(1).some(letter => 'GATE ' + letter === gate);
     };

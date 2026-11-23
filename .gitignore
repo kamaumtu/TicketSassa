@@ -16,6 +16,7 @@ build/
 
 # Local databases & runtime cache
 backend/data/*.sqlite*
+backend/runtime*.log
 !backend/data/.gitkeep
 __pycache__/
 *.pyc
@@ -26,8 +27,8 @@ Thumbs.db
 
 # Archives & Temporary exports
 *.zip
-scripts/archive/
-android/.gradle/
-android/local.properties
+frontend/scripts/archive/
+frontend/android/.gradle/
+frontend/android/local.properties
 *.jks
 *.keystore

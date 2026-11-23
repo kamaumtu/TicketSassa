@@ -3,6 +3,34 @@ const mongoose = require('mongoose');
 const { isConnected } = require('../config/db');
 const { collection, transaction, stockKey, checkoutMode } = require('./commerceDb');
 const { HolidayPackage, AutomationBooking } = require('../models/automation');
+const { getTravelPricing, applyTravelMarkup } = require('./travelPricing');
+const { getPromo } = require('./promos');
+
+const BUNDLE_FLIGHT_ROUTES = [
+    { pattern: /diani|ukunda|south coast/i, originCode: 'WIL', destinationCode: 'UKA', airline: 'Skyward Express / Safarilink', returnFareKes: 14000, label: 'Nairobi (WIL) ⇄ Diani Ukunda (UKA)' },
+    { pattern: /mombasa|nyali|bamburi|shanzu|north coast/i, originCode: 'NBO', destinationCode: 'MBA', airline: 'Kenya Airways / Jambojet', returnFareKes: 12800, label: 'Nairobi (NBO) ⇄ Mombasa (MBA)' },
+    { pattern: /watamu|malindi/i, originCode: 'NBO', destinationCode: 'MYD', airline: 'Jambojet / Skyward', returnFareKes: 13500, label: 'Nairobi (NBO) ⇄ Malindi/Watamu (MYD)' },
+    { pattern: /lamu|shela/i, originCode: 'WIL', destinationCode: 'LAU', airline: 'Skyward Express', returnFareKes: 17200, label: 'Nairobi (WIL) ⇄ Lamu Manda (LAU)' },
+    { pattern: /mara|maasai mara|masai mara/i, originCode: 'WIL', destinationCode: 'MRE', airline: 'Safarilink Aviation', returnFareKes: 28000, label: 'Nairobi (WIL) ⇄ Maasai Mara Airstrip' },
+    { pattern: /kisumu/i, originCode: 'NBO', destinationCode: 'KIS', airline: 'Kenya Airways / Jambojet', returnFareKes: 12200, label: 'Nairobi (NBO) ⇄ Kisumu (KIS)' },
+    { pattern: /zanzibar|stone town|nungwi/i, originCode: 'NBO', destinationCode: 'ZNZ', airline: 'Kenya Airways / Precision Air', returnFareKes: 38000, label: 'Nairobi (NBO) ⇄ Zanzibar (ZNZ)' },
+    { pattern: /dubai|abu dhabi/i, originCode: 'NBO', destinationCode: 'DXB', airline: 'Kenya Airways / Emirates', returnFareKes: 72000, label: 'Nairobi (NBO) ⇄ Dubai (DXB)' },
+    { pattern: /cape town|south africa|johannesburg/i, originCode: 'NBO', destinationCode: 'JNB', airline: 'Kenya Airways', returnFareKes: 64000, label: 'Nairobi (NBO) ⇄ South Africa (JNB/CPT)' }
+];
+
+function matchBundleFlight(destination = '', title = '') {
+    const combined = `${destination} ${title}`;
+    for (const r of BUNDLE_FLIGHT_ROUTES) {
+        if (r.pattern.test(combined)) return r;
+    }
+    return {
+        originCode: 'NBO',
+        destinationCode: 'MBA',
+        airline: 'Kenya Airways / Jambojet',
+        returnFareKes: 14500,
+        label: 'Nairobi (NBO) ⇄ Regional Return Flight'
+    };
+}
 
 const CURATED_HOLIDAY_ITINERARIES = {
     'neptune-village': {
@@ -346,6 +374,21 @@ function listHolidayItineraries() {
     };
 }
 
+function resolveHolidayPriceKes(doc) {
+    if (doc?.priceKes != null && Number(doc.priceKes) > 0) {
+        return Math.round(Number(doc.priceKes));
+    }
+    const category = String(doc?.category || '');
+    const country = String(doc?.country || 'Kenya');
+    if (country.toLowerCase() !== 'kenya' || /international/i.test(category)) {
+        return 65000;
+    }
+    if (/safari/i.test(category)) {
+        return 24500;
+    }
+    return 18500;
+}
+
 async function resolveHolidayPackage(packageKey) {
     const key = typeof packageKey === 'string' ? packageKey.trim() : '';
     if (!key) fail(404, 'Holiday itinerary package not found.');
@@ -364,7 +407,7 @@ async function resolveHolidayPackage(packageKey) {
         }
         const doc = await HolidayPackage.findOne({ $or: clauses }).lean();
         if (!doc) fail(404, 'Holiday package not found.');
-        if (doc.approvalStatus !== 'approved' || doc.availability === 'sold_out' || !(Number(doc.priceKes) > 0)) {
+        if (doc.approvalStatus !== 'approved' || doc.availability === 'sold_out') {
             fail(409, 'This holiday package is not currently available for ticket checkout.');
         }
         const nights = Math.max(1, Number(doc.nights) || 2);
@@ -376,7 +419,7 @@ async function resolveHolidayPackage(packageKey) {
             duration: doc.duration || `${nights + 1}D / ${nights}N`,
             nights,
             image: doc.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg',
-            rate: Math.round(Number(doc.priceKes)),
+            rate: resolveHolidayPriceKes(doc),
             originalRate: null,
             discount: '',
             mealPlan: doc.meals || 'As per package itinerary',
@@ -391,7 +434,16 @@ async function resolveHolidayPackage(packageKey) {
     fail(404, 'Holiday itinerary package not found.');
 }
 
-async function quoteHolidayItinerary({ packageKey, checkin, checkout, adults, roomTypeIndex = 0, addons = [] } = {}) {
+async function quoteHolidayItinerary({
+    packageKey,
+    checkin,
+    checkout,
+    adults,
+    roomTypeIndex = 0,
+    addons = [],
+    bundleReturnFlight = false,
+    promoCode = ''
+} = {}) {
     const pkg = await resolveHolidayPackage(packageKey);
     const parsedIn = parseIsoDay(checkin);
     const parsedOut = parseIsoDay(checkout);
@@ -421,14 +473,33 @@ async function quoteHolidayItinerary({ packageKey, checkin, checkout, adults, ro
     const addonCodes = Array.isArray(addons) ? [...new Set(addons.map(a => String(a || '').trim().toLowerCase()))] : [];
     const selectedAddons = addonCodes.map(code => HOLIDAY_ADDONS[code]).filter(Boolean);
 
+    const pricing = await getTravelPricing();
+    const markedRate = applyTravelMarkup(pkg.rate, 'holiday', pricing).totalWithMarkupKes;
     const basePerAdultKes = selectedNights === pkg.nights
-        ? pkg.rate
-        : Math.round((pkg.rate / pkg.nights) * selectedNights);
+        ? markedRate
+        : Math.round((markedRate / pkg.nights) * selectedNights);
     const baseCostKes = basePerAdultKes * partyAdults;
     const roomSurchargeKes = Math.round((Number(roomType.surcharge) || 0) * selectedNights);
     const extrasKes = selectedAddons.reduce((sum, a) => sum + a.priceKesPerAdult * partyAdults, 0);
+
+    const hasFlightBundle = Boolean(bundleReturnFlight);
+    const matchedFlight = hasFlightBundle ? matchBundleFlight(pkg.destination, pkg.title) : null;
+    const bundledFlightKes = matchedFlight ? matchedFlight.returnFareKes * partyAdults : 0;
+
     const levyKes = Math.round((baseCostKes + roomSurchargeKes) * 0.02);
-    const totalKes = Math.round(baseCostKes + roomSurchargeKes + extrasKes + levyKes);
+    const subtotalBeforePromoKes = Math.round(baseCostKes + roomSurchargeKes + extrasKes + bundledFlightKes + levyKes);
+
+    let promo = null;
+    if (promoCode) {
+        promo = hasFlightBundle
+            ? (getPromo(promoCode, 'bundle') || getPromo(promoCode, 'holiday'))
+            : getPromo(promoCode, 'holiday');
+        if (!promo) {
+            fail(400, 'Invalid or expired holiday promo code.');
+        }
+    }
+    const discountKes = promo ? Math.round(subtotalBeforePromoKes * (promo.discountPercent / 100)) : 0;
+    const totalKes = Math.max(1, Math.round(subtotalBeforePromoKes - discountKes));
     const totalUsd = Math.round((totalKes / 125) * 100) / 100;
 
     return {
@@ -439,6 +510,14 @@ async function quoteHolidayItinerary({ packageKey, checkin, checkout, adults, ro
         adults: partyAdults,
         roomType,
         selectedAddons,
+        bundledFlight: matchedFlight ? {
+            ...matchedFlight,
+            passengers: partyAdults,
+            totalFlightKes: bundledFlightKes
+        } : null,
+        bundledFlightKes,
+        promo,
+        discountKes,
         baseCostKes,
         roomSurchargeKes,
         extrasKes,
@@ -463,7 +542,7 @@ async function createHolidayItineraryBooking(body = {}) {
         fail(503, 'Holiday ticket checkout is currently unavailable.');
     }
 
-    const { packageKey, checkin, checkout, adults, roomTypeIndex = 0, addons = [], customer = {}, requestId } = body || {};
+    const { packageKey, checkin, checkout, adults, roomTypeIndex = 0, addons = [], bundleReturnFlight = false, promoCode = '', customer = {}, requestId } = body || {};
     const name = typeof customer?.name === 'string' ? customer.name.trim() : '';
     const email = typeof customer?.email === 'string' ? customer.email.trim().toLowerCase() : '';
     if (!name || name.length > 120 || !email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -471,7 +550,7 @@ async function createHolidayItineraryBooking(body = {}) {
     }
     const phone = normalizePhone(customer?.phone);
 
-    const quote = await quoteHolidayItinerary({ packageKey, checkin, checkout, adults, roomTypeIndex, addons });
+    const quote = await quoteHolidayItinerary({ packageKey, checkin, checkout, adults, roomTypeIndex, addons, bundleReturnFlight, promoCode });
 
     const validRequestId = typeof requestId === 'string' && /^[\w-]{16,80}$/.test(requestId.trim()) ? requestId.trim() : '';
     const orderReference = validRequestId
@@ -520,9 +599,13 @@ async function createHolidayItineraryBooking(body = {}) {
         roomType: quote.roomType.name,
         mealPlan: quote.pkg.mealPlan,
         addons: quote.selectedAddons.map(a => a.label),
+        bundledFlight: quote.bundledFlight,
+        promoCode: quote.promo?.code || null,
+        discountKes: quote.discountKes,
         baseCostKes: quote.baseCostKes,
         roomSurchargeKes: quote.roomSurchargeKes,
         extrasKes: quote.extrasKes,
+        bundledFlightKes: quote.bundledFlightKes,
         levyKes: quote.levyKes
     };
 
@@ -588,6 +671,9 @@ async function createHolidayItineraryBooking(body = {}) {
         roomType: quote.roomType.name,
         mealPlan: quote.pkg.mealPlan,
         addons: quote.selectedAddons.map(a => a.label),
+        bundledFlight: quote.bundledFlight,
+        promoCode: quote.promo?.code || null,
+        fulfillmentStatus: 'PENDING',
         guest: { name, email, phone },
         totalKes: quote.totalKes,
         expiresAt,
@@ -619,7 +705,7 @@ async function createHolidayItineraryBooking(body = {}) {
                 }
             },
             { upsert: true, new: true }
-        ).catch(() => {});
+        ).catch(() => { });
     }
 
     return {
@@ -645,6 +731,8 @@ async function createHolidayItineraryBooking(body = {}) {
 module.exports = {
     CURATED_HOLIDAY_ITINERARIES,
     HOLIDAY_ADDONS,
+    matchBundleFlight,
+    resolveHolidayPriceKes,
     listHolidayItineraries,
     resolveHolidayPackage,
     quoteHolidayItinerary,

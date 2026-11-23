@@ -7,6 +7,7 @@ let cachedStored = null;
 let cachedAt = 0;
 
 function settingsCollection() {
+    if (!isConnected()) throw Object.assign(new Error('Reconnect the database before changing payment settings.'), { status: 503 });
     return collection('commerce_settings');
 }
 
@@ -23,12 +24,16 @@ async function getPaymentSettings() {
         }
     }
     const options = createPaymentGateways().available().map(option => ({
-        ...option, name: option.id === 'nexuspay' ? 'Makamesco (Nexus Pay)' : option.name
+        ...option, name: option.id === 'nexuspay' ? 'NexusPay (Makamesco)' : option.name
     }));
-    return { provider: stored?.provider ?? options.find(option => option.configured)?.id ?? null, options, storageAvailable };
+    const storedValid = stored?.provider && options.some(option => option.id === stored.provider && option.configured)
+        ? stored.provider
+        : null;
+    return { provider: storedValid ?? options.find(option => option.configured)?.id ?? null, options, storageAvailable };
 }
 
 async function setPaymentProvider(provider, actor) {
+    if (!isConnected()) throw Object.assign(new Error('Reconnect the database before changing the payment provider.'), { status: 503 });
     const settings = await getPaymentSettings();
     if (!settings.options.some(option => option.id === provider && option.configured)) {
         throw Object.assign(new Error('Choose a configured M-Pesa provider.'), { status: 400 });

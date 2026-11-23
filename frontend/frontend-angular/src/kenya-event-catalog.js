@@ -220,7 +220,7 @@ class KenyaEventCatalog extends HTMLElement {
         const priceRow = element('div', '', { class: 'price-row' });
         const priceNode = element('div', '', { class: 'price-text' });
         if (!isFree && priceAmount != null) {
-            priceNode.append(element('span', event.ticketStatus && !event.checkout ? 'Advertised from ' : 'Starting '), document.createTextNode(priceFormatted));
+            priceNode.append(element('span', 'Starting '), document.createTextNode(priceFormatted));
         } else {
             priceNode.textContent = priceFormatted;
         }
@@ -228,7 +228,7 @@ class KenyaEventCatalog extends HTMLElement {
 
         const url = new URL(this.storefront ?? location.href);
         url.search = new URLSearchParams({ view: 'events', event: event.id }).toString();
-        const link = element('a', event.checkout ? 'View tickets' : 'View event', { href: url.href, class: 'book-link' });
+        const link = element('a', 'Buy tickets', { href: url.href, class: 'book-link' });
         priceRow.append(link);
         details.append(priceRow);
         card.append(details);

@@ -7,6 +7,160 @@ function tierKey(eventId, id) {
     return 'source-' + createHash('sha256').update(eventId + '\0' + id).digest('hex').slice(0, 32);
 }
 
+function autoTierKey(eventId, index, title) {
+    return 'auto-' + createHash('sha256').update(String(eventId) + '\0' + String(index) + '\0' + String(title || '')).digest('hex').slice(0, 24);
+}
+
+function buildAutoEventTiers(event = {}, allocation = null) {
+    const eventId = String(event.id || event.externalId || 'event');
+    const eventTitle = String(event.title || event.name || 'Ticketsasa Event').trim();
+    const gates = ['Gate A', 'Gate B', 'Gate C', 'Gate D'];
+
+    // 1. Prefer explicit live allocation tiers if present and in stock
+    if (allocation && Array.isArray(allocation.tiers)) {
+        const allocTiers = allocation.tiers.filter(tier => (Number(tier?.remainingAllocation) || 0) > 0);
+        if (allocTiers.length > 0) {
+            return allocTiers.map((tier, idx) => {
+                const priceKes = Math.max(1, Math.round(Number(tier.priceKes) || 1000));
+                return {
+                    ...tier,
+                    tierKey: tier.tierKey || autoTierKey(eventId, idx, tier.title),
+                    title: String(tier.title || 'General Admission').trim(),
+                    eventId,
+                    eventTitle,
+                    priceKes,
+                    priceUsd: Math.max(1, Math.round((priceKes / 125) * 100) / 100),
+                    published: true,
+                    isActive: true,
+                    totalAllocation: Math.max(100, Number(tier.totalAllocation || tier.remainingAllocation) || 1000),
+                    remainingAllocation: Math.max(1, Number(tier.remainingAllocation) || 1000),
+                    designatedGate: /^Gate [A-D]$/.test(tier.designatedGate) ? tier.designatedGate : gates[idx % gates.length],
+                    features: Array.isArray(tier.features) ? tier.features : []
+                };
+            });
+        }
+    }
+
+    // 2. Normalize existing tiers on the event object if present
+    if (Array.isArray(event.tiers) && event.tiers.length > 0) {
+        return event.tiers.map((tier, idx) => {
+            const rawPrice = Number(tier.priceKes ?? tier.displayPriceKes ?? event.startingPrice ?? event.price?.amount ?? 1000);
+            const priceKes = Math.max(1, Math.round(Number.isFinite(rawPrice) && rawPrice > 0 ? rawPrice : 1000));
+            const rem = Number(tier.remainingAllocation ?? tier.totalAllocation ?? tier.capacity ?? 1000);
+            const remainingAllocation = Number.isFinite(rem) && rem > 0 ? Math.round(rem) : 1000;
+            const title = String(tier.title || tier.name || (idx === 0 ? 'General Admission' : `Tier ${idx + 1}`)).trim();
+            return {
+                ...tier,
+                tierKey: tier.tierKey || autoTierKey(eventId, idx, title),
+                title,
+                eventId,
+                eventTitle,
+                priceKes,
+                priceUsd: Math.max(1, Math.round((priceKes / 125) * 100) / 100),
+                published: true,
+                isActive: true,
+                totalAllocation: Math.max(remainingAllocation, Number(tier.totalAllocation) || 1000),
+                remainingAllocation,
+                designatedGate: /^Gate [A-D]$/.test(tier.designatedGate) ? tier.designatedGate : gates[idx % gates.length],
+                features: Array.isArray(tier.features) ? tier.features : []
+            };
+        });
+    }
+
+    // 3. Build tiers from advertised offers (SoldOut Africa, Quicket, Tickets.dev, JSON-LD)
+    const rawOffers = Array.isArray(event.price?.offers) && event.price.offers.length > 0
+        ? event.price.offers
+        : (Array.isArray(event.ticketCategories) && event.ticketCategories.length > 0
+            ? event.ticketCategories.map(c => ({ title: c.name || c.title, amount: c.priceKes ?? c.amount, capacity: c.capacity }))
+            : []);
+
+    const validOffers = rawOffers
+        .map((offer, idx) => ({
+            title: String(offer?.title || offer?.name || (idx === 0 ? 'Regular / General Admission' : `VIP Tier ${idx + 1}`)).trim(),
+            amount: Math.round(Number(offer?.amount ?? offer?.priceKes) || 0),
+            capacity: Math.max(100, Number(offer?.capacity) || 1000)
+        }))
+        .filter(o => Number.isFinite(o.amount) && o.amount >= 1 && o.amount <= 1000000);
+
+    if (validOffers.length > 0) {
+        const tiers = validOffers.map((offer, idx) => ({
+            tierKey: autoTierKey(eventId, idx, offer.title),
+            title: offer.title,
+            eventId,
+            eventTitle,
+            priceKes: offer.amount,
+            priceUsd: Math.max(1, Math.round((offer.amount / 125) * 100) / 100),
+            published: true,
+            isActive: true,
+            totalAllocation: offer.capacity,
+            remainingAllocation: offer.capacity,
+            designatedGate: gates[idx % gates.length],
+            features: [`Official e-Ticket for ${eventTitle}`, 'Instant QR Pass & M-Pesa confirmation']
+        }));
+        if (tiers.length === 1) {
+            const vipPrice = Math.min(1000000, Math.max(tiers[0].priceKes + 1000, Math.round(tiers[0].priceKes * 2)));
+            const vipTitle = 'VIP Experience Pass';
+            tiers.push({
+                tierKey: autoTierKey(eventId, 1, vipTitle),
+                title: vipTitle,
+                eventId,
+                eventTitle,
+                priceKes: vipPrice,
+                priceUsd: Math.max(1, Math.round((vipPrice / 125) * 100) / 100),
+                published: true,
+                isActive: true,
+                totalAllocation: 500,
+                remainingAllocation: 500,
+                designatedGate: 'Gate B',
+                features: [`VIP Priority Access for ${eventTitle}`, 'Instant QR Pass & M-Pesa confirmation']
+            });
+        }
+        return tiers;
+    }
+
+    // 4. Fallback default tiers for any synced event with a starting price or no listed price yet
+    const baseCandidate = Number(
+        event.startingPrice ??
+        event.price?.amount ??
+        event.confirmedPriceKes ??
+        event.estimatedPriceKes ??
+        1000
+    );
+    const basePrice = Math.max(1, Math.min(1000000, Math.round(Number.isFinite(baseCandidate) && baseCandidate > 0 ? baseCandidate : 1000)));
+    const vipPrice = Math.min(1000000, Math.max(basePrice + 1000, Math.round(basePrice * 2)));
+
+    return [
+        {
+            tierKey: autoTierKey(eventId, 0, 'General Admission'),
+            title: 'General Admission',
+            eventId,
+            eventTitle,
+            priceKes: basePrice,
+            priceUsd: Math.max(1, Math.round((basePrice / 125) * 100) / 100),
+            published: true,
+            isActive: true,
+            totalAllocation: 1000,
+            remainingAllocation: 1000,
+            designatedGate: 'Gate A',
+            features: [`Official e-Ticket for ${eventTitle}`, 'Instant QR Pass & M-Pesa confirmation']
+        },
+        {
+            tierKey: autoTierKey(eventId, 1, 'VIP Pass'),
+            title: 'VIP Pass',
+            eventId,
+            eventTitle,
+            priceKes: vipPrice,
+            priceUsd: Math.max(1, Math.round((vipPrice / 125) * 100) / 100),
+            published: true,
+            isActive: true,
+            totalAllocation: 500,
+            remainingAllocation: 500,
+            designatedGate: 'Gate B',
+            features: [`VIP Priority Access for ${eventTitle}`, 'Instant QR Pass & M-Pesa confirmation']
+        }
+    ];
+}
+
 function validTier(tier) {
     return typeof tier?.id === 'string' && /^[\w-]{1,80}$/.test(tier.id) &&
         typeof tier.title === 'string' && tier.title.trim() && tier.title.length <= 80 &&
@@ -38,7 +192,7 @@ async function fetchAllocationFeed(fetchPage) {
 async function confirmImportedTiers(keys, fetchPage = fetch) {
     const imported = new Set(keys.filter(key => /^source-[a-f0-9]{32}$/.test(key)));
     const confirmed = new Map();
-    if (!imported.size) return confirmed;
+    if (!imported.size || !process.env.EVENT_ALLOCATION_FEED_URL || !process.env.EVENT_ALLOCATION_FEED_TOKEN) return confirmed;
     let snapshot;
     try {
         snapshot = await fetchAllocationFeed(fetchPage);
@@ -114,4 +268,4 @@ async function syncAllocations(listings, fetchPage = fetch) {
     return 'live';
 }
 
-module.exports = { syncAllocations, confirmImportedTiers };
+module.exports = { syncAllocations, confirmImportedTiers, buildAutoEventTiers, autoTierKey };

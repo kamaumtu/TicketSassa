@@ -17,12 +17,13 @@ import {
     SystemLogsPanel
 } from './automationPanels';
 import { DiscoveryCenterPanel } from './discoveryCenterPanel';
+import { TravelOpsPanel } from './travelOpsPanel';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
 type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string };
 type Audit = { action: string; target: string; timestamp: string };
-type PaymentSettings = { provider: string | null; options: { id: string; name: string; configured: boolean }[] };
+type PaymentSettings = { provider: string | null; storageAvailable: boolean; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
 type Data = { storageAvailable: boolean; payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[] };
 
@@ -48,8 +49,10 @@ const sections = [
     'Flight Management',
     'Holiday Packages',
     'Travel Bookings',
+    'Travel Fulfillment & Pricing',
     'Pending Deposits',
     'Transactions',
+    'Payment settings',
     'Notifications',
     'Data Sources',
     'Automation Settings',
@@ -80,6 +83,48 @@ async function request<T>(path: string, method = 'GET', body?: object, signal?: 
         throw new Error(payload?.message || ('Request failed (' + response.status + ')'));
     }
     return response.json();
+}
+
+function PaymentSettingsPanel() {
+    const [settings, setSettings] = useState<PaymentSettings>();
+    const [selected, setSelected] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState('');
+    async function load() {
+        setBusy(true); setMessage('');
+        try { const value = await request<PaymentSettings>('/payments/settings'); setSettings(value); setSelected(value.provider || ''); }
+        catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load payment settings.'); }
+        finally { setBusy(false); }
+    }
+    useEffect(() => { void load(); }, []);
+    return <section className="panel">
+        <h2>M-Pesa payment provider</h2>
+        <p>Choose which provider handles new customer payments. Customers receive an M-Pesa prompt automatically. Payments already started keep their original provider.</p>
+        {settings && <form onSubmit={async event => {
+            event.preventDefault(); if (busy || !settings.storageAvailable || !selected) return;
+            setBusy(true); setMessage('');
+            try {
+                const saved = await request<PaymentSettings>('/payments/settings', 'PUT', { provider: selected });
+                setSettings(saved); setSelected(saved.provider || '');
+                setMessage(`${saved.options.find(option => option.id === saved.provider)?.name} saved for new M-Pesa payments.`);
+            } catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save payment settings.'); }
+            finally { setBusy(false); }
+        }}>
+            <p><strong>Current provider:</strong> {settings.options.find(option => option.id === settings.provider)?.name || 'None selected'}</p>
+            {!settings.storageAvailable && <p className="notice" role="status">Database offline. Reconnect and refresh before saving a provider.</p>}
+            <fieldset disabled={busy || !settings.storageAvailable} style={{ border: 0, padding: '16px 0' }}>
+                <legend>Choose a provider</legend>
+                <div className="actions">{settings.options.filter(option => ['payhero', 'nexuspay'].includes(option.id)).map(option => <label key={option.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: 16, border: '1px solid var(--border, #cbd5e1)', borderRadius: 12 }}>
+                    <input type="radio" name="payment-provider" value={option.id} checked={selected === option.id} disabled={!option.configured}
+                        onChange={() => { setSelected(option.id); setMessage(''); }} />
+                    <span><strong>{option.name}</strong><small style={{ display: 'block' }}>{option.configured ? 'Configured' : 'Credentials needed in backend settings'}</small></span>
+                </label>)}</div>
+            </fieldset>
+            <button className="primary" type="submit" disabled={busy || !settings.storageAvailable || !selected || selected === settings.provider}>{busy ? 'Saving…' : 'Save provider'}</button>
+        </form>}
+        <p role="status" aria-live="polite">{message || (!settings && busy ? 'Loading payment settings…' : '')}</p>
+        <button type="button" disabled={busy} onClick={() => void load()}>Refresh settings</button>
+    </section>;
 }
 
 let sharedAudioCtx: AudioContext | null = null;
@@ -141,7 +186,8 @@ function TravelBookingsPanel() {
 
 function App() {
     const [section, setSection] = useState<Section>(
-        location.pathname === '/admin/travel' ? 'Travel Bookings'
+        new URLSearchParams(location.search).get('section') === 'payments' ? 'Payment settings'
+            : location.pathname === '/admin/travel' ? 'Travel Bookings'
             : location.pathname === '/admin/discovery' ? 'Automated Discovery Center'
             : location.pathname === '/admin/publishing' ? 'Event Discovery'
             : 'Dashboard Overview'
@@ -333,7 +379,9 @@ function App() {
             {section === 'Flight Management' && <FlightManagementPanel mode="manage" />}
             {section === 'Holiday Packages' && <HolidayPackagesPanel />}
             {section === 'Travel Bookings' && <TravelBookingsPanel />}
+            {section === 'Travel Fulfillment & Pricing' && <TravelOpsPanel />}
             {section === 'Pending Deposits' && <PendingDepositsPanel onAcknowledge={acknowledgeOne} />}
+            {section === 'Payment settings' && <PaymentSettingsPanel />}
             {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} />}
             {section === 'Data Sources' && <DataSourcesPanel />}
             {section === 'Automation Settings' && <AutomationSettingsPanel />}
@@ -359,21 +407,7 @@ function App() {
             </section>}
 
             {section === 'Transactions' && <div className="publishing-lobby">
-                {data && <section className="panel">
-                    <h2>M-Pesa Provider Settings</h2>
-                    <p>Current provider: {data.payments.options.find(option => option.id === data.payments.provider)?.name ?? 'Unavailable'}</p>
-                    <div className="actions">
-                        {data.payments.options.map(option => <button key={option.id}
-                            disabled={busy || !data.storageAvailable || !option.configured || data.payments.provider === option.id}
-                            onClick={() => void run(async () => {
-                                const payments = await request<PaymentSettings>('/payments/settings', 'PUT', { provider: option.id });
-                                setData(previous => previous && { ...previous, payments });
-                                setNotice(option.name + ' will handle new M-Pesa requests.');
-                            })}>
-                            {option.name}{data.payments.provider === option.id ? ' (selected)' : !option.configured ? ' (setup required)' : ''}
-                        </button>)}
-                    </div>
-                </section>}
+                <section className="panel"><h2>M-Pesa payment provider</h2><p>Manage PayHero and NexusPay for new payments.</p><button onClick={() => setSection('Payment settings')}>Open payment settings</button></section>
                 <section className="panel">
                     <div className="actions">
                         <input aria-label="Search transactions" placeholder="Search reference, email or status" value={query} onChange={event => {setQuery(event.target.value);setSelected(undefined);}}/>

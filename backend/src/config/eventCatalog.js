@@ -2,7 +2,7 @@ const { isRemovedVenue } = require('../services/eventVisibility');
 const { randomUUID } = require('node:crypto');
 const { isConnected } = require('./db');
 const { collection } = require('../services/commerceDb');
-const { syncAllocations } = require('../services/eventAllocations');
+const { syncAllocations, buildAutoEventTiers } = require('../services/eventAllocations');
 const { ticketsasaEvents, ticketsasaSliders } = require('./ticketsasaEvents');
 const { defaultProviders, syncSingleProvider, mergeDeduplicatedEvents } = require('../services/providers/eventSyncService');
 const { onSale } = require('../routes/publishedEvents');
@@ -175,11 +175,18 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             const enabledProviders = providers.filter(provider => provider.isEnabled(process.env));
             const catalogKeys = [SOURCE, ...enabledProviders.map(p => p.endpointKey)];
             const now = new Date().toISOString();
-            const [catalogDocs, allocated] = await Promise.all([
+            const [catalogDocs, allocated, discoveredDocs] = await Promise.all([
                 collection('event_catalogs').find({ _id: { $in: catalogKeys } }).toArray().catch(() => []),
                 collection('commerce_events').find({
                     allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
-                }).toArray().catch(() => [])
+                }).toArray().catch(() => []),
+                isConnected()
+                    ? require('../models/automation').DiscoveredEvent.find({
+                        approvalStatus: { $ne: 'rejected' },
+                        expired: false,
+                        startsAt: { $gt: new Date(now) }
+                    }).lean().catch(() => [])
+                    : Promise.resolve([])
             ]);
             const docsById = new Map(catalogDocs.map(doc => [doc._id, doc]));
             const snapshot = docsById.get(SOURCE) ?? null;
@@ -190,23 +197,29 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             const allocations = new Map(allocated.map(event => [event.id, event]));
             function importedEvent(event) {
                 const allocation = allocations.get(event.id);
-                const tiers = allocation && onSale(allocation)
-                    ? allocation.tiers.filter(tier => tier.remainingAllocation > 0) : [];
-                const advertisedPrice = event.price?.checkedAt && Date.parse(event.price.checkedAt) < Date.now() - 3600000
-                    ? null : event.price;
-                const startingPrice = tiers.length ? Math.min(...tiers.map(tier => tier.priceKes)) : advertisedPrice?.amount ?? null;
-                let ticketStatus = 'on-sale';
-                if (!allocation) ticketStatus = 'awaiting-allocation';
-                else if (allocation.status && allocation.status !== 'published') ticketStatus = 'paused';
-                else if (allocation.allocationExpiresAt <= now) ticketStatus = 'allocation-expired';
-                else if (allocation.salesOpen > now) ticketStatus = 'scheduled';
-                else if (allocation.salesClose <= now) ticketStatus = 'sales-closed';
-                else if (!tiers.length) ticketStatus = 'no-allocation-left';
+                const isExplicitlyPaused = Boolean(allocation?.status && allocation.status !== 'published');
+                const tiers = isExplicitlyPaused
+                    ? []
+                    : buildAutoEventTiers(event, allocation && onSale(allocation) ? allocation : null);
+                const advertisedPrice = event.price;
+                const startingPrice = tiers.length
+                    ? Math.min(...tiers.map(tier => tier.priceKes))
+                    : (advertisedPrice?.amount ?? event.startingPrice ?? 1000);
+                const ticketStatus = isExplicitlyPaused ? 'paused' : 'on-sale';
                 return {
-                    ...event, description: allocation?.description || event.description ||
+                    ...event,
+                    description: allocation?.description || event.description ||
                         [event.title, event.locationFull || event.venue || event.city].filter(Boolean).join(' · '),
-                    checkout: tiers.length > 0, onSale: tiers.length > 0, tiers, startingPrice,
-                    price: tiers.length ? { amount: startingPrice, currency: 'KES' } : advertisedPrice,
+                    checkout: tiers.length > 0,
+                    onSale: tiers.length > 0,
+                    tiers,
+                    startingPrice,
+                    price: {
+                        ...(advertisedPrice || {}),
+                        amount: startingPrice,
+                        currency: 'KES',
+                        sourceUrl: advertisedPrice?.sourceUrl || event.sourceUrl || null
+                    },
                     ticketStatus
                 };
             }
@@ -228,13 +241,36 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                 providerEvents.push(future);
             }
 
+            const discoveredEvents = (discoveredDocs || []).map(doc => importedEvent({
+                id: doc.externalId || String(doc._id),
+                title: doc.name,
+                description: doc.description || `${doc.name} in ${doc.venue || doc.county || 'Kenya'}`,
+                startsAt: new Date(doc.startsAt).toISOString(),
+                venue: doc.venue || doc.town || doc.county || 'Kenya',
+                city: doc.town || doc.county || 'Nairobi',
+                locationFull: [doc.venue, doc.town || doc.county, 'Kenya'].filter(Boolean).join(', '),
+                category: doc.category || 'Featured Event',
+                host: doc.organizer || doc.discoverySource || 'Ticketsasa Official Organizer',
+                imageUrl: doc.image?.url || '/assets/real/DzLV4G9UWo-1790859483.jpg',
+                remoteImageUrl: doc.image?.url || null,
+                sourceUrl: doc.ticketPurchaseUrl || doc.originalUrl || null,
+                source: doc.discoverySource || 'Ticketsasa Discovery',
+                startingPrice: doc.confirmedPriceKes ?? doc.estimatedPriceKes ?? 1000,
+                ticketCategories: doc.ticketCategories || []
+            }));
+
             const mergedEvents = mergeDeduplicatedEvents(
                 [
                     ticketsasaEvents
                         .filter(event => Date.parse(event.startsAt) > Date.now())
-                        .map(event => ({ ...event, checkout: Boolean(event.tiers?.length) })),
+                        .map(event => {
+                            const tiers = buildAutoEventTiers(event);
+                            const startingPrice = tiers.length ? Math.min(...tiers.map(t => t.priceKes)) : (event.startingPrice ?? 1000);
+                            return { ...event, tiers, startingPrice, checkout: true, onSale: true, ticketStatus: 'on-sale' };
+                        }),
                     remoteEvents,
-                    ...providerEvents
+                    ...providerEvents,
+                    discoveredEvents
                 ],
                 cancelledSet
             ).filter(event => !isRemovedVenue(event));

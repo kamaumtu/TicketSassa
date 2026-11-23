@@ -7,12 +7,13 @@
     "start": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev",
     "seed": "npm --prefix backend run seed",
-    "build:admin": "npm --prefix admin-ui run build",
-    "build:angular": "npm --prefix frontend-angular run build",
-    "build": "npm run build:storefront && npm run build:admin && npm run build:angular",
+    "build:admin": "npm --prefix frontend run build:admin",
+    "build:angular": "npm --prefix frontend run build:angular",
+    "build": "npm --prefix frontend run build",
     "test": "npm --prefix backend test",
     "test:health": "node -e \"const http=require('http'); http.get('http://localhost:8000/api/health', r=>{ console.log('HTTP', r.statusCode); r.pipe(process.stdout); }).on('error', e=>{ console.error('Error:', e.message); process.exit(1); });\"",
-    "build:storefront": "tailwindcss -i storefront.css -o assets/storefront.css --minify && node scripts/copy-storefront-icons.cjs"
+    "build:storefront": "npm --prefix frontend run build:storefront",
+    "install:all": "npm --prefix backend ci && npm --prefix frontend ci && npm --prefix frontend/admin-ui ci && npm --prefix frontend/frontend-angular ci"
   },
   "keywords": [
     "ticketsasa",
@@ -23,9 +24,5 @@
     "flights-gds"
   ],
   "author": "Antigravity Engineering",
-  "license": "ISC",
-  "devDependencies": {
-    "lucide": "^0.468.0",
-    "tailwindcss": "^3.4.19"
-  }
+  "license": "ISC"
 }

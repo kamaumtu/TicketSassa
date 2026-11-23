@@ -1,5 +1,5 @@
 module.exports = {
-    content: ['./index.html', './app.js'],
+    content: ['./index.html', './app.js', './discovered-marketplace.js'],
     darkMode: 'class',
     theme: {
         extend: {

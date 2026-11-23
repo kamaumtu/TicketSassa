@@ -21,6 +21,10 @@ router.use((req, res, next) => {
 router.post('/orders/:reference/check-payment', require('../controllers/commerceController').adminCheckPayment);
 router.post('/events', route(publishEvent));
 
+router.get('/payments/settings', route(async (req, res) => {
+    res.set('Cache-Control', 'no-store').json(await getPaymentSettings());
+}));
+
 router.put('/payments/settings', route(async (req, res) => {
     const { provider } = req.body ?? {};
     try {

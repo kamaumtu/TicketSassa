@@ -28,7 +28,7 @@
         try {
             const res = await fetch('/api/automation/meta');
             if (res.ok) metaCache = await res.json();
-        } catch {}
+        } catch { }
     }
 
     async function loadEventsSection() {
@@ -55,7 +55,7 @@
         try {
             const res = await fetch('/api/automation/public/catalog?' + params.toString());
             if (res.ok) payload = await res.json();
-        } catch {}
+        } catch { }
 
         const events = payload.events || [];
         const total = payload.totals?.events || 0;
@@ -117,15 +117,36 @@
             grid.innerHTML = `<p class="col-span-full text-sm text-slate-500 py-4">No auto-discovered events match these filters yet.</p>`;
             return;
         }
+        if (typeof window.onTicketsasaCatalogLoaded === 'function') {
+            window.onTicketsasaCatalogLoaded(events.map(ev => ({
+                id: ev.externalId || ev._id,
+                title: ev.name,
+                description: ev.description || `${ev.name} in ${ev.venue || ev.county}`,
+                startsAt: ev.startsAt,
+                venue: ev.venue || ev.town || ev.county,
+                city: ev.town || ev.county,
+                locationFull: [ev.venue, ev.town || ev.county, 'Kenya'].filter(Boolean).join(', '),
+                category: ev.category,
+                host: ev.organizer || ev.discoverySource || 'Ticketsasa Official Organizer',
+                imageUrl: ev.image?.url || '/assets/real/DzLV4G9UWo-1790859483.jpg',
+                sourceUrl: ev.ticketPurchaseUrl || ev.originalUrl || null,
+                startingPrice: ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000,
+                checkout: true,
+                onSale: true,
+                tiers: Array.isArray(ev.tiers) ? ev.tiers : []
+            })));
+        }
         for (const ev of events) {
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
-            const displayPrice = ev.confirmedPriceKes ?? ev.estimatedPriceKes;
+            const displayPrice = ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000;
             const imgUrl = ev.image?.url || '/assets/real/DzLV4G9UWo-1790859483.jpg';
+            const evId = ev.externalId || ev._id;
+            const extUrl = ev.ticketPurchaseUrl || ev.originalUrl;
             card.innerHTML = `
                 <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
                     <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(ev.name)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/real/DzLV4G9UWo-1790859483.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.county)}</span>
-                    <span class="absolute top-2 right-2 ${ev.authorizedToSell ? 'bg-emerald-600' : 'bg-blue-700'} text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.ticketTypeLabel)}</span>
+                    <span class="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.ticketTypeLabel || 'Tickets Available')}</span>
                 </div>
                 <div class="p-4 flex flex-col gap-1.5 flex-1">
                     <div class="text-[11px] font-bold text-[#D81A21] uppercase">${escapeHtml(formatDate(ev.startsAt))}</div>
@@ -135,18 +156,18 @@
                     <div class="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                         <div>
                             <div class="text-xs font-extrabold text-slate-900">${escapeHtml(formatKes(displayPrice))}</div>
-                            <div class="text-[10px] text-slate-500">${escapeHtml(ev.priceLabel)} · ${escapeHtml(ev.bookingLabel)}</div>
+                            <div class="text-[10px] text-slate-500">${escapeHtml(ev.priceLabel || 'Verified Price')} · Available</div>
                         </div>
-                        ${ev.authorizedToSell && typeof window.openTicketsasaEventModal === 'function'
-                            ? `<button type="button" data-buy-internal="${escapeHtml(ev.externalId)}" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white text-xs font-bold">Buy Tickets</button>`
-                            : `<a href="${escapeHtml(ev.ticketPurchaseUrl || ev.originalUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold">Official Site ↗</a>`}
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" data-buy-internal="${escapeHtml(evId)}" class="px-3 py-1.5 rounded-lg bg-[#D81A21] hover:bg-[#b9151b] text-white text-xs font-bold">Buy Tickets</button>
+                        </div>
                     </div>
                     <div class="text-[10px] text-slate-400">Source: ${escapeHtml(ev.discoverySource)} · Verified ${escapeHtml(formatDate(ev.lastVerifiedAt))}</div>
                 </div>
             `;
             const buyBtn = card.querySelector('[data-buy-internal]');
             if (buyBtn) {
-                buyBtn.addEventListener('click', () => window.openTicketsasaEventModal(ev.externalId));
+                buyBtn.addEventListener('click', () => window.openTicketsasaEventModal?.(evId));
             }
             grid.append(card);
         }
@@ -167,7 +188,7 @@
         try {
             const res = await fetch('/api/automation/public/catalog?' + params.toString());
             if (res.ok) payload = await res.json();
-        } catch {}
+        } catch { }
 
         const flights = payload.flights || [];
         const total = payload.totals?.flights || 0;
@@ -175,8 +196,8 @@
         container.innerHTML = `
             <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div>
-                    <h2 class="text-2xl font-extrabold text-slate-900">Kenya &amp; Regional Airlines — Public Route &amp; Fare Discovery</h2>
-                    <p class="text-xs text-slate-600 mt-1">Only verified airline routes &amp; published fares from official airline websites. Clicking continues to the airline's official website to complete booking.</p>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Kenya &amp; Regional Airlines — Bookable Flights</h2>
+                    <p class="text-xs text-slate-600 mt-1">Synced airline routes &amp; fares. Book directly on our website with M-Pesa checkout and instant digital e-ticket confirmation.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <input type="search" id="auto-fl-search" value="${escapeHtml(flState.q)}" placeholder="Search airline or airport…" class="px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white">
@@ -198,7 +219,7 @@
             return;
         }
         for (const fl of flights) {
-            const card = el('article', 'bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-2 shadow-sm');
+            const card = el('article', 'bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-2 shadow-sm hover:shadow-md transition');
             card.innerHTML = `
                 <div class="flex items-center justify-between gap-2">
                     <div class="flex items-center gap-2.5">
@@ -208,19 +229,42 @@
                             <div class="text-[11px] text-slate-500">${escapeHtml(fl.originCode)} → ${escapeHtml(fl.destinationCode)}</div>
                         </div>
                     </div>
-                    <span class="px-2 py-0.5 rounded bg-sky-100 text-sky-900 text-[10px] font-bold">${escapeHtml(fl.bookingLabel)}</span>
+                    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-900 text-[10px] font-bold">${escapeHtml(fl.bookingLabel || 'Bookable Online')}</span>
                 </div>
                 <p class="text-xs text-slate-700">${escapeHtml(fl.routeSummary || `${fl.originName || fl.originCode} → ${fl.destinationName || fl.destinationCode}`)}</p>
-                <p class="text-[11px] text-slate-500">${fl.departureTime ? formatDate(fl.departureTime) : 'Schedule & seat availability verified directly on official airline site'} · ${escapeHtml(fl.baggageAllowance || '')}</p>
+                <p class="text-[11px] text-slate-500">${fl.departureTime ? formatDate(fl.departureTime) : 'Flexible departure date selected at checkout'} · ${escapeHtml(fl.baggageAllowance || 'Standard baggage')}</p>
                 <div class="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                     <div>
                         <div class="text-sm font-extrabold text-slate-900">${escapeHtml(formatKes(fl.priceKes))}</div>
-                        <div class="text-[10px] text-slate-500">${escapeHtml(fl.priceLabel)}</div>
+                        <div class="text-[10px] text-slate-500">${escapeHtml(fl.priceLabel || 'Verified Fare')}</div>
                     </div>
-                    <a href="${escapeHtml(fl.bookingUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold">Check on Airline ↗</a>
+                    <div class="flex items-center gap-1.5">
+                        <button type="button" data-fav-flight class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-rose-50 text-xs font-bold ${window.isFavoriteDeal?.('flight:' + (fl._id || fl.externalId)) ? 'text-rose-600 border-rose-300 bg-rose-50' : 'text-slate-600'}" title="Save for price-drop alerts">${window.isFavoriteDeal?.('flight:' + (fl._id || fl.externalId)) ? '♥' : '♡'}</button>
+                        <button type="button" data-book-flight class="px-3.5 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-800 text-white text-xs font-bold transition">Book Flight</button>
+                    </div>
                 </div>
-                <div class="text-[10px] text-slate-400">Source: ${escapeHtml(fl.source)} · Verified ${escapeHtml(formatDate(fl.lastVerifiedAt))}</div>
+                <div class="text-[10px] text-slate-400">Carrier feed: ${escapeHtml(fl.source)} · Synced ${escapeHtml(formatDate(fl.lastVerifiedAt))}</div>
             `;
+            const favBtn = card.querySelector('[data-fav-flight]');
+            if (favBtn) {
+                favBtn.addEventListener('click', async () => {
+                    const saved = await window.toggleFavoriteDeal?.({
+                        itemKey: 'flight:' + (fl._id || fl.externalId),
+                        kind: 'flight',
+                        title: `${fl.airline} ${fl.originCode} → ${fl.destinationCode}`,
+                        subtitle: fl.routeSummary || '',
+                        image: fl.airlineLogo || '',
+                        priceKes: fl.priceKes
+                    });
+                    favBtn.textContent = saved ? '♥' : '♡';
+                    favBtn.classList.toggle('text-rose-600', Boolean(saved));
+                    favBtn.classList.toggle('bg-rose-50', Boolean(saved));
+                });
+            }
+            const bookBtn = card.querySelector('[data-book-flight]');
+            if (bookBtn) {
+                bookBtn.addEventListener('click', () => window.openCustomFlightBookingModal?.(fl));
+            }
             grid.append(card);
         }
     }
@@ -240,14 +284,14 @@
         try {
             const res = await fetch('/api/automation/public/catalog?' + params.toString());
             if (res.ok) payload = await res.json();
-        } catch {}
+        } catch { }
 
         const holidays = payload.holidays || [];
         container.innerHTML = `
             <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
                 <div>
                     <h2 class="text-2xl font-extrabold text-slate-900">Kenya &amp; International Holiday Packages</h2>
-                    <p class="text-xs text-slate-600 mt-1">Discovered from verified tour operators &amp; holiday websites with live FX currency conversion. Clicking opens the operator's booking page.</p>
+                    <p class="text-xs text-slate-600 mt-1">Synced holiday packages with live FX currency conversion. Book directly on our website with M-Pesa checkout and instant travel voucher.</p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <input type="search" id="auto-hl-search" value="${escapeHtml(hlState.q)}" placeholder="Search safari, beach, Dubai…" class="px-3 py-2 text-xs rounded-lg border border-slate-300 bg-white">
@@ -275,35 +319,53 @@
         }
         for (const hl of holidays) {
             const img = hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg';
-            const canBuyHere = hl.priceKes != null && Number(hl.priceKes) > 0 && hl.availability !== 'sold_out' && typeof window.openCustomHolidayBookingModal === 'function';
-            const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm');
+            const isSoldOut = hl.availability === 'sold_out';
+            const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
             card.innerHTML = `
                 <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
                     <img src="${escapeHtml(img)}" alt="${escapeHtml(hl.title)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/real/lheAq1Zpc0-1794303741.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.destination)}</span>
-                    <span class="absolute top-2 right-2 bg-amber-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.bookingLabel)}</span>
+                    <span class="absolute top-2 right-2 ${isSoldOut ? 'bg-slate-600' : 'bg-emerald-600'} text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.bookingLabel || (isSoldOut ? 'Sold Out' : 'Bookable Online'))}</span>
                 </div>
                 <div class="p-4 flex flex-col gap-1.5 flex-1">
                     <div class="text-[11px] font-bold text-emerald-700 uppercase">${escapeHtml(hl.category)} ${hl.duration ? '· ' + escapeHtml(hl.duration) : ''}</div>
                     <h3 class="text-sm font-extrabold text-slate-900 line-clamp-2">${escapeHtml(hl.title)}</h3>
                     <p class="text-[11px] text-slate-600 line-clamp-2">${escapeHtml(hl.description || '')}</p>
-                    <p class="text-[10px] text-slate-500">${[hl.meals, hl.transport].filter(Boolean).join(' · ') || 'See operator itinerary'}</p>
+                    <p class="text-[10px] text-slate-500">${[hl.meals, hl.transport].filter(Boolean).join(' · ') || 'Flexible dates & room selection at checkout'}</p>
                     <div class="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                         <div>
                             <div class="text-xs font-extrabold text-slate-900">${escapeHtml(formatKes(hl.priceKes))}</div>
-                            <div class="text-[10px] text-slate-500">${escapeHtml(hl.priceLabel)}</div>
+                            <div class="text-[10px] text-slate-500">${escapeHtml(hl.priceLabel || 'Verified Package Rate')}</div>
                         </div>
                         <div class="flex items-center gap-1.5">
-                            ${canBuyHere ? `<button type="button" data-buy-holiday class="px-3 py-1.5 rounded-lg bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold">Buy Tickets</button>` : ''}
-                            ${hl.bookingUrl ? `<a href="${escapeHtml(hl.bookingUrl)}" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">View Deal ↗</a>` : ''}
+                            <button type="button" data-fav-holiday class="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-rose-50 text-xs font-bold ${window.isFavoriteDeal?.('holiday:' + (hl._id || hl.externalId)) ? 'text-rose-600 border-rose-300 bg-rose-50' : 'text-slate-600'}" title="Save for price-drop alerts">${window.isFavoriteDeal?.('holiday:' + (hl._id || hl.externalId)) ? '♥' : '♡'}</button>
+                            ${isSoldOut
+                    ? `<button type="button" disabled class="px-3 py-1.5 rounded-lg bg-slate-200 text-slate-500 text-xs font-bold cursor-not-allowed">Sold Out</button>`
+                    : `<button type="button" data-buy-holiday class="px-3.5 py-1.5 rounded-lg bg-[#15803D] hover:bg-[#166534] text-white text-xs font-bold transition">Book Holiday</button>`}
                         </div>
                     </div>
-                    <div class="text-[10px] text-slate-400">Operator: ${escapeHtml(hl.provider)} · Verified ${escapeHtml(formatDate(hl.lastVerifiedAt))}</div>
+                    <div class="text-[10px] text-slate-400">Operator: ${escapeHtml(hl.provider)} · Synced ${escapeHtml(formatDate(hl.lastVerifiedAt))}</div>
                 </div>
             `;
+            const favHlBtn = card.querySelector('[data-fav-holiday]');
+            if (favHlBtn) {
+                favHlBtn.addEventListener('click', async () => {
+                    const saved = await window.toggleFavoriteDeal?.({
+                        itemKey: 'holiday:' + (hl._id || hl.externalId),
+                        kind: 'holiday',
+                        title: hl.title,
+                        subtitle: hl.destination || '',
+                        image: img,
+                        priceKes: hl.priceKes
+                    });
+                    favHlBtn.textContent = saved ? '♥' : '♡';
+                    favHlBtn.classList.toggle('text-rose-600', Boolean(saved));
+                    favHlBtn.classList.toggle('bg-rose-50', Boolean(saved));
+                });
+            }
             const buyBtn = card.querySelector('[data-buy-holiday]');
             if (buyBtn) {
-                buyBtn.addEventListener('click', () => window.openCustomHolidayBookingModal(hl));
+                buyBtn.addEventListener('click', () => window.openCustomHolidayBookingModal?.(hl));
             }
             grid.append(card);
         }

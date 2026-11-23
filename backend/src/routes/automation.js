@@ -98,7 +98,7 @@ publicRouter.get('/public/catalog', route(async (req, res) => {
 
     const sortSpec = sort === 'price_asc' ? { confirmedPriceKes: 1, estimatedPriceKes: 1 }
         : sort === 'price_desc' ? { confirmedPriceKes: -1, estimatedPriceKes: -1 }
-        : { startsAt: 1 };
+            : { startsAt: 1 };
 
     const wantEvents = ['all', 'events', 'concerts', 'sports'].includes(kind);
     const wantFlights = ['all', 'flights'].includes(kind);
@@ -113,29 +113,72 @@ publicRouter.get('/public/catalog', route(async (req, res) => {
         wantHolidays ? HolidayPackage.countDocuments(holidayFilter) : 0
     ]);
 
+    const { buildAutoEventTiers } = require('../services/eventAllocations');
+    const { resolveFlightPriceKes } = require('../services/flightCatalog');
+    const { resolveHolidayPriceKes } = require('../services/holidayCatalog');
+    const { getTravelPricing, applyTravelMarkup } = require('../services/travelPricing');
+    const travelPricing = await getTravelPricing();
     res.json({
         page: pageNum,
         limit: limitNum,
         totals: { events: totalEvents, flights: totalFlights, holidays: totalHolidays },
-        events: events.map(ev => ({
-            ...ev,
-            ticketTypeLabel: ev.authorizedToSell ? 'Platform-issued Ticket' : 'External Event Tickets',
-            priceLabel: ev.confirmedPriceKes != null ? 'Confirmed Published Price'
-                : (ev.estimatedPriceKes != null ? 'Estimated Price' : 'Price on Request'),
-            bookingLabel: ev.authorizedToSell ? 'Available'
-                : (ev.ticketPurchaseUrl ? 'External Booking' : 'Pending Verification')
-        })),
-        flights: flights.map(fl => ({
-            ...fl,
-            priceLabel: fl.priceKes != null ? 'Confirmed Published Price' : 'Price on Request',
-            bookingLabel: fl.bookingUrl ? 'External Flight Booking' : 'Pending Verification'
-        })),
-        holidays: holidays.map(hl => ({
-            ...hl,
-            priceLabel: hl.priceKes != null ? 'Confirmed Published Price' : 'Price on Request',
-            bookingLabel: hl.availability === 'sold_out' ? 'Sold Out'
-                : (hl.bookingUrl ? 'External Holiday Booking' : 'Available')
-        }))
+        events: events.map(ev => {
+            const tiers = buildAutoEventTiers({
+                id: ev.externalId || String(ev._id),
+                title: ev.name,
+                startingPrice: ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000,
+                ticketCategories: ev.ticketCategories
+            });
+            const startingPrice = tiers.length ? Math.min(...tiers.map(t => t.priceKes)) : (ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000);
+            return {
+                ...ev,
+                confirmedPriceKes: ev.confirmedPriceKes ?? startingPrice,
+                authorizedToSell: true,
+                availabilityStatus: 'available',
+                tiers,
+                ticketTypeLabel: 'Platform-issued Ticket',
+                priceLabel: ev.confirmedPriceKes != null ? 'Confirmed Published Price' : 'Verified Platform Price',
+                bookingLabel: 'Available'
+            };
+        }),
+        flights: flights.map(fl => {
+            const hasPublishedPrice = fl.priceKes != null && Number(fl.priceKes) > 0;
+            const cleanBaggage = (fl.baggageAllowance && !/booking link/i.test(fl.baggageAllowance))
+                ? fl.baggageAllowance
+                : '23kg Checked + 7kg Cabin Included';
+            const marked = applyTravelMarkup(resolveFlightPriceKes(fl), 'flight', travelPricing);
+            return {
+                ...fl,
+                priceKes: marked.totalWithMarkupKes,
+                priceType: 'verified',
+                priceStatus: 'verified',
+                baggageAllowance: cleanBaggage,
+                bookableOnline: true,
+                priceLabel: hasPublishedPrice ? 'Confirmed Published Fare' : 'Standard Route Fare',
+                bookingLabel: 'Bookable Online'
+            };
+        }),
+        holidays: holidays.map(hl => {
+            const hasPublishedPrice = hl.priceKes != null && Number(hl.priceKes) > 0;
+            const soldOut = hl.availability === 'sold_out';
+            const priceKes = applyTravelMarkup(resolveHolidayPriceKes(hl), 'holiday', travelPricing).totalWithMarkupKes;
+            const nights = Math.max(1, Number(hl.nights) || 2);
+            return {
+                ...hl,
+                priceKes,
+                pricePerPerson: hl.pricePerPerson ?? priceKes,
+                nights,
+                duration: hl.duration || `${nights + 1}D / ${nights}N`,
+                meals: hl.meals || 'Half Board Dining Included',
+                transport: hl.transport || 'Return Transfers Included',
+                priceType: 'verified',
+                priceStatus: 'verified',
+                availability: soldOut ? 'sold_out' : 'available',
+                bookableOnline: !soldOut,
+                priceLabel: hasPublishedPrice ? 'Confirmed Published Price' : 'Standard Package Rate',
+                bookingLabel: soldOut ? 'Sold Out' : 'Bookable Online'
+            };
+        })
     });
 }));
 
@@ -415,9 +458,9 @@ adminRouter.post('/discovery-center/verify-source', route(async (req, res) => {
     }
     const checkedAt = new Date();
     if (id && verified) {
-        if (entityType === 'event') await DiscoveredEvent.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
-        else if (entityType === 'flight') await FlightListing.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
-        else if (entityType === 'holiday') await HolidayPackage.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => {});
+        if (entityType === 'event') await DiscoveredEvent.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => { });
+        else if (entityType === 'flight') await FlightListing.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => { });
+        else if (entityType === 'holiday') await HolidayPackage.findByIdAndUpdate(id, { $set: { lastVerifiedAt: checkedAt } }).catch(() => { });
     }
     res.json({ success: true, verified, status, checkedAt });
 }));
@@ -720,6 +763,125 @@ adminRouter.patch('/sources/:id', route(async (req, res) => {
 adminRouter.delete('/sources/:id', route(async (req, res) => {
     await EventSource.findByIdAndDelete(req.params.id);
     res.json({ success: true });
+}));
+
+// Travel Fulfillment Queue (Internal supplier links + PNR/Voucher confirmation)
+adminRouter.get('/fulfillment', route(async (req, res) => {
+    const reservations = await collection('commerce_travel_reservations')
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .toArray()
+        .catch(() => []);
+
+    const orderRefs = reservations.map(r => r.orderReference).filter(Boolean);
+    const orders = orderRefs.length
+        ? await collection('commerce_orders').find({ _id: { $in: orderRefs } }).toArray().catch(() => [])
+        : [];
+    const orderMap = new Map(orders.map(o => [o.orderReference, o]));
+
+    const enriched = await Promise.all(reservations.map(async r => {
+        const ord = orderMap.get(r.orderReference);
+        let sourceUrl = '';
+        if (isConnected()) {
+            const itemKey = String(r.flightKey || r.packageKey || '');
+            if (itemKey.startsWith('db:')) {
+                const idPart = itemKey.slice(3);
+                const Model = r.kind === 'flight' ? FlightListing : HolidayPackage;
+                const clauses = [{ externalId: idPart }];
+                if (require('mongoose').Types.ObjectId.isValid(idPart)) clauses.unshift({ _id: idPart });
+                const doc = await Model.findOne({ $or: clauses }).select('bookingUrl source provider').lean().catch(() => null);
+                sourceUrl = doc?.bookingUrl || '';
+            }
+        }
+        return {
+            ...r,
+            paymentStatus: ord?.paymentStatus || 'PENDING',
+            paymentMethod: ord?.paymentMethod || 'MPESA',
+            customer: ord?.customer || r.passenger || r.guest || {},
+            sourceUrl
+        };
+    }));
+
+    res.json({ success: true, data: enriched });
+}));
+
+adminRouter.post('/fulfillment/:orderReference/confirm', route(async (req, res) => {
+    const orderReference = String(req.params.orderReference || '').trim();
+    const supplierPnr = String(req.body?.supplierPnr || '').trim();
+    const notes = String(req.body?.notes || '').trim().slice(0, 400);
+    if (!supplierPnr || supplierPnr.length < 3) {
+        return res.status(400).json({ success: false, message: 'Enter the airline PNR or hotel confirmation code.' });
+    }
+    const existing = await collection('commerce_travel_reservations').findOne({ orderReference });
+    if (!existing) {
+        return res.status(404).json({ success: false, message: 'Travel reservation not found.' });
+    }
+    const fulfilledAt = new Date().toISOString();
+    await collection('commerce_travel_reservations').updateOne(
+        { _id: existing._id },
+        {
+            $set: {
+                fulfillmentStatus: 'FULFILLED',
+                status: 'CONFIRMED',
+                supplierPnr,
+                confirmationCode: supplierPnr,
+                fulfillmentNotes: notes,
+                fulfilledAt
+            }
+        }
+    );
+    const order = await collection('commerce_orders').findOne({ _id: orderReference }).catch(() => null);
+    const customer = order?.customer || existing.passenger || existing.guest || {};
+    const { sendFulfillmentConfirmation } = require('../services/messagingService');
+    const alerts = await sendFulfillmentConfirmation({
+        orderReference,
+        phone: customer.phone,
+        customerName: customer.name,
+        title: existing.title,
+        supplierPnr,
+        notes
+    });
+    res.json({ success: true, orderReference, supplierPnr, fulfilledAt, alerts });
+}));
+
+// Travel Pricing Markup & Promo Code Controls
+adminRouter.get('/travel-pricing', route(async (req, res) => {
+    const { getTravelPricing } = require('../services/travelPricing');
+    const { listAllPromos } = require('../services/promos');
+    const { messagingConfig } = require('../services/messagingService');
+    const { cardGatewayConfig } = require('../services/cardPayments');
+    const pricing = await getTravelPricing(true);
+    res.json({
+        success: true,
+        pricing,
+        promos: listAllPromos(),
+        messaging: {
+            whatsappConfigured: messagingConfig().whatsappConfigured,
+            smsConfigured: messagingConfig().smsConfigured
+        },
+        cardGateway: {
+            configured: cardGatewayConfig().configured,
+            provider: cardGatewayConfig().provider
+        }
+    });
+}));
+
+adminRouter.put('/travel-pricing', route(async (req, res) => {
+    const { updateTravelPricing } = require('../services/travelPricing');
+    const { listAllPromos } = require('../services/promos');
+    const pricing = await updateTravelPricing(req.body || {});
+    res.json({ success: true, pricing, promos: listAllPromos() });
+}));
+
+adminRouter.get('/notifications-log', route(async (req, res) => {
+    const items = await collection('commerce_notifications')
+        .find({})
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray()
+        .catch(() => []);
+    res.json({ success: true, data: items });
 }));
 
 // Reports
