@@ -128,7 +128,7 @@ function PaymentSettingsPanel() {
 }
 
 let sharedAudioCtx: AudioContext | null = null;
-function playDepositSound(volume = 0.7) {
+function playToneSequence(notes: number[], { volume = 0.7, step = 0.12, duration = 0.32, wave = 'triangle' as OscillatorType } = {}) {
     try {
         const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
         if (!AudioCtx) return false;
@@ -136,24 +136,34 @@ function playDepositSound(volume = 0.7) {
         if (sharedAudioCtx.state === 'suspended') void sharedAudioCtx.resume();
         const now = sharedAudioCtx.currentTime;
         const gainPeak = Math.max(0.02, Math.min(1, volume)) * 0.35;
-        const notes = [880, 1108.73, 1318.51];
         notes.forEach((freq, idx) => {
+            const start = now + idx * step;
             const osc = sharedAudioCtx!.createOscillator();
             const gain = sharedAudioCtx!.createGain();
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(freq, now + idx * 0.11);
-            gain.gain.setValueAtTime(0.001, now + idx * 0.11);
-            gain.gain.exponentialRampToValueAtTime(gainPeak, now + idx * 0.11 + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.11 + 0.36);
+            osc.type = wave;
+            osc.frequency.setValueAtTime(freq, start);
+            gain.gain.setValueAtTime(0.001, start);
+            gain.gain.exponentialRampToValueAtTime(gainPeak, start + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
             osc.connect(gain);
             gain.connect(sharedAudioCtx!.destination);
-            osc.start(now + idx * 0.11);
-            osc.stop(now + idx * 0.11 + 0.4);
+            osc.start(start);
+            osc.stop(start + duration + 0.03);
         });
         return true;
     } catch {
         return false;
     }
+}
+
+// Sound 1: Played once when a user initiates a deposit (stops automatically)
+function playDepositInitiatedSound(volume = 0.7) {
+    return playToneSequence([698.46, 880], { volume, step: 0.14, duration: 0.34, wave: 'sine' });
+}
+
+// Sound 2: Played once when a payment succeeds (stops automatically)
+function playDepositSuccessSound(volume = 0.7) {
+    return playToneSequence([523.25, 659.25, 783.99, 1046.5], { volume, step: 0.1, duration: 0.42, wave: 'triangle' });
 }
 
 function exportOrders(orders: Order[]) {
@@ -256,7 +266,7 @@ function App() {
             if (!deposit) return;
             setUnacknowledgedDeposits(prev => [deposit, ...prev.filter(d => d.reference !== deposit.reference)]);
             setUnreadCount(c => c + 1);
-            if (soundEnabledRef.current) playDepositSound(volumeRef.current);
+            if (soundEnabledRef.current) playDepositInitiatedSound(volumeRef.current);
             if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification('NEW DEPOSIT REQUEST!', {
                     body: `Customer: ${deposit.customerName}\nAmount: KES ${Number(deposit.amountKes).toLocaleString('en-KE')}\nMethod: ${deposit.method}\nReference: ${deposit.reference}\nStatus: ${deposit.status}`
@@ -269,20 +279,19 @@ function App() {
         socket.on('deposit:verified', ({ deposit }: { deposit: DepositAlert }) => {
             if (deposit) {
                 setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference));
+                if (deposit.status === 'COMPLETED') {
+                    if (soundEnabledRef.current) playDepositSuccessSound(volumeRef.current);
+                    if ('Notification' in window && Notification.permission === 'granted') {
+                        new Notification('PAYMENT SUCCESSFUL!', {
+                            body: `Customer: ${deposit.customerName}\nAmount: KES ${Number(deposit.amountKes).toLocaleString('en-KE')}\nReference: ${deposit.reference}`
+                        });
+                    }
+                }
             }
             void load().catch(() => {});
         });
         return () => { socket.disconnect(); };
     }, []);
-
-    // Repeat notification sound every 6 seconds while there are unacknowledged deposit requests
-    useEffect(() => {
-        if (!soundEnabled || !unacknowledgedDeposits.length) return;
-        const timer = window.setInterval(() => {
-            if (soundEnabledRef.current) playDepositSound(volumeRef.current);
-        }, 6000);
-        return () => window.clearInterval(timer);
-    }, [soundEnabled, unacknowledgedDeposits.length]);
 
     async function acknowledgeOne(idOrRef: string) {
         await autoRequest(`/deposits/${encodeURIComponent(idOrRef)}/acknowledge`, 'POST', {});
@@ -298,7 +307,7 @@ function App() {
 
     function unlockAudio() {
         setAudioUnlocked(true);
-        playDepositSound(volume);
+        playDepositInitiatedSound(volume);
         if ('Notification' in window && Notification.permission === 'default') {
             void Notification.requestPermission().catch(() => {});
         }
@@ -343,7 +352,8 @@ function App() {
                         <span>Vol</span>
                         <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} />
                     </label>
-                    <button onClick={() => { setAudioUnlocked(true); playDepositSound(volume); }}>Test Sound</button>
+                    <button onClick={() => { setAudioUnlocked(true); playDepositInitiatedSound(volume); }}>Test Initiated Sound</button>
+                    <button onClick={() => { setAudioUnlocked(true); playDepositSuccessSound(volume); }}>Test Success Sound</button>
                     <button onClick={() => setDark(!dark)}>{dark ? 'Light' : 'Dark'}</button>
                     <a className="primary" href="/organizer">Publish Event</a>
                 </div>

@@ -484,7 +484,7 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
 
     return <section className="panel">
         <div className="lobby-toolbar">
-            <div><h2>Pending &amp; Recent Deposit Requests</h2><p>Acknowledging a pending deposit immediately stops the repeating alert sound. Wallets are only credited after independent M-Pesa verification.</p></div>
+            <div><h2>Pending &amp; Recent Deposit Requests</h2><p>Plays a short alert chime when a deposit is initiated and a confirmation chime when payment succeeds (both stop automatically). Wallets are only credited after independent M-Pesa verification.</p></div>
             <button onClick={() => void load()}>Refresh</button>
         </div>
         <div className="scroll"><table>
