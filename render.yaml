@@ -2,11 +2,13 @@ services:
   - type: web
     name: ticketsasa-live
     runtime: node
-    plan: starter
+    plan: free
     buildCommand: npm --prefix frontend ci && npm --prefix frontend/admin-ui ci && npm --prefix backend ci && npm run build:storefront && npm run build:admin
     startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:
+      - key: NODE_VERSION
+        value: 22.15.0
       - key: NODE_ENV
         value: production
       - key: PORT
@@ -29,6 +31,8 @@ services:
         sync: false
       - key: PASS_SCANNER_KEY
         sync: false
+      - key: PAYHERO_BASE_URL
+        value: https://backend.payhero.co.ke/api/v2
       - key: PAYHERO_API_USERNAME
         sync: false
       - key: PAYHERO_API_PASSWORD
@@ -37,8 +41,18 @@ services:
         sync: false
       - key: PAYHERO_CALLBACK_URL
         sync: false
+      - key: NEXUSPAY_BASE_URL
+        value: https://makamescopay.com/api
       - key: NEXUSPAY_API_KEY
         sync: false
+      - key: QUICKET_API_KEY
+        sync: false
+      - key: TICKETS_DEV_KEY
+        sync: false
+      - key: TICKETS_DEV_QUERIES
+        value: Nairobi
+      - key: SOLDOUT_URL
+        value: https://soldoutafrica.com/events
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

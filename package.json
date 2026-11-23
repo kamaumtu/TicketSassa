@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Unified ticketsasa, Talanta Sports City, and HustleSasa ecosystem",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "start": "npm --prefix backend start",
     "dev": "npm --prefix backend run dev",
