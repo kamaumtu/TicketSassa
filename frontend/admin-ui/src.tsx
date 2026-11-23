@@ -21,7 +21,7 @@ import { TravelOpsPanel } from './travelOpsPanel';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
-type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string; failureReason?: string; failureCode?: string; failedAt?: string };
+type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string; receipt?: string; failureReason?: string; failureCode?: string; failedAt?: string };
 type Audit = { action: string; target: string; timestamp: string };
 type PaymentSettings = { provider: string | null; storageAvailable: boolean; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
@@ -60,6 +60,47 @@ const sections = [
     'System Logs'
 ] as const;
 type Section = typeof sections[number];
+
+const navGroups: { label: string; items: { id: Section; icon: string }[] }[] = [
+    {
+        label: 'Overview & Payments',
+        items: [
+            { id: 'Dashboard Overview', icon: '📊' },
+            { id: 'Transactions', icon: '💳' },
+            { id: 'Pending Deposits', icon: '🔔' },
+            { id: 'Notifications', icon: '📬' },
+            { id: 'Reports', icon: '📈' }
+        ]
+    },
+    {
+        label: 'Events & Tickets',
+        items: [
+            { id: 'All Events', icon: '🎟️' },
+            { id: 'Event Discovery', icon: '🔎' },
+            { id: 'Ticket Management', icon: '🎫' }
+        ]
+    },
+    {
+        label: 'Flights & Holidays',
+        items: [
+            { id: 'Travel Fulfillment & Pricing', icon: '✈️' },
+            { id: 'Travel Bookings', icon: '🧳' },
+            { id: 'Flight Discovery', icon: '🛫' },
+            { id: 'Flight Management', icon: '🗺️' },
+            { id: 'Holiday Packages', icon: '🏖️' }
+        ]
+    },
+    {
+        label: 'Settings & Automation',
+        items: [
+            { id: 'Automated Discovery Center', icon: '🤖' },
+            { id: 'Payment settings', icon: '⚙️' },
+            { id: 'Data Sources', icon: '🌐' },
+            { id: 'Automation Settings', icon: '🛠️' },
+            { id: 'System Logs', icon: '📜' }
+        ]
+    }
+];
 
 const paymentLabels: Record<string, string> = {
     COMPLETED: 'Completed', FAILED: 'Failed', PROCESSING: 'Awaiting confirmation', PENDING: 'Awaiting payment'
@@ -332,8 +373,12 @@ function App() {
     const matches = (...values: string[]) => values.join(' ').toLowerCase().includes(query.trim().toLowerCase());
     const eventStatus = (event: Event) => event.status || 'published';
     const filteredEvents = events.filter(event => matches(event.title, event.venue) && (status === 'all' || eventStatus(event) === status));
-    const filteredOrders = orders.filter(order => matches(order.orderReference, order.customer.email, order.paymentStatus));
+    const filteredOrders = orders.filter(order => matches(order.orderReference, order.customer.name, order.customer.email, order.paymentStatus, order.receipt || '', order.failureReason || ''));
     const eventPage = Math.min(page, Math.max(0, Math.ceil(filteredEvents.length / 10) - 1));
+
+    const goToSection = (item: Section) => {
+        setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);
+    };
 
     return <div className={dark ? 'shell dark' : 'shell'} onClick={() => { if (!audioUnlocked) { setAudioUnlocked(true); void ensureAudioContext(); } }}>
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
@@ -341,25 +386,30 @@ function App() {
                 <strong>Ticketsasa Admin</strong>
                 <span>{socketConnected ? '● Live Socket Connected' : '○ Connecting…'}</span>
             </div>
-            <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show menu' : 'Hide menu'}</button>
+            <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? '☰ Show Menu' : '✕ Hide Menu'}</button>
             <nav aria-label="Admin navigation">
-                {sections.map(item => (
-                    <button key={item} aria-current={section === item ? 'page' : undefined} onClick={() => {
-                        setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);
-                    }}>
-                        <span>{item}</span>
-                        {item === 'Pending Deposits' && unacknowledgedDeposits.length > 0 && <span className="nav-badge">{unacknowledgedDeposits.length}</span>}
-                        {item === 'Notifications' && unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
-                    </button>
+                {navGroups.map(group => (
+                    <div key={group.label} style={{ marginBottom: '0.65rem' }}>
+                        <div style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', opacity: 0.6, padding: '0.35rem 0.6rem' }}>
+                            {group.label}
+                        </div>
+                        {group.items.map(({ id, icon }) => (
+                            <button key={id} aria-current={section === id ? 'page' : undefined} onClick={() => goToSection(id)}>
+                                <span>{icon} {id}</span>
+                                {id === 'Pending Deposits' && unacknowledgedDeposits.length > 0 && <span className="nav-badge">{unacknowledgedDeposits.length}</span>}
+                                {id === 'Notifications' && unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
+                            </button>
+                        ))}
+                    </div>
                 ))}
             </nav>
-            <a href="/">Back to storefront</a>
+            <a href="/">← Back to storefront</a>
         </aside>
         <main>
             <header>
                 <div><p className="eyebrow">Automated Discovery &amp; Payment Center</p><h1>{section}</h1></div>
                 <div className="actions sound-controls">
-                    <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); if (next) { setAudioUnlocked(true); playDepositSound(volume); } }}>
+                    <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); if (next) { setAudioUnlocked(true); playDepositInitiatedSound(volume); } }}>
                         {soundEnabled ? '🔊 Sound: ON' : '🔇 Sound: OFF'}
                     </button>
                     <label className="volume-control" title="Alert Volume">
@@ -372,6 +422,13 @@ function App() {
                     <a className="primary" href="/organizer">Publish Event</a>
                 </div>
             </header>
+            <div className="actions" style={{ flexWrap: 'wrap', marginBottom: '0.75rem', gap: '0.4rem' }}>
+                {(['Dashboard Overview', 'Transactions', 'Pending Deposits', 'Travel Fulfillment & Pricing', 'All Events', 'Payment settings'] as Section[]).map(quick => (
+                    <button key={quick} className={section === quick ? 'primary' : ''} onClick={() => goToSection(quick)}>
+                        {quick}
+                    </button>
+                ))}
+            </div>
 
             {!audioUnlocked && <div className="notice" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Browser autoplay policy requires one click to activate automatic deposit notification sounds &amp; browser alerts.</span>
@@ -438,21 +495,29 @@ function App() {
                         <button disabled={!filteredOrders.length} onClick={() => exportOrders(filteredOrders)}>Download CSV</button>
                     </div>
                     {!filteredOrders.length && <p>No matching live transactions.</p>}
-                    <div className="scroll"><table><thead><tr><th>Reference</th><th>Customer</th><th>Status</th><th>Failure Reason / Details</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map(order =>
+                    <div className="scroll"><table><thead><tr><th>#</th><th>Reference</th><th>Customer</th><th>Status</th><th>M-Pesa Code / Failure Reason</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map((order, idx) =>
                         <tr key={order.orderReference}>
+                            <td><strong>#{idx + 1}</strong></td>
                             <td>{order.orderReference}</td>
                             <td>{order.customer.name}</td>
                             <td><PaymentBadge status={order.paymentStatus}/></td>
-                            <td>{order.paymentStatus === 'FAILED'
-                                ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
-                                : order.failureReason
-                                    ? <span style={{ color: '#b45309', fontWeight: 600 }}>{order.failureReason}</span>
-                                    : order.paidAt ? `Paid ${date(order.paidAt)}` : '—'}</td>
+                            <td>{order.paymentStatus === 'COMPLETED'
+                                ? <span style={{ color: '#15803d', fontWeight: 700, fontFamily: 'monospace' }}>{order.receipt ? `M-Pesa: ${order.receipt}` : 'Paid'}{order.paidAt ? ` · ${date(order.paidAt)}` : ''}</span>
+                                : order.paymentStatus === 'FAILED'
+                                    ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
+                                    : order.failureReason
+                                        ? <span style={{ color: '#b45309', fontWeight: 600 }}>{order.failureReason}</span>
+                                        : '—'}</td>
                             <td>{money(order.totalKes)}</td>
                             <td><button onClick={() => setSelected(order)}>View order</button></td>
                         </tr>)}</tbody></table></div>
-                    {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.email}</p>
+                    {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.name} · {selected.customer.email}</p>
                         <p>Payment status: {paymentLabel(selected.paymentStatus)}{selected.paidAt ? ' · ' + date(selected.paidAt) : ''}</p>
+                        {selected.paymentStatus === 'COMPLETED' && selected.receipt && (
+                            <p style={{ color: '#15803d', fontWeight: 700, fontFamily: 'monospace' }}>
+                                M-Pesa Receipt Code: {selected.receipt}
+                            </p>
+                        )}
                         {selected.paymentStatus === 'FAILED' && (
                             <p style={{ color: '#b91c1c', fontWeight: 700 }}>
                                 Failure reason: {selected.failureReason || 'Payment failed or cancelled'}{selected.failureCode ? ` (M-Pesa code ${selected.failureCode})` : ''}{selected.failedAt ? ' · ' + date(selected.failedAt) : ''}

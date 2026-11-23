@@ -185,6 +185,7 @@ export function TravelOpsPanel() {
                     <table>
                         <thead>
                             <tr>
+                                <th>#</th>
                                 <th>Order / Ref</th>
                                 <th>Type &amp; Trip</th>
                                 <th>Customer</th>
@@ -194,8 +195,9 @@ export function TravelOpsPanel() {
                             </tr>
                         </thead>
                         <tbody>
-                            {queue.map(item => (
+                            {queue.map((item, idx) => (
                                 <tr key={item.orderReference}>
+                                    <td><strong>#{idx + 1}</strong></td>
                                     <td>
                                         <strong>{item.orderReference}</strong>
                                         <div className="muted">{item.reservationRef || ''} · {money(item.totalKes)}</div>

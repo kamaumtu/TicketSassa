@@ -35,6 +35,10 @@ async function rescheduleWorker() {
         holidaysAt: new Date(Date.now() + hoMs).toISOString()
     };
 
+    if (isConnected()) {
+        void unpublishExpiredListings().catch(() => {});
+    }
+
     timers.push(
         setInterval(() => {
             if (!paused) {

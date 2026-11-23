@@ -488,14 +488,20 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
             <button onClick={() => void load()}>Refresh</button>
         </div>
         <div className="scroll"><table>
-            <thead><tr><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status &amp; Reason</th><th>Wallet Credited</th><th>Initiated</th><th>Action</th></tr></thead>
-            <tbody>{deposits.map(d => <tr key={d._id}>
+            <thead><tr><th>#</th><th>Reference</th><th>Customer</th><th>Amount</th><th>Method</th><th>Status &amp; M-Pesa Code / Reason</th><th>Wallet Credited</th><th>Initiated</th><th>Action</th></tr></thead>
+            <tbody>{deposits.map((d, idx) => <tr key={d._id}>
+                <td><strong>#{idx + 1}</strong></td>
                 <td><strong>{d.reference}</strong><small>{d.orderReference}</small></td>
                 <td>{d.customerName}<small>{d.customerPhone}</small></td>
                 <td><strong>{money(d.amountKes)}</strong></td>
                 <td>{d.method}</td>
                 <td>
                     <span className="payment-badge" data-status={d.status}>{d.status}</span>
+                    {d.status === 'COMPLETED' && d.mpesaReceipt && (
+                        <small style={{ display: 'block', color: '#15803d', fontWeight: 700, fontFamily: 'monospace', marginTop: 4 }}>
+                            M-Pesa: {d.mpesaReceipt}
+                        </small>
+                    )}
                     {d.status === 'FAILED' && (
                         <small style={{ display: 'block', color: '#b91c1c', fontWeight: 600, marginTop: 4 }}>
                             {d.failureReason || 'Payment failed or cancelled'}{d.failureCode ? ` (Code ${d.failureCode})` : ''}
@@ -504,7 +510,7 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
                 </td>
                 <td>{d.walletCredited ? 'Verified & Credited' : d.status === 'FAILED' ? 'Not Credited (Failed)' : 'Pending Verification'}</td>
                 <td>{dateFmt(d.initiatedAt)}</td>
-                <td>{!d.acknowledged ? <button className="primary" onClick={async () => { await onAcknowledge(d._id); await load(); }}>Acknowledge &amp; Stop Sound</button> : <span>Acknowledged</span>}</td>
+                <td>{!d.acknowledged ? <button className="primary" onClick={async () => { await onAcknowledge(d._id); await load(); }}>Acknowledge</button> : <span>Acknowledged</span>}</td>
             </tr>)}</tbody>
         </table></div>
         {!deposits.length && <p>No deposit requests recorded yet.</p>}

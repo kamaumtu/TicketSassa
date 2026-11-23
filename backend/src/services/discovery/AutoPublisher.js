@@ -9,7 +9,8 @@ const {
     computeEventDedupeKey,
     computeFlightDedupeKey,
     computeHolidayDedupeKey,
-    findExistingDuplicate
+    findExistingDuplicate,
+    cleanupAllDuplicates
 } = require('./DuplicateDetector');
 const {
     validateEvent,
@@ -351,25 +352,33 @@ async function publishHolidays(candidates = [], sourceName, settings = {}) {
 
 async function unpublishExpiredListings() {
     const now = new Date();
-    const evRes = await DiscoveredEvent.updateMany(
-        { startsAt: { $lte: now }, expired: false },
-        { $set: { expired: true } }
-    );
+    const evRes = await DiscoveredEvent.deleteMany({
+        $or: [
+            { expired: true },
+            { endsAt: { $ne: null, $lte: now } },
+            { endsAt: null, startsAt: { $lte: now } }
+        ]
+    });
     const flRes = await FlightListing.deleteMany({
         departureTime: { $ne: null, $lte: now }
     });
-    const expiredEvents = evRes.modifiedCount || 0;
+    const dupRes = await cleanupAllDuplicates().catch(() => ({ eventsRemoved: 0, flightsRemoved: 0, holidaysRemoved: 0, totalRemoved: 0 }));
+    const expiredEvents = evRes.deletedCount || 0;
     const expiredFlights = flRes.deletedCount || 0;
-    if (expiredEvents + expiredFlights > 0) {
+    const duplicatesRemoved = dupRes.totalRemoved || 0;
+    if (expiredEvents + expiredFlights + duplicatesRemoved > 0) {
         await writeLog({
             kind: 'publish',
             sourceName: 'AutoPublisher',
             entityType: 'system',
-            message: `Unpublished ${expiredEvents} expired event(s) and removed ${expiredFlights} past flight(s).`
+            message: `Auto-removed ${expiredEvents} expired event(s), ${expiredFlights} past flight(s), and ${duplicatesRemoved} duplicate listing(s).`
         });
-        emitToAdmins('discovery:updated', { kind: 'expiration', expiredEvents, expiredFlights });
+        emitToAdmins('discovery:updated', { kind: 'expiration', expiredEvents, expiredFlights, duplicatesRemoved });
     }
-    return { expiredRemovedCount: expiredEvents + expiredFlights };
+    return {
+        expiredRemovedCount: expiredEvents + expiredFlights,
+        duplicatesRemoved
+    };
 }
 
 module.exports = {
