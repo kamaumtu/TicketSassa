@@ -318,12 +318,12 @@
             return;
         }
         for (const hl of holidays) {
-            const img = hl.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg';
+            const img = hl.images?.[0]?.url || '/assets/holidays/beach-holidays.jpg';
             const isSoldOut = hl.availability === 'sold_out';
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
             card.innerHTML = `
                 <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
-                    <img src="${escapeHtml(img)}" alt="${escapeHtml(hl.title)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/real/lheAq1Zpc0-1794303741.jpg'">
+                    <img src="${escapeHtml(img)}" alt="${escapeHtml(hl.title)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/holidays/beach-holidays.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.destination)}</span>
                     <span class="absolute top-2 right-2 ${isSoldOut ? 'bg-slate-600' : 'bg-emerald-600'} text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.bookingLabel || (isSoldOut ? 'Sold Out' : 'Bookable Online'))}</span>
                 </div>

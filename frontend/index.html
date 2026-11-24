@@ -35,9 +35,6 @@
                 <img src="assets/real/ticketsasa-logo.svg" alt="Ticketsasa" width="144" height="36">
             </a>
             <div class="site-actions">
-                <button type="button" id="currency-toggle" aria-label="Switch currency">
-                    <span id="curr-label">KES</span> / <span>USD</span>
-                </button>
                 <button type="button" id="install-app" hidden>Install app</button>
                 <a id="download-apk" href="/downloads/ticketsasa.apk" download hidden>Android APK</a>
                 <button type="button" id="btn-my-tickets">
@@ -1833,7 +1830,7 @@
                     <div data-auth-guest>
                         <a data-auth-google href="/api/auth/google" class="py-2.5 px-4 rounded-xl border border-slate-300 hover:bg-slate-50 text-xs font-bold text-slate-700 text-center">Continue with Google</a>
                     </div>
-                    <div data-auth-guest class="relative flex py-2 items-center">
+                    <div data-auth-google hidden class="relative flex py-2 items-center">
                         <div class="flex-grow border-t border-slate-200"></div>
                         <span class="flex-shrink mx-4 text-[11px] font-bold uppercase text-slate-400">Or use Email</span>
                         <div class="flex-grow border-t border-slate-200"></div>
@@ -1939,13 +1936,13 @@
     <footer class="bg-[#ECEEF2] border-t border-slate-300 py-14 text-slate-600 text-xs mt-16">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
             
-            <div class="grid grid-cols-1 md:grid-cols-5 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
                 
                 <!-- Col 1: Logo & Company -->
                 <div class="space-y-3">
-                    <img src="assets/real/ticketsasa-logo.svg" alt="Ticketsasa" class="h-9 w-auto">
+                    <img src="assets/real/ticketsasa-logo.svg" alt="Ticketsassa" class="h-9 w-auto">
                     <p class="text-[11px] text-slate-500 leading-relaxed">
-                        Ticketsasa is East Africa's leading platform for online event ticketing, holiday packages, and airline flight bookings.
+                        Ticketsassa is East Africa's platform for online event ticketing, holiday packages, and airline flight bookings.
                     </p>
                 </div>
 
@@ -1956,62 +1953,35 @@
                         <li><a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-rose-600 transition">Buy a Ticket</a></li>
                         <li><a href="javascript:void(0)" onclick="switchTab('holidays')" class="hover:text-rose-600 transition">Buy a Package</a></li>
                         <li><a href="javascript:void(0)" onclick="switchTab('flights')" class="hover:text-rose-600 transition">Book a Flight</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Tickets</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('sell')" class="hover:text-rose-600 transition">Sell Your Packages</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('sell')" class="hover:text-rose-600 transition">Sell Your Event</a></li>
                     </ul>
                 </div>
 
-                <!-- Col 3: Using Ticketsasa -->
+                <!-- Col 3: Your Bookings -->
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-900 text-sm">Using Ticketsasa</h4>
+                    <h4 class="font-bold text-slate-900 text-sm">Your Bookings</h4>
                     <ul class="space-y-1.5">
-                        <li><a href="javascript:void(0)" onclick="openJazaInfo()" class="hover:text-rose-600 transition">How to Buy a Package</a></li>
                         <li><a href="javascript:void(0)" onclick="openTicketWallet()" class="hover:text-rose-600 transition">Check Ticket</a></li>
-                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Write a Review</a></li>
-                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Pricing</a></li>
-                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">FAQs</a></li>
-                        <li><a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-rose-600 transition">Sitemap</a></li>
+                        <li><a href="javascript:void(0)" onclick="switchTab('login')" class="hover:text-rose-600 transition">Customer Log In</a></li>
+                        <li><a href="javascript:void(0)" onclick="openHelpModal()" class="hover:text-rose-600 transition">Help &amp; FAQs</a></li>
                     </ul>
                 </div>
 
-                <!-- Col 4: Quicklinks -->
+                <!-- Col 4: Legal & Support -->
                 <div class="space-y-2">
-                    <h4 class="font-bold text-slate-900 text-sm">Quicklinks</h4>
+                    <h4 class="font-bold text-slate-900 text-sm">Legal &amp; Support</h4>
                     <ul class="space-y-1.5">
-                        <li><a href="javascript:void(0)" onclick="switchTab('blog')" class="hover:text-rose-600 transition">Ticketsasa Blog</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('login')" class="hover:text-rose-600 transition">Customer Log In</a></li>
                         <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
                         <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
+                        <li><button type="button" onclick="openHelpModal()" class="underline font-semibold text-slate-700 hover:text-rose-600 transition">Open support chat</button></li>
                     </ul>
-                </div>
-
-                <!-- Col 5: Newsletter & Get the Ticketsasa App (Exact from downloaded_flights.html) -->
-                <div class="space-y-3">
-                    <h4 class="font-bold text-slate-900 text-sm">Get our newsletter and stay current on deals and specials</h4>
-                    <form onsubmit="event.preventDefault(); showToast('Subscribed to Ticketsasa weekly newsletter!')" class="flex gap-1.5">
-                        <input type="email" required placeholder="Email" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
-                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-[#D81A21] text-white font-bold text-xs hover:bg-[#b9151b]">Subscribe</button>
-                    </form>
-                    <h4 class="font-bold text-slate-900 text-sm pt-2">Get the Ticketsasa app</h4>
-                    <form onsubmit="event.preventDefault(); showToast('Ticketsasa app download link sent via SMS!')" class="flex gap-1.5">
-                        <input type="tel" required placeholder="Your phone number" class="min-w-0 flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-xs">
-                        <button type="submit" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white font-bold text-xs hover:bg-slate-800">Get App</button>
-                    </form>
-                    <button type="button" onclick="openHelpModal()" class="underline font-semibold text-slate-700">Open support chat</button>
                 </div>
 
             </div>
 
-            <!-- Bottom Copyright & Pesapal Attribution -->
+            <!-- Bottom Copyright -->
             <div class="pt-8 border-t border-slate-300 flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-500 gap-4">
-                <p>© 2026 Ticketsasa, a product of Pesapal Limited. All rights reserved.</p>
-                <div class="flex items-center gap-3">
-                    <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook"><img src="assets/real/icon-fb.png" alt="Facebook" class="w-5 h-5 object-contain"></a>
-                    <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram"><img src="assets/real/icon-ig.png" alt="Instagram" class="w-5 h-5 object-contain"></a>
-                    <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="X"><img src="assets/real/icon-x.png" alt="X" class="w-5 h-5 object-contain"></a>
-                    <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube"><img src="assets/real/icon-youtube.png" alt="YouTube" class="w-5 h-5 object-contain"></a>
-                    <a href="https://pinterest.com" target="_blank" rel="noopener noreferrer" aria-label="Pinterest"><img src="assets/real/icon-pinterest.png" alt="Pinterest" class="w-5 h-5 object-contain"></a>
-                </div>
+                <p>© 2026 Ticketsassa. All rights reserved.</p>
             </div>
 
         </div>

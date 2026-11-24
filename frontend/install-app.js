@@ -24,10 +24,3 @@ window.addEventListener('appinstalled', () => {
 if ('serviceWorker' in navigator && window.isSecureContext) {
     navigator.serviceWorker.register('/service-worker.js').catch(() => {});
 }
-
-fetch('/downloads/ticketsasa.apk', { method: 'HEAD', cache: 'no-store' })
-    .then(response => {
-        if (response.ok && response.headers.get('content-type')?.startsWith('application/vnd.android.package-archive')) {
-            download.hidden = false;
-        }
-    }).catch(() => {});

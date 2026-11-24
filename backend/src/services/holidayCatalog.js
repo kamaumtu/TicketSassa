@@ -418,7 +418,7 @@ async function resolveHolidayPackage(packageKey) {
             destination: doc.destination,
             duration: doc.duration || `${nights + 1}D / ${nights}N`,
             nights,
-            image: doc.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg',
+            image: doc.images?.[0]?.url || '/assets/holidays/beach-holidays.jpg',
             rate: resolveHolidayPriceKes(doc),
             originalRate: null,
             discount: '',

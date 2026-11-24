@@ -19,6 +19,9 @@ function getPromo(code, kind = 'all') {
     if (!found) return null;
 
     if (kind && kind !== 'all' && found.appliesTo && found.appliesTo !== 'all') {
+        if (kind === 'bundle' && ['bundle', 'holiday', 'flight'].includes(found.appliesTo)) {
+            return found;
+        }
         if (found.appliesTo !== kind) return null;
     }
     return found;
