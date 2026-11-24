@@ -6,6 +6,7 @@
   "scripts": {
     "start": "npm --prefix ../backend start",
     "build:storefront": "tailwindcss -i storefront.css -o assets/storefront.css --minify && node scripts/copy-storefront-icons.cjs",
+    "build:pages": "npm run build:storefront && node scripts/build-pages.cjs",
     "build:admin": "npm --prefix admin-ui run build",
     "build:angular": "npm --prefix frontend-angular run build",
     "build": "npm run build:storefront && npm run build:admin && npm run build:angular"

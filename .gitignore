@@ -11,6 +11,7 @@ yarn-error.log*
 
 # Build artifacts
 dist/
+frontend/pages-dist/
 .angular/
 build/
 
