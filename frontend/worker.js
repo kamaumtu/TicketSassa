@@ -1,5 +1,31 @@
 const DEFAULT_BACKEND = 'https://ticketsasa-live.onrender.com';
 
+const MIME_TYPES = {
+    '.html': 'text/html; charset=utf-8',
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.mjs': 'application/javascript; charset=utf-8',
+    '.json': 'application/json; charset=utf-8',
+    '.webmanifest': 'application/manifest+json; charset=utf-8',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.ico': 'image/x-icon',
+    '.woff2': 'font/woff2',
+    '.woff': 'font/woff',
+    '.ttf': 'font/ttf'
+};
+
+function guessMimeType(pathname) {
+    const clean = pathname.endsWith('/') ? pathname + 'index.html' : pathname;
+    const dot = clean.lastIndexOf('.');
+    if (dot === -1) return 'text/html; charset=utf-8';
+    return MIME_TYPES[clean.slice(dot).toLowerCase()] || null;
+}
+
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
@@ -37,6 +63,19 @@ export default {
             });
         }
 
-        return env.ASSETS.fetch(request);
+        const assetRes = await env.ASSETS.fetch(request);
+        const headers = new Headers(assetRes.headers);
+        if (!headers.get('content-type') || headers.get('content-type') === 'application/octet-stream') {
+            const guessed = guessMimeType(url.pathname);
+            if (guessed) headers.set('content-type', guessed);
+        }
+        if (url.pathname.startsWith('/assets/') && !headers.get('cache-control')) {
+            headers.set('cache-control', 'public, max-age=31536000, immutable');
+        }
+        return new Response(assetRes.body, {
+            status: assetRes.status,
+            statusText: assetRes.statusText,
+            headers
+        });
     }
 };
