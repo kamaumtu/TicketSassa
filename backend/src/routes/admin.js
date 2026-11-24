@@ -43,7 +43,8 @@ router.get('/overview', async (req, res, next) => {
         const storageAvailable = isConnected();
         let events = overviewCache.events;
         let liveOrders = overviewCache.liveOrders;
-        if (storageAvailable && Date.now() - overviewCache.at > 5000) {
+        const forceFresh = req.query?.fresh === '1';
+        if (storageAvailable && (forceFresh || Date.now() - overviewCache.at > 1500)) {
             const [evRes, ordRes] = await Promise.all([
                 collection('commerce_events').find({}, { projection: { _id: 0 }, maxTimeMS: 6000 }).sort({ startsAt: -1 }).toArray().catch(() => null),
                 collection('commerce_orders').find({ mode: 'live' }, { maxTimeMS: 6000 }).sort({ createdAt: -1 }).toArray().catch(() => null)
@@ -54,10 +55,10 @@ router.get('/overview', async (req, res, next) => {
         }
         const orders = liveOrders
             .filter(order => order.provider !== 'demo' && !/^DEMO-/i.test(order.receipt ?? ''))
-            .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt, failureReason, failureCode, failedAt }) => ({
-                orderReference, customer: { name: customer?.name, email: customer?.email }, items,
+            .map(({ orderReference, customer, items, totalKes, paymentStatus, provider, receipt, paidAt, createdAt, failureReason, failureCode, failedAt }) => ({
+                orderReference, customer: { name: customer?.name, email: customer?.email, phone: customer?.phone }, items,
                 totalTickets: (items ?? []).filter(isLiveTicket).reduce((sum, item) => sum + item.quantity, 0),
-                totalKes, paymentStatus, provider, receipt, paidAt,
+                totalKes, paymentStatus, provider, receipt, paidAt, createdAt,
                 ...(failureReason ? { failureReason, failureCode, failedAt } : {})
             }));
 
@@ -73,7 +74,8 @@ router.get('/overview', async (req, res, next) => {
         }));
 
         const imports = discoveryStatus(await req.app.locals.eventCatalog.get());
-        res.json({ storageAvailable, events: eventsWithSold, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
+        const storefrontUrl = process.env.PUBLIC_APP_URL || process.env.CLIENT_URL || 'https://ticketsassa.ticketsassa.workers.dev';
+        res.json({ storageAvailable, storefrontUrl, events: eventsWithSold, orders, imports, payments, ticketRevenue: revenueSummary(liveOrders) });
     } catch (error) {
         next(error);
     }

@@ -158,7 +158,18 @@ async function completeOrder(session, order, receipt) {
     const travelReservation = await confirmTravelReservation(orderReference, receipt, order.mode).catch(() => null);
     void sendOrderTicketsEmail(order, passes, travelReservation).catch(() => null);
     void require('../services/messagingService').sendBookingAlerts(order, passes, travelReservation).catch(() => null);
-    void markDepositVerified({ orderReference, checkoutRequestId: order.checkoutRequestId, receipt, status: 'COMPLETED' }).catch(() => null);
+    void markDepositVerified({
+        orderReference,
+        checkoutRequestId: order.checkoutRequestId,
+        receipt,
+        status: 'COMPLETED',
+        customerName: order.customer?.name,
+        customerPhone: order.customer?.phone,
+        customerEmail: order.customer?.email,
+        amountKes: order.totalKes,
+        method: order.paymentMethod || 'M-PESA',
+        provider: order.provider || 'mpesa'
+    }).catch(() => null);
     return { order, passes, travelReservation };
 }
 
@@ -207,6 +218,17 @@ exports.initiateCardPayment = handler(async (req, res) => {
             }
         }
     );
+
+    await notifyDepositInitiated({
+        orderReference: order.orderReference,
+        customerName: order.customer?.name,
+        customerPhone: order.customer?.phone,
+        customerEmail: order.customer?.email,
+        amountKes: order.totalKes,
+        method: 'CARD',
+        provider: result.provider || 'card',
+        checkoutRequestId: result.reference || ''
+    }).catch(() => null);
 
     res.json({
         success: true,
@@ -473,7 +495,7 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
             mode,
             itemsSummary: (order.items || []).map(i => `${i.quantity}x ${i.title}`).join(', ')
         });
-        void notifyDepositInitiated({
+        await notifyDepositInitiated({
             orderReference: order.orderReference,
             customerName: order.customer?.name,
             customerPhone: order.customer?.phone,
@@ -490,6 +512,13 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
             order.checkoutRequestId = result.checkoutRequestId;
             order.providerReference = result.providerReference;
             await saveOrder(order);
+            if (isConnected() && result.checkoutRequestId) {
+                const { DepositRequest } = require('../models/automation');
+                await DepositRequest.updateOne(
+                    { orderReference: order.orderReference },
+                    { $set: { checkoutRequestId: result.checkoutRequestId } }
+                ).catch(() => null);
+            }
         } catch (error) {
             console.error('M-Pesa initiation did not complete for order', orderReference, error.gatewayReason || error.message);
             const reason = describePaymentFailure(
@@ -504,11 +533,17 @@ exports.initiateMpesaStkPush = handler(async (req, res) => {
                 // Keep the hold so we never send a duplicate prompt, but record the exact gateway error for the admin.
                 order.failureReason = reason;
                 await saveOrder(order).catch(() => null);
-                void markDepositVerified({
+                await markDepositVerified({
                     orderReference,
                     checkoutRequestId: order.checkoutRequestId || '',
                     status: 'FAILED',
-                    failureReason: reason
+                    failureReason: reason,
+                    customerName: order.customer?.name,
+                    customerPhone: order.customer?.phone,
+                    customerEmail: order.customer?.email,
+                    amountKes: order.totalKes,
+                    method: 'M-PESA',
+                    provider: order.provider || 'mpesa'
                 }).catch(() => null);
             }
         }
@@ -554,7 +589,13 @@ function settle(reference, result) {
                 checkoutRequestId: current.checkoutRequestId,
                 status: 'FAILED',
                 failureReason,
-                failureCode: current.failureCode || ''
+                failureCode: current.failureCode || '',
+                customerName: current.customer?.name,
+                customerPhone: current.customer?.phone,
+                customerEmail: current.customer?.email,
+                amountKes: current.totalKes,
+                method: current.paymentMethod || 'M-PESA',
+                provider: current.provider || 'mpesa'
             }).catch(() => null);
         }
         return current;
@@ -567,8 +608,8 @@ const lastQueries = new Map();
 async function reconcile(order, callbackHint = null) {
     if (order.mode !== 'live' || order.paymentStatus !== 'PROCESSING' || !order.checkoutRequestId) return order;
     const reference = order.orderReference;
-    if (pendingQueries.has(reference)) return pendingQueries.get(reference);
-    if (Date.now() - (lastQueries.get(reference) ?? 0) < 5000) return getOrder(reference);
+    if (!callbackHint && pendingQueries.has(reference)) return pendingQueries.get(reference);
+    if (!callbackHint && Date.now() - (lastQueries.get(reference) ?? 0) < 5000) return getOrder(reference);
     if (lastQueries.size >= 1000) lastQueries.delete(lastQueries.keys().next().value);
     lastQueries.set(reference, Date.now());
     const query = (async () => {
@@ -581,11 +622,15 @@ async function reconcile(order, callbackHint = null) {
                 result = {
                     status: code === '0' ? 'completed'
                         : ['1', '1001', '1019', '1025', '1032', '1036', '1037', '2001'].includes(code) ? 'failed' : 'pending',
+                    receipt: callbackHint?.receipt || null,
                     resultCode: code,
                     reason: reply.ResultDesc || callbackHint?.reason || ''
                 };
             } else {
                 result = await paymentGateways.check(order.provider, providerDetails(order));
+                if (result.status === 'completed' && !result.receipt && callbackHint?.receipt) {
+                    result.receipt = callbackHint.receipt;
+                }
                 if (['failed', 'cancelled'].includes(result.status) && callbackHint) {
                     if (!result.resultCode && callbackHint.resultCode) result.resultCode = callbackHint.resultCode;
                     if ((!result.reason || /failed or was cancelled/i.test(result.reason)) && callbackHint.reason) {
@@ -653,7 +698,7 @@ exports.adminCheckPayment = handler(async (req, res) => {
 
 function callback(provider, identify) {
     return handler(async (req, res) => {
-        const { id, reference, resultCode, reason } = identify(req.body);
+        const { id, reference, resultCode, reason, receipt } = identify(req.body);
         const matches = [];
         if (typeof id === 'string' && id.length <= 128) matches.push({ checkoutRequestId: id });
         if (typeof reference === 'string' && /^ORD-[A-F0-9]{32}$/.test(reference)) matches.push({ _id: reference });
@@ -661,30 +706,37 @@ function callback(provider, identify) {
         const order = await collection('commerce_orders').findOne({
             mode: 'live', provider: provider === 'daraja' ? { $in: ['daraja', null] } : provider, $or: matches
         });
-        if (order) await reconcile(order, (resultCode || reason) ? { resultCode, reason } : null);
+        if (order) await reconcile(order, { isCallback: true, resultCode, reason, receipt });
         res.json({ success: true, ResultCode: 0, ResultDesc: 'Accepted' });
     });
 }
 
-exports.mpesaCallback = callback('daraja', body => ({
-    id: body?.Body?.stkCallback?.CheckoutRequestID,
-    resultCode: body?.Body?.stkCallback?.ResultCode,
-    reason: body?.Body?.stkCallback?.ResultDesc
-}));
+exports.mpesaCallback = callback('daraja', body => {
+    const items = body?.Body?.stkCallback?.CallbackMetadata?.Item;
+    const receiptItem = Array.isArray(items) ? items.find(i => i?.Name === 'MpesaReceiptNumber') : null;
+    return {
+        id: body?.Body?.stkCallback?.CheckoutRequestID,
+        resultCode: body?.Body?.stkCallback?.ResultCode,
+        reason: body?.Body?.stkCallback?.ResultDesc,
+        receipt: receiptItem?.Value ? String(receiptItem.Value) : null
+    };
+});
 exports.payheroCallback = callback('payhero', body => {
     const raw = body?.response ?? body;
     return {
         id: raw?.CheckoutRequestID ?? raw?.checkout_request_id,
         reference: raw?.ExternalReference ?? raw?.external_reference,
         resultCode: raw?.ResultCode,
-        reason: raw?.ResultDesc ?? raw?.status_reason ?? raw?.message
+        reason: raw?.ResultDesc ?? raw?.status_reason ?? raw?.message,
+        receipt: raw?.MpesaReceiptNumber ?? raw?.mpesa_receipt_number ?? raw?.provider_reference ?? null
     };
 });
 exports.nexuspayCallback = callback('nexuspay', body => ({
     id: body?.checkoutRequestId,
     reference: body?.reference ?? body?.external_reference,
     resultCode: body?.resultCode ?? body?.ResultCode,
-    reason: body?.resultDesc ?? body?.ResultDesc ?? body?.reason ?? body?.message
+    reason: body?.resultDesc ?? body?.ResultDesc ?? body?.reason ?? body?.message,
+    receipt: body?.mpesaReceiptNumber ?? body?.MpesaReceiptNumber ?? body?.receipt ?? null
 }));
 
 exports.confirmDemo = handler(async (req, res) => {

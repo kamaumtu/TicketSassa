@@ -38,6 +38,7 @@
         if (!container) {
             container = el('section', 'max-w-7xl mx-auto px-4 sm:px-6 py-8 border-t border-slate-200');
             container.id = 'auto-discovered-events-section';
+            container.innerHTML = `<div class="text-sm font-semibold text-slate-500 py-4">Loading discovered events across Kenya…</div>`;
             host.append(container);
         }
 
@@ -136,15 +137,17 @@
                 tiers: Array.isArray(ev.tiers) ? ev.tiers : []
             })));
         }
-        for (const ev of events) {
+        for (let idx = 0; idx < events.length; idx++) {
+            const ev = events[idx];
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
             const displayPrice = ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000;
             const imgUrl = ev.image?.url || '/assets/real/DzLV4G9UWo-1790859483.jpg';
             const evId = ev.externalId || ev._id;
             const extUrl = ev.ticketPurchaseUrl || ev.originalUrl;
+            const loadAttr = idx < 4 ? 'loading="eager" fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
             card.innerHTML = `
                 <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
-                    <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(ev.name)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/real/DzLV4G9UWo-1790859483.jpg'">
+                    <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(ev.name)}" ${loadAttr} class="w-full h-full object-cover" onerror="this.src='/assets/real/DzLV4G9UWo-1790859483.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.county)}</span>
                     <span class="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.ticketTypeLabel || 'Tickets Available')}</span>
                 </div>
@@ -372,8 +375,23 @@
     }
 
     async function init() {
-        await loadMeta();
-        await Promise.all([loadEventsSection(), loadFlightsSection(), loadHolidaysSection()]);
+        const metaPromise = loadMeta();
+        await loadEventsSection();
+        void metaPromise.then(() => {
+            const countySel = document.getElementById('auto-ev-county');
+            if (countySel && countySel.options.length <= 1 && (metaCache.counties || []).length) {
+                countySel.innerHTML = `<option value="">All 47 Counties</option>` +
+                    metaCache.counties.map(c => `<option value="${escapeHtml(c)}" ${evState.county === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+            }
+            const catSel = document.getElementById('auto-ev-cat');
+            if (catSel && catSel.options.length <= 1 && (metaCache.eventCategories || []).length) {
+                catSel.innerHTML = `<option value="">All Categories</option>` +
+                    metaCache.eventCategories.map(c => `<option value="${escapeHtml(c)}" ${evState.category === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+            }
+        });
+        setTimeout(() => {
+            void Promise.all([loadFlightsSection(), loadHolidaysSection()]);
+        }, 350);
     }
 
     if (document.readyState === 'loading') {

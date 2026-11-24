@@ -32,7 +32,7 @@ function BarChart({ title, rows, valueSuffix = '' }: { title: string; rows: { la
     </section>;
 }
 
-export function AutomationOverview({ onNavigate }: { onNavigate: (section: string) => void }) {
+export function AutomationOverview({ onNavigate, refreshKey = 0 }: { onNavigate: (section: string) => void; refreshKey?: number }) {
     const [data, setData] = useState<any>();
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
@@ -46,7 +46,7 @@ export function AutomationOverview({ onNavigate }: { onNavigate: (section: strin
         }
     }
 
-    useEffect(() => { void load(); }, []);
+    useEffect(() => { void load(); }, [refreshKey]);
 
     async function triggerRun(kind: string) {
         setBusy(true);
@@ -400,7 +400,7 @@ export function HolidayPackagesPanel() {
     const [categories, setCategories] = useState<string[]>([]);
     const [destinations, setDestinations] = useState<string[]>([]);
     const [msg, setMsg] = useState('');
-    const [form, setForm] = useState({ title: '', category: 'Beach Holidays', destination: 'Diani', country: 'Kenya', accommodation: '', nights: '3', activities: '', transport: 'Return SGR / Flight Transfers', meals: 'All-Inclusive', pricePerPerson: '', currency: 'KES', travelDates: 'Flexible Dates', provider: 'Ticketsasa Holidays', bookingUrl: '', imageUrl: '/assets/real/lheAq1Zpc0-1794303741.jpg' });
+    const [form, setForm] = useState({ title: '', category: 'Beach Holidays', destination: 'Diani', country: 'Kenya', accommodation: '', nights: '3', activities: '', transport: 'Return SGR / Flight Transfers', meals: 'All-Inclusive', pricePerPerson: '', currency: 'KES', travelDates: 'Flexible Dates', provider: 'Ticketsasa Holidays', bookingUrl: '', imageUrl: '/assets/holidays/beach-holidays.jpg' });
 
     async function load() {
         const res = await autoRequest<any>('/holidays');
@@ -452,7 +452,7 @@ export function HolidayPackagesPanel() {
         <section className="discovery-grid">
             {packages.map(p => <article className="panel discovery-card" key={p._id}>
                 <div className="discovery-media">
-                    <img src={p.images?.[0]?.url || '/assets/real/lheAq1Zpc0-1794303741.jpg'} alt={p.title} />
+                    <img src={p.images?.[0]?.url || '/assets/holidays/beach-holidays.jpg'} alt={p.title} loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).src = '/assets/holidays/beach-holidays.jpg'; }} />
                     <span className="discovery-badge">{p.destination} · {p.nights} Nights</span>
                 </div>
                 <div className="discovery-body">
@@ -470,7 +470,7 @@ export function HolidayPackagesPanel() {
     </div>;
 }
 
-export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: string) => Promise<void> }) {
+export function PendingDepositsPanel({ refreshKey = 0 }: { onAcknowledge?: (id: string) => Promise<void>; refreshKey?: number }) {
     const [deposits, setDeposits] = useState<any[]>([]);
     async function load() {
         const res = await autoRequest<{ data: any[] }>('/deposits');
@@ -478,7 +478,9 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
     }
     useEffect(() => {
         void load();
-        const t = window.setInterval(() => { if (!document.hidden) void load(); }, 30000);
+    }, [refreshKey]);
+    useEffect(() => {
+        const t = window.setInterval(() => { if (!document.hidden) void load(); }, 15000);
         return () => window.clearInterval(t);
     }, []);
 
@@ -516,13 +518,13 @@ export function PendingDepositsPanel({ onAcknowledge }: { onAcknowledge: (id: st
     </section>;
 }
 
-export function NotificationsPanel({ onAcknowledgeAll }: { onAcknowledgeAll: () => Promise<void> }) {
+export function NotificationsPanel({ onAcknowledgeAll, refreshKey = 0 }: { onAcknowledgeAll: () => Promise<void>; refreshKey?: number }) {
     const [items, setItems] = useState<any[]>([]);
     async function load() {
         const res = await autoRequest<{ data: any[] }>('/notifications');
         setItems(res.data || []);
     }
-    useEffect(() => { void load(); }, []);
+    useEffect(() => { void load(); }, [refreshKey]);
     return <section className="panel">
         <div className="lobby-toolbar">
             <h2>Persistent Admin Notifications ({items.length})</h2>

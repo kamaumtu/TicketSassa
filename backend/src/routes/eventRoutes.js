@@ -8,7 +8,7 @@ const catalog = createEventCatalog();
 
 router.catalog = catalog;
 router.get('/kenya', route(async (req, res) => {
-    res.set('Cache-Control', 'no-store').json(await catalog.get());
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=300').json(await catalog.get());
 }));
 
 router.get('/quicket', route(async (req, res) => {

@@ -21,11 +21,11 @@ import { TravelOpsPanel } from './travelOpsPanel';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
-type Order = { orderReference: string; customer: { name: string; email: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; provider?: string; receipt?: string; failureReason?: string; failureCode?: string; failedAt?: string };
+type Order = { orderReference: string; customer: { name: string; email: string; phone?: string }; items: { title: string; quantity: number; kind: string }[]; totalTickets: number; totalKes: number; paymentStatus: string; paidAt?: string; createdAt?: string; provider?: string; receipt?: string; failureReason?: string; failureCode?: string; failedAt?: string };
 type Audit = { action: string; target: string; timestamp: string };
 type PaymentSettings = { provider: string | null; storageAvailable: boolean; options: { id: string; name: string; configured: boolean }[] };
 type TicketRevenue = { todayKes: number; weekKes: number; totalKes: number; undatedPayments: number };
-type Data = { storageAvailable: boolean; payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[] };
+type Data = { storageAvailable: boolean; storefrontUrl?: string; payments: PaymentSettings; ticketRevenue: TicketRevenue; events: Event[]; orders: Order[] };
 
 type DepositAlert = {
     _id?: string;
@@ -36,7 +36,18 @@ type DepositAlert = {
     amountKes: number;
     method: string;
     status: string;
+    mpesaReceipt?: string;
+    failureReason?: string;
+    failureCode?: string;
     initiatedAt: string;
+};
+
+type LiveBanner = {
+    id: string;
+    tone: 'pending' | 'success' | 'failed';
+    title: string;
+    detail: string;
+    target: Section;
 };
 
 const sections = [
@@ -45,10 +56,8 @@ const sections = [
     'Event Discovery',
     'All Events',
     'Ticket Management',
-    'Flight Discovery',
     'Flight Management',
     'Holiday Packages',
-    'Travel Bookings',
     'Travel Fulfillment & Pricing',
     'Pending Deposits',
     'Transactions',
@@ -84,8 +93,6 @@ const navGroups: { label: string; items: Section[] }[] = [
         label: 'Flights & Holidays',
         items: [
             'Travel Fulfillment & Pricing',
-            'Travel Bookings',
-            'Flight Discovery',
             'Flight Management',
             'Holiday Packages'
         ]
@@ -221,10 +228,28 @@ function playDepositSuccessSound(volume = 0.85) {
     void playToneSequence([523.25, 659.25, 783.99, 1046.5], { volume, step: 0.11, duration: 0.45, wave: 'triangle' });
 }
 
+// Sound 3: Played once when a payment fails or is cancelled (stops automatically)
+function playDepositFailedSound(volume = 0.85) {
+    void playToneSequence([440, 329.63], { volume, step: 0.16, duration: 0.38, wave: 'sine' });
+}
+
 function exportOrders(orders: Order[]) {
-    const quote = (value: string | number) => '"' + String(value).replace(/^([=+@-]|\s)/, "'$1").replaceAll('"', '""') + '"';
-    const rows = [['Reference', 'Status', 'Tickets', 'Total KES'], ...orders.map(order =>
-        [order.orderReference, order.paymentStatus, order.totalTickets, order.totalKes])];
+    const quote = (value: string | number) => '"' + String(value ?? '').replace(/^([=+@-]|\s)/, "'$1").replaceAll('"', '""') + '"';
+    const rows = [
+        ['Reference', 'Date', 'Customer', 'Phone', 'Email', 'Items', 'Status', 'M-Pesa Receipt', 'Failure Reason', 'Total KES'],
+        ...orders.map(order => [
+            order.orderReference,
+            order.paidAt || order.createdAt || '',
+            order.customer?.name || '',
+            order.customer?.phone || '',
+            order.customer?.email || '',
+            (order.items || []).map(i => `${i.quantity}x ${i.title}`).join('; '),
+            order.paymentStatus,
+            order.receipt || '',
+            order.failureReason || '',
+            order.totalKes
+        ])
+    ];
     const url = URL.createObjectURL(new Blob([rows.map(row => row.map(quote).join(',')).join('\r\n')], { type: 'text/csv' }));
     const link = document.createElement('a');
     link.href = url;
@@ -233,26 +258,10 @@ function exportOrders(orders: Order[]) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function TravelBookingsPanel() {
-    const [data, setData] = useState<{ data: any[]; travelReservations: any[] }>();
-    useEffect(() => { void autoRequest<{ data: any[]; travelReservations: any[] }>('/bookings').then(setData); }, []);
-    return <section className="panel">
-        <h2>Travel Bookings &amp; Supplier Reservations</h2>
-        <div className="scroll"><table>
-            <thead><tr><th>Order / Ref</th><th>Type</th><th>Title</th><th>Status</th><th>Total</th><th>Confirmation</th></tr></thead>
-            <tbody>{(data?.travelReservations || []).map((r: any, idx: number) => <tr key={idx}>
-                <td>{r.orderReference || r.reservationRef}</td><td>{r.kind}</td><td>{r.title || r.route || r.destination}</td>
-                <td><PaymentBadge status={r.status} /></td><td>{money(r.totalKes)}</td><td>{r.confirmationCode || 'Pending'}</td>
-            </tr>)}</tbody>
-        </table></div>
-        {!data?.travelReservations?.length && <p>No travel reservations recorded yet.</p>}
-    </section>;
-}
-
 function App() {
     const [section, setSection] = useState<Section>(
         new URLSearchParams(location.search).get('section') === 'payments' ? 'Payment settings'
-            : location.pathname === '/admin/travel' ? 'Travel Bookings'
+            : location.pathname === '/admin/travel' ? 'Travel Fulfillment & Pricing'
             : location.pathname === '/admin/discovery' ? 'Automated Discovery Center'
             : location.pathname === '/admin/publishing' ? 'Event Discovery'
             : 'Dashboard Overview'
@@ -271,9 +280,11 @@ function App() {
     // Sound & Real-Time Deposit Notification State
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [audioUnlocked, setAudioUnlocked] = useState(false);
-    const [volume, setVolume] = useState(0.75);
+    const [volume, setVolume] = useState(0.8);
     const [unreadCount, setUnreadCount] = useState(0);
     const [unacknowledgedDeposits, setUnacknowledgedDeposits] = useState<DepositAlert[]>([]);
+    const [liveBanners, setLiveBanners] = useState<LiveBanner[]>([]);
+    const [refreshKey, setRefreshKey] = useState(0);
     const [socketConnected, setSocketConnected] = useState(false);
 
     const soundEnabledRef = useRef(soundEnabled);
@@ -283,33 +294,71 @@ function App() {
     const seenDepositStatusRef = useRef<Map<string, string>>(new Map());
     const initialLoadDoneRef = useRef(false);
 
+    function pushLiveBanner(banner: LiveBanner) {
+        setLiveBanners(prev => [banner, ...prev.filter(b => b.id !== banner.id)].slice(0, 3));
+        window.setTimeout(() => {
+            setLiveBanners(prev => prev.filter(b => b.id !== banner.id));
+        }, 25000);
+    }
+
     function handleDepositTransition(dep: DepositAlert, allowSound = true) {
-        if (!dep?.reference) return;
-        const prevStatus = seenDepositStatusRef.current.get(dep.reference);
+        const key = dep?.orderReference || dep?.reference;
+        if (!key) return;
+        const prevStatus = seenDepositStatusRef.current.get(key);
         if (prevStatus === dep.status) return;
-        seenDepositStatusRef.current.set(dep.reference, dep.status);
+        seenDepositStatusRef.current.set(key, dep.status);
         if (!allowSound || !initialLoadDoneRef.current) return;
 
+        const amountLabel = `KES ${Number(dep.amountKes || 0).toLocaleString('en-KE')}`;
         if (!prevStatus && (dep.status === 'PENDING' || dep.status === 'PROCESSING')) {
             if (soundEnabledRef.current) playDepositInitiatedSound(volumeRef.current);
+            pushLiveBanner({
+                id: key + ':PENDING',
+                tone: 'pending',
+                title: 'PAYMENT PROMPT SENT',
+                detail: `${dep.customerName} (${dep.customerPhone || 'M-Pesa'}) · ${amountLabel} · Awaiting PIN`,
+                target: 'Pending Deposits'
+            });
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('New Deposit Request', {
-                    body: `${dep.customerName} · KES ${Number(dep.amountKes).toLocaleString('en-KE')} · ${dep.method}`
+                new Notification('Payment Prompt Sent', {
+                    body: `${dep.customerName} · ${amountLabel} · ${dep.method}`
                 });
             }
         } else if (dep.status === 'COMPLETED' && prevStatus !== 'COMPLETED') {
             if (soundEnabledRef.current) playDepositSuccessSound(volumeRef.current);
+            pushLiveBanner({
+                id: key + ':COMPLETED',
+                tone: 'success',
+                title: 'PAYMENT CONFIRMED',
+                detail: `${dep.customerName} · ${amountLabel}${dep.mpesaReceipt ? ` · M-Pesa: ${dep.mpesaReceipt}` : ''} · ${dep.orderReference || dep.reference}`,
+                target: 'Transactions'
+            });
             if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('Payment Successful', {
-                    body: `${dep.customerName} · KES ${Number(dep.amountKes).toLocaleString('en-KE')} · ${dep.reference}`
+                new Notification('Payment Confirmed', {
+                    body: `${dep.customerName} · ${amountLabel}${dep.mpesaReceipt ? ` · ${dep.mpesaReceipt}` : ''}`
+                });
+            }
+        } else if (dep.status === 'FAILED' && prevStatus !== 'FAILED') {
+            if (soundEnabledRef.current) playDepositFailedSound(volumeRef.current);
+            const reason = dep.failureReason || 'Payment failed or cancelled';
+            pushLiveBanner({
+                id: key + ':FAILED',
+                tone: 'failed',
+                title: 'PAYMENT FAILED',
+                detail: `${dep.customerName} · ${amountLabel} · ${reason}`,
+                target: 'Transactions'
+            });
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Payment Failed', {
+                    body: `${dep.customerName} · ${amountLabel} · ${reason}`
                 });
             }
         }
     }
 
-    async function load() {
+    async function load(fresh = false) {
         const [overview, logs, notifs, recentDeps] = await Promise.all([
-            request<Data>('/overview').catch(() => undefined),
+            request<Data>(fresh ? '/overview?fresh=1' : '/overview').catch(() => undefined),
             request<{ data: Audit[] }>('/audit').catch(() => ({ data: [] })),
             autoRequest<{ unreadCount: number }>('/notifications').catch(() => ({ unreadCount: 0 })),
             autoRequest<{ data: DepositAlert[] }>('/deposits').catch(() => ({ data: [] }))
@@ -336,13 +385,13 @@ function App() {
     }
 
     useEffect(() => {
-        void run(load);
+        void run(() => load(false));
     }, []);
 
     useEffect(() => {
-        const intervalMs = socketConnected ? 20000 : 8000;
+        const intervalMs = socketConnected ? 15000 : 5000;
         const interval = window.setInterval(() => {
-            if (!document.hidden) void load().catch(() => {});
+            if (!document.hidden) void load(false).catch(() => {});
         }, intervalMs);
         return () => window.clearInterval(interval);
     }, [socketConnected]);
@@ -362,18 +411,22 @@ function App() {
             if (!deposit) return;
             setUnacknowledgedDeposits(prev => [deposit, ...prev.filter(d => d.reference !== deposit.reference)]);
             setUnreadCount(c => c + 1);
+            setRefreshKey(k => k + 1);
             handleDepositTransition(deposit, true);
-            void load().catch(() => {});
+            void load(true).catch(() => {});
         });
         socket.on('deposit:acknowledged', ({ reference, id }: { reference?: string; id?: string }) => {
             setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== reference && d._id !== id));
+            setRefreshKey(k => k + 1);
         });
         socket.on('deposit:verified', ({ deposit }: { deposit: DepositAlert }) => {
             if (deposit) {
-                setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference));
+                setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference && d.orderReference !== deposit.orderReference));
+                setUnreadCount(c => c + 1);
                 handleDepositTransition(deposit, true);
             }
-            void load().catch(() => {});
+            setRefreshKey(k => k + 1);
+            void load(true).catch(() => {});
         });
         return () => { socket.disconnect(); };
     }, []);
@@ -403,7 +456,7 @@ function App() {
     const matches = (...values: string[]) => values.join(' ').toLowerCase().includes(query.trim().toLowerCase());
     const eventStatus = (event: Event) => event.status || 'published';
     const filteredEvents = events.filter(event => matches(event.title, event.venue) && (status === 'all' || eventStatus(event) === status));
-    const filteredOrders = orders.filter(order => matches(order.orderReference, order.customer.name, order.customer.email, order.paymentStatus, order.receipt || '', order.failureReason || ''));
+    const filteredOrders = orders.filter(order => matches(order.orderReference, order.customer.name, order.customer.email, order.customer.phone || '', order.paymentStatus, order.receipt || '', order.failureReason || ''));
     const eventPage = Math.min(page, Math.max(0, Math.ceil(filteredEvents.length / 10) - 1));
 
     const goToSection = (item: Section) => {
@@ -414,7 +467,7 @@ function App() {
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
             <div className="brand">
                 <strong>Ticketsasa Admin</strong>
-                <span>{socketConnected ? '● Live Socket Connected' : '○ Connecting…'}</span>
+                <span>{socketConnected ? '● Live Socket Connected' : '○ Polling Live (5s)…'}</span>
             </div>
             <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show Menu' : 'Hide Menu'}</button>
             <nav aria-label="Admin navigation">
@@ -433,7 +486,7 @@ function App() {
                     </div>
                 ))}
             </nav>
-            <a href="/">Back to storefront</a>
+            <a href={data?.storefrontUrl || 'https://ticketsassa.ticketsassa.workers.dev'} target="_blank" rel="noreferrer">Open Live Storefront</a>
         </aside>
         <main>
             <header>
@@ -446,8 +499,8 @@ function App() {
                         <span>Vol</span>
                         <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} />
                     </label>
-                    <button onClick={() => { setAudioUnlocked(true); playDepositInitiatedSound(volume); }}>Test Initiated Sound</button>
-                    <button onClick={() => { setAudioUnlocked(true); playDepositSuccessSound(volume); }}>Test Success Sound</button>
+                    <button onClick={() => { setAudioUnlocked(true); playDepositInitiatedSound(volume); }}>Test Initiated</button>
+                    <button onClick={() => { setAudioUnlocked(true); playDepositSuccessSound(volume); }}>Test Success</button>
                     <button onClick={() => setDark(!dark)}>{dark ? 'Light' : 'Dark'}</button>
                     <a className="primary" href="/organizer">Publish Event</a>
                 </div>
@@ -461,16 +514,35 @@ function App() {
             </div>
 
             {!audioUnlocked && <div className="notice" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Browser autoplay policy requires one click to activate automatic deposit notification sounds &amp; browser alerts.</span>
+                <span>Click anywhere once to activate automatic payment notification sounds &amp; browser alerts.</span>
                 <button className="primary" onClick={unlockAudio}>Activate Sound Alerts</button>
             </div>}
+
+            {liveBanners.map(b => (
+                <div key={b.id} role="alert" style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.75rem 1rem', marginBottom: '0.6rem', borderRadius: '10px',
+                    background: b.tone === 'success' ? '#ecfdf5' : b.tone === 'failed' ? '#fef2f2' : '#fffbeb',
+                    border: `1px solid ${b.tone === 'success' ? '#10b981' : b.tone === 'failed' ? '#ef4444' : '#f59e0b'}`,
+                    color: b.tone === 'success' ? '#065f46' : b.tone === 'failed' ? '#991b1b' : '#92400e'
+                }}>
+                    <div>
+                        <strong style={{ marginRight: '0.5rem' }}>{b.title}:</strong>
+                        <span>{b.detail}</span>
+                    </div>
+                    <div className="actions">
+                        <button className="primary" onClick={() => goToSection(b.target)}>Open</button>
+                        <button onClick={() => setLiveBanners(prev => prev.filter(x => x.id !== b.id))}>Dismiss</button>
+                    </div>
+                </div>
+            ))}
 
             {unacknowledgedDeposits.map(dep => (
                 <div className="deposit-banner" role="alert" key={dep.reference}>
                     <div>
-                        <strong>NEW DEPOSIT REQUEST</strong>
+                        <strong>AWAITING M-PESA PIN</strong>
                         <span>
-                            Customer: {dep.customerName} ({dep.customerPhone}) · Amount: {money(dep.amountKes)} · Method: {dep.method} · Reference: {dep.reference} · Status: {dep.status}
+                            Customer: {dep.customerName} ({dep.customerPhone}) · Amount: {money(dep.amountKes)} · Method: {dep.method} · Ref: {dep.reference}
                         </span>
                     </div>
                     <div className="actions">
@@ -481,18 +553,16 @@ function App() {
 
             {notice && <p className="notice" role="status">{notice}</p>}
 
-            {section === 'Dashboard Overview' && <AutomationOverview onNavigate={target => setSection(target as Section)} />}
+            {section === 'Dashboard Overview' && <AutomationOverview onNavigate={target => setSection(target as Section)} refreshKey={refreshKey} />}
             {section === 'Automated Discovery Center' && <DiscoveryCenterPanel />}
             {section === 'Event Discovery' && <EventDiscoveryPanel />}
             {section === 'Ticket Management' && <TicketManagementPanel />}
-            {section === 'Flight Discovery' && <FlightManagementPanel mode="discovery" />}
             {section === 'Flight Management' && <FlightManagementPanel mode="manage" />}
             {section === 'Holiday Packages' && <HolidayPackagesPanel />}
-            {section === 'Travel Bookings' && <TravelBookingsPanel />}
             {section === 'Travel Fulfillment & Pricing' && <TravelOpsPanel />}
-            {section === 'Pending Deposits' && <PendingDepositsPanel onAcknowledge={acknowledgeOne} />}
+            {section === 'Pending Deposits' && <PendingDepositsPanel onAcknowledge={acknowledgeOne} refreshKey={refreshKey} />}
             {section === 'Payment settings' && <PaymentSettingsPanel />}
-            {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} />}
+            {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} refreshKey={refreshKey} />}
             {section === 'Data Sources' && <DataSourcesPanel />}
             {section === 'Automation Settings' && <AutomationSettingsPanel />}
             {section === 'Reports' && <ReportsPanel />}
@@ -508,7 +578,7 @@ function App() {
                         <td>{event.image && <img src={event.image} alt="" loading="lazy" decoding="async" />}{event.title}</td><td>{event.venue}</td><td>{date(event.startsAt)}</td><td>{eventStatus(event)}</td>
                         <td className="actions">{['published', 'unpublished', 'archived'].filter(next => next !== eventStatus(event)).map(next =>
                             <button key={next} disabled={busy} onClick={() => void run(async () => {
-                                await request('/events/' + encodeURIComponent(event.id), 'PATCH', { status: next }); await load(); setNotice('Event status updated.');
+                                await request('/events/' + encodeURIComponent(event.id), 'PATCH', { status: next }); await load(true); setNotice('Event status updated.');
                             })}>{({ published: 'Publish', unpublished: 'Unpublish', archived: 'Archive' })[next]}</button>)}</td>
                     </tr>)}</tbody></table></div>
                 {!filteredEvents.length && <p>No matching organizer events.</p>}
@@ -520,15 +590,17 @@ function App() {
                 <section className="panel"><h2>M-Pesa payment provider</h2><p>Manage PayHero and NexusPay for new payments.</p><button onClick={() => setSection('Payment settings')}>Open payment settings</button></section>
                 <section className="panel">
                     <div className="actions">
-                        <input aria-label="Search transactions" placeholder="Search reference, email or status" value={query} onChange={event => {setQuery(event.target.value);setSelected(undefined);}}/>
+                        <input aria-label="Search transactions" placeholder="Search reference, customer, phone, or receipt" value={query} onChange={event => {setQuery(event.target.value);setSelected(undefined);}}/>
+                        <button onClick={() => void run(() => load(true))}>Refresh</button>
                         <button disabled={!filteredOrders.length} onClick={() => exportOrders(filteredOrders)}>Download CSV</button>
                     </div>
                     {!filteredOrders.length && <p>No matching live transactions.</p>}
-                    <div className="scroll"><table><thead><tr><th>#</th><th>Reference</th><th>Customer</th><th>Status</th><th>M-Pesa Code / Failure Reason</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map((order, idx) =>
+                    <div className="scroll"><table><thead><tr><th>#</th><th>Reference</th><th>Customer &amp; Phone</th><th>Items</th><th>Status</th><th>M-Pesa Code / Failure Reason</th><th>Total</th><th></th></tr></thead><tbody>{filteredOrders.map((order, idx) =>
                         <tr key={order.orderReference}>
                             <td><strong>#{idx + 1}</strong></td>
-                            <td>{order.orderReference}</td>
-                            <td>{order.customer.name}</td>
+                            <td><strong>{order.orderReference}</strong>{order.createdAt && <small style={{ display: 'block', opacity: 0.7 }}>{date(order.createdAt)}</small>}</td>
+                            <td>{order.customer.name}{order.customer.phone && <small style={{ display: 'block', opacity: 0.75 }}>{order.customer.phone}</small>}</td>
+                            <td><small>{(order.items || []).map(i => `${i.quantity}× ${i.title}`).join(', ') || '—'}</small></td>
                             <td><PaymentBadge status={order.paymentStatus}/></td>
                             <td>{order.paymentStatus === 'COMPLETED'
                                 ? <span style={{ color: '#15803d', fontWeight: 700, fontFamily: 'monospace' }}>{order.receipt ? `M-Pesa: ${order.receipt}` : 'Paid'}{order.paidAt ? ` · ${date(order.paidAt)}` : ''}</span>
@@ -536,11 +608,11 @@ function App() {
                                     ? <span style={{ color: '#b91c1c', fontWeight: 600 }}>{order.failureReason || 'Payment failed'}{order.failureCode ? ` (Code ${order.failureCode})` : ''}</span>
                                     : order.failureReason
                                         ? <span style={{ color: '#b45309', fontWeight: 600 }}>{order.failureReason}</span>
-                                        : '—'}</td>
-                            <td>{money(order.totalKes)}</td>
+                                        : 'Awaiting M-Pesa confirmation'}</td>
+                            <td><strong>{money(order.totalKes)}</strong></td>
                             <td><button onClick={() => setSelected(order)}>View order</button></td>
                         </tr>)}</tbody></table></div>
-                    {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.name} · {selected.customer.email}</p>
+                    {selected && <section className="detail"><h2>Order details</h2><p>{selected.customer.name} · {selected.customer.email}{selected.customer.phone ? ` · ${selected.customer.phone}` : ''}</p>
                         <p>Payment status: {paymentLabel(selected.paymentStatus)}{selected.paidAt ? ' · ' + date(selected.paidAt) : ''}</p>
                         {selected.paymentStatus === 'COMPLETED' && selected.receipt && (
                             <p style={{ color: '#15803d', fontWeight: 700, fontFamily: 'monospace' }}>
@@ -557,7 +629,7 @@ function App() {
                             const result = await request<{ paymentStatus: string; failureReason?: string; failureCode?: string }>('/orders/' + encodeURIComponent(selected.orderReference) + '/check-payment', 'POST');
                             setSelected({ ...selected, paymentStatus: result.paymentStatus, failureReason: result.failureReason || selected.failureReason, failureCode: result.failureCode || selected.failureCode });
                             setNotice('Payment status: ' + paymentLabel(result.paymentStatus) + (result.failureReason ? ' — ' + result.failureReason : ''));
-                            await load();
+                            await load(true);
                         })}>Check M-Pesa status</button>}
                         <button onClick={() => setSelected(undefined)}>Close details</button></section>}
                 </section>

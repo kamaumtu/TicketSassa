@@ -71,6 +71,20 @@ class KenyaEventCatalog extends HTMLElement {
     }
 
     connectedCallback() {
+        try {
+            const cached = sessionStorage.getItem('ts_kenya_events_v1');
+            if (cached) {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed?.events) && parsed.events.length) {
+                    this.events = parsed.events;
+                    this.feedStatus = 'live';
+                    if (typeof window.onTicketsasaCatalogLoaded === 'function') {
+                        window.onTicketsasaCatalogLoaded(this.events, parsed.sliders);
+                    }
+                    this.render();
+                }
+            }
+        } catch {}
         this.refresh();
         this.timer = setInterval(() => this.refresh(), POLL_MS);
     }
@@ -113,6 +127,9 @@ class KenyaEventCatalog extends HTMLElement {
             if (typeof window.onTicketsasaCatalogLoaded === 'function') {
                 window.onTicketsasaCatalogLoaded(this.events, data.sliders);
             }
+            try {
+                sessionStorage.setItem('ts_kenya_events_v1', JSON.stringify({ events: this.events, sliders: data.sliders }));
+            } catch {}
         } catch {
             if (request.signal.aborted) return;
             this.feedStatus = 'stale';
@@ -170,11 +187,11 @@ class KenyaEventCatalog extends HTMLElement {
             event.price?.amount, event.checkout, event.formattedDate, event.dateOnly])) + ':' + this.page + ':' + this.limit;
         if (this.signature !== signature) {
             this.signature = signature;
-            this.grid.replaceChildren(...visible.map(event => this.card(event)));
+            this.grid.replaceChildren(...visible.map((event, idx) => this.card(event, idx)));
         }
     }
 
-    card(event) {
+    card(event, index = 0) {
         const card = element('article');
         const openDetail = (ev) => {
             if (typeof window.openTicketsasaEventModal === 'function') {
@@ -186,12 +203,18 @@ class KenyaEventCatalog extends HTMLElement {
 
         if (event.imageUrl) {
             const wrap = element('div', '', { class: 'img-wrap' });
-            const image = element('img', '', { src: event.imageUrl, alt: event.title || '', loading: 'lazy' });
+            const image = element('img', '', {
+                src: event.imageUrl,
+                alt: event.title || '',
+                loading: index < 4 ? 'eager' : 'lazy',
+                decoding: 'async',
+                ...(index < 2 ? { fetchpriority: 'high' } : {})
+            });
             image.addEventListener('error', () => {
                 if (event.remoteImageUrl && image.src !== event.remoteImageUrl) {
                     image.src = event.remoteImageUrl;
                 } else {
-                    image.src = '/assets/real/SzYy0XWlBI-1792688119.png';
+                    image.src = '/assets/real/DzLV4G9UWo-1790859483.jpg';
                 }
             }, { once: true });
             wrap.append(image);

@@ -66,9 +66,16 @@ publicRouter.get('/exchange-rates', route(async (req, res) => {
     res.json(await getExchangeRates());
 }));
 
+let publicCatalogCache = new Map();
+
 // Customer-facing approved catalog with clear labels (Confirmed Published Price, Estimated Price, Price on Request, External Flight/Holiday/Event Booking, Available, Sold Out, Pending Verification)
 publicRouter.get('/public/catalog', route(async (req, res) => {
     if (!isConnected()) return res.json({ events: [], flights: [], holidays: [], totals: { events: 0, flights: 0, holidays: 0 }, page: 1, limit: 24 });
+    const cacheKey = JSON.stringify(req.query || {});
+    const cached = publicCatalogCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < 30000) {
+        return res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=300').json(cached.payload);
+    }
     const { kind = 'all', category = '', county = '', destination = '', q = '', sort = 'date', page = '1', limit = '24' } = req.query;
     const now = new Date();
     const pageNum = Math.max(1, Number(page) || 1);
@@ -118,7 +125,7 @@ publicRouter.get('/public/catalog', route(async (req, res) => {
     const { resolveHolidayPriceKes } = require('../services/holidayCatalog');
     const { getTravelPricing, applyTravelMarkup } = require('../services/travelPricing');
     const travelPricing = await getTravelPricing();
-    res.json({
+    const payload = {
         page: pageNum,
         limit: limitNum,
         totals: { events: totalEvents, flights: totalFlights, holidays: totalHolidays },
@@ -179,7 +186,10 @@ publicRouter.get('/public/catalog', route(async (req, res) => {
                 bookingLabel: soldOut ? 'Sold Out' : 'Bookable Online'
             };
         })
-    });
+    };
+    if (publicCatalogCache.size >= 50) publicCatalogCache.delete(publicCatalogCache.keys().next().value);
+    publicCatalogCache.set(cacheKey, { at: Date.now(), payload });
+    res.set('Cache-Control', 'public, max-age=30, stale-while-revalidate=300').json(payload);
 }));
 
 // Public QR Ticket Verification

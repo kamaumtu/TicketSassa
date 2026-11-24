@@ -169,7 +169,7 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
             return { activeRun, nextRunAt, history };
         },
         async get() {
-            if (cachedResult && Date.now() - cachedAt < 10000) {
+            if (cachedResult && Date.now() - cachedAt < 60000) {
                 return cachedResult;
             }
             const enabledProviders = providers.filter(provider => provider.isEnabled(process.env));

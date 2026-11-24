@@ -43,4 +43,11 @@ for (const dir of dirsToCopy) {
     }
 }
 
+const catalogComponentSrc = path.join(frontendDir, 'frontend-angular', 'src', 'kenya-event-catalog.js');
+if (fs.existsSync(catalogComponentSrc)) {
+    const catalogDestDir = path.join(outDir, 'frontend-angular', 'src');
+    fs.mkdirSync(catalogDestDir, { recursive: true });
+    fs.copyFileSync(catalogComponentSrc, path.join(catalogDestDir, 'kenya-event-catalog.js'));
+}
+
 console.log(`Prepared Cloudflare Pages output in ${outDir}`);

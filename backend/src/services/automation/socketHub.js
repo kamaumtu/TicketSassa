@@ -139,47 +139,128 @@ async function notifyDepositInitiated({ orderReference, customerName, customerPh
     return { deposit: depositDoc, notification: notificationDoc };
 }
 
-async function markDepositVerified({ orderReference, checkoutRequestId, receipt, status, failureReason = '', failureCode = '' }) {
-    if (!isConnected()) return null;
-    const filter = orderReference ? { orderReference } : { checkoutRequestId };
-    const existing = await DepositRequest.findOne(filter);
-    if (!existing) return null;
-    // Duplicate callback prevention: never credit wallet twice
-    if (existing.status === 'COMPLETED' && existing.walletCredited) return existing;
-
+async function markDepositVerified({
+    orderReference,
+    checkoutRequestId,
+    receipt,
+    status,
+    failureReason = '',
+    failureCode = '',
+    customerName = 'Customer',
+    customerPhone = '',
+    customerEmail = '',
+    amountKes = 0,
+    method = 'M-PESA',
+    provider = 'mpesa'
+}) {
     const isSuccess = status === 'COMPLETED';
-    existing.status = isSuccess ? 'COMPLETED' : 'FAILED';
-    if (receipt) existing.mpesaReceipt = receipt;
-    if (isSuccess) {
-        existing.walletCredited = true;
-        existing.verifiedAt = new Date();
-        existing.failureReason = '';
-        existing.failureCode = '';
-    } else {
-        existing.failureReason = String(failureReason || 'Payment failed').slice(0, 240);
-        existing.failureCode = String(failureCode || '').slice(0, 40);
-    }
-    await existing.save();
+    const cleanReason = !isSuccess ? String(failureReason || 'Payment failed').slice(0, 240) : '';
+    const cleanCode = !isSuccess ? String(failureCode || '').slice(0, 40) : '';
 
-    const reasonSuffix = !isSuccess && existing.failureReason ? ` · Reason: ${existing.failureReason}` : '';
-    const notif = await AdminNotification.create({
+    let depositObj = {
+        reference: orderReference || generateDepositReference(),
+        orderReference: orderReference || '',
+        customerName: String(customerName || 'Customer').slice(0, 120),
+        customerPhone: String(customerPhone || '').slice(0, 24),
+        customerEmail: String(customerEmail || '').slice(0, 180),
+        amountKes: Math.round(Number(amountKes) || 0),
+        method,
+        provider,
+        checkoutRequestId: checkoutRequestId || '',
+        status: isSuccess ? 'COMPLETED' : 'FAILED',
+        mpesaReceipt: receipt || undefined,
+        walletCredited: isSuccess,
+        failureReason: cleanReason || undefined,
+        failureCode: cleanCode || undefined,
+        initiatedAt: new Date(),
+        ...(isSuccess ? { verifiedAt: new Date() } : {})
+    };
+
+    if (isConnected()) {
+        try {
+            const orClauses = [];
+            if (orderReference) orClauses.push({ orderReference });
+            if (checkoutRequestId) orClauses.push({ checkoutRequestId });
+            let existing = orClauses.length ? await DepositRequest.findOne({ $or: orClauses }) : null;
+
+            // Duplicate callback prevention: never credit wallet or emit twice
+            if (existing && existing.status === 'COMPLETED' && existing.walletCredited && isSuccess) {
+                return existing;
+            }
+            if (existing && existing.status === 'FAILED' && !isSuccess && existing.failureReason === cleanReason) {
+                return existing;
+            }
+
+            if (!existing) {
+                existing = await DepositRequest.create({
+                    reference: generateDepositReference(),
+                    orderReference: depositObj.orderReference || undefined,
+                    customerName: depositObj.customerName,
+                    customerPhone: depositObj.customerPhone,
+                    customerEmail: depositObj.customerEmail,
+                    amountKes: depositObj.amountKes,
+                    method: depositObj.method,
+                    provider: depositObj.provider,
+                    checkoutRequestId: depositObj.checkoutRequestId,
+                    status: depositObj.status,
+                    mpesaReceipt: receipt || undefined,
+                    walletCredited: isSuccess,
+                    acknowledged: !isSuccess,
+                    failureReason: cleanReason,
+                    failureCode: cleanCode,
+                    initiatedAt: new Date(),
+                    ...(isSuccess ? { verifiedAt: new Date() } : {})
+                });
+            } else {
+                existing.status = isSuccess ? 'COMPLETED' : 'FAILED';
+                if (checkoutRequestId && !existing.checkoutRequestId) existing.checkoutRequestId = checkoutRequestId;
+                if (receipt) existing.mpesaReceipt = receipt;
+                if (isSuccess) {
+                    existing.walletCredited = true;
+                    existing.verifiedAt = new Date();
+                    existing.failureReason = '';
+                    existing.failureCode = '';
+                } else {
+                    existing.failureReason = cleanReason;
+                    existing.failureCode = cleanCode;
+                }
+                await existing.save();
+            }
+
+            depositObj = existing.toObject();
+        } catch (err) {
+            console.warn('Could not update deposit verification record:', err.message);
+        }
+    }
+
+    const reasonSuffix = !isSuccess && cleanReason ? ` · Reason: ${cleanReason}` : '';
+    let notifObj = {
         type: 'deposit_verified',
-        title: isSuccess ? 'DEPOSIT VERIFIED & CREDITED' : `DEPOSIT FAILED${existing.failureReason ? ': ' + existing.failureReason.slice(0, 60) : ''}`,
-        message: `${existing.customerName} · KES ${existing.amountKes.toLocaleString('en-KE')} · ${existing.reference} · ${existing.status}${receipt ? ` (${receipt})` : ''}${reasonSuffix}`,
+        title: isSuccess ? 'DEPOSIT VERIFIED & CREDITED' : `DEPOSIT FAILED${cleanReason ? ': ' + cleanReason.slice(0, 60) : ''}`,
+        message: `${depositObj.customerName} · KES ${Number(depositObj.amountKes || 0).toLocaleString('en-KE')} · ${depositObj.reference} · ${depositObj.status}${receipt ? ` (${receipt})` : ''}${reasonSuffix}`,
         payload: {
-            reference: existing.reference,
-            orderReference: existing.orderReference,
-            status: existing.status,
+            reference: depositObj.reference,
+            orderReference: depositObj.orderReference,
+            customerName: depositObj.customerName,
+            customerPhone: depositObj.customerPhone,
+            amountKes: depositObj.amountKes,
+            status: depositObj.status,
             receipt,
-            failureReason: existing.failureReason || undefined,
-            failureCode: existing.failureCode || undefined
+            failureReason: cleanReason || undefined,
+            failureCode: cleanCode || undefined
         },
         read: false,
-        acknowledged: !isSuccess
-    }).catch(() => null);
+        acknowledged: !isSuccess,
+        createdAt: new Date()
+    };
 
-    emitToAdmins('deposit:verified', { deposit: existing.toObject(), notification: notif?.toObject() });
-    return existing;
+    if (isConnected()) {
+        const createdNotif = await AdminNotification.create(notifObj).catch(() => null);
+        if (createdNotif) notifObj = createdNotif.toObject();
+    }
+
+    emitToAdmins('deposit:verified', { deposit: depositObj, notification: notifObj });
+    return depositObj;
 }
 
 async function acknowledgeDeposit(idOrRef, actor = 'admin') {
