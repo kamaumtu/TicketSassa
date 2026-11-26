@@ -62,6 +62,7 @@ const sections = [
     'Pending Deposits',
     'Transactions',
     'Payment settings',
+    'Support Contact',
     'Notifications',
     'Data Sources',
     'Automation Settings',
@@ -102,6 +103,7 @@ const navGroups: { label: string; items: Section[] }[] = [
         items: [
             'Automated Discovery Center',
             'Payment settings',
+            'Support Contact',
             'Data Sources',
             'Automation Settings',
             'System Logs'
@@ -173,6 +175,154 @@ function PaymentSettingsPanel() {
         <p role="status" aria-live="polite">{message || (!settings && busy ? 'Loading payment settings…' : '')}</p>
         <button type="button" disabled={busy} onClick={() => void load()}>Refresh settings</button>
     </section>;
+}
+
+type SupportContactSettings = {
+    email: string | null;
+    phone: string | null;
+    whatsapp: string | null;
+    whatsappUrl: string | null;
+    hours: string | null;
+    updatedAt?: string | null;
+    storageAvailable: boolean;
+};
+
+function SupportContactPanel() {
+    const [settings, setSettings] = useState<SupportContactSettings>();
+    const [email, setEmail] = useState('');
+    const [phone, setPhone] = useState('');
+    const [whatsapp, setWhatsapp] = useState('');
+    const [hours, setHours] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState('');
+
+    async function load() {
+        setBusy(true);
+        setMessage('');
+        try {
+            const value = await request<SupportContactSettings>('/support/contact');
+            setSettings(value);
+            setEmail(value.email || '');
+            setPhone(value.phone || '');
+            setWhatsapp(value.whatsapp || '');
+            setHours(value.hours || '');
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'Could not load support contact settings.');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    useEffect(() => { void load(); }, []);
+
+    async function save(payload: { email: string; phone: string; whatsapp: string; hours: string }) {
+        if (busy || !settings?.storageAvailable) return;
+        setBusy(true);
+        setMessage('');
+        try {
+            const saved = await request<SupportContactSettings>('/support/contact', 'PUT', payload);
+            setSettings(saved);
+            setEmail(saved.email || '');
+            setPhone(saved.phone || '');
+            setWhatsapp(saved.whatsapp || '');
+            setHours(saved.hours || '');
+            const hasAny = Boolean(saved.email || saved.phone || saved.whatsapp);
+            setMessage(hasAny
+                ? 'Support contact saved — live immediately in the storefront Help widget.'
+                : 'Support contact cleared.');
+        } catch (error) {
+            setMessage(error instanceof Error ? error.message : 'Could not save support contact settings.');
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    return <div className="publishing-lobby">
+        <section className="panel">
+            <h2>Storefront Support Contact</h2>
+            <p>Set your own support Email, Phone, and WhatsApp details shown inside the Ticketsassa Help widget. Leave any field blank to hide it.</p>
+            {settings && !settings.storageAvailable && (
+                <p className="notice" role="status">Database offline. Reconnect and refresh before saving support contact details.</p>
+            )}
+            <form onSubmit={e => { e.preventDefault(); void save({ email, phone, whatsapp, hours }); }} style={{ marginTop: 14 }}>
+                <div className="form-grid">
+                    <label>
+                        Support Email
+                        <input
+                            type="email"
+                            placeholder="support@yourdomain.com"
+                            value={email}
+                            disabled={busy || !settings?.storageAvailable}
+                            onChange={e => setEmail(e.target.value)}
+                        />
+                    </label>
+                    <label>
+                        Support Phone (Call)
+                        <input
+                            type="tel"
+                            placeholder="+254 7XX XXX XXX"
+                            value={phone}
+                            disabled={busy || !settings?.storageAvailable}
+                            onChange={e => setPhone(e.target.value)}
+                        />
+                    </label>
+                    <label>
+                        WhatsApp Number
+                        <input
+                            type="tel"
+                            placeholder="+254 7XX XXX XXX or 07XX XXX XXX"
+                            value={whatsapp}
+                            disabled={busy || !settings?.storageAvailable}
+                            onChange={e => setWhatsapp(e.target.value)}
+                        />
+                    </label>
+                    <label>
+                        Support Hours (Optional)
+                        <input
+                            type="text"
+                            maxLength={120}
+                            placeholder="Daily, 8:00 AM – 8:00 PM EAT"
+                            value={hours}
+                            disabled={busy || !settings?.storageAvailable}
+                            onChange={e => setHours(e.target.value)}
+                        />
+                    </label>
+                </div>
+                <div className="actions" style={{ marginTop: 14 }}>
+                    <button className="primary" type="submit" disabled={busy || !settings?.storageAvailable}>
+                        {busy ? 'Saving…' : 'Save Support Contact'}
+                    </button>
+                    <button
+                        type="button"
+                        disabled={busy || !settings?.storageAvailable}
+                        onClick={() => void save({ email: '', phone: '', whatsapp: '', hours: '' })}
+                    >
+                        Clear All
+                    </button>
+                    <button type="button" disabled={busy} onClick={() => void load()}>Refresh</button>
+                </div>
+            </form>
+            {message && <p className="notice" role="status" aria-live="polite" style={{ marginTop: 12 }}>{message}</p>}
+            {settings?.updatedAt && <p style={{ opacity: 0.7, fontSize: '0.85rem', marginTop: 8 }}>Last updated: {date(settings.updatedAt)}</p>}
+        </section>
+        <section className="panel">
+            <h3>Customer Preview (Help Widget)</h3>
+            {settings && (settings.email || settings.phone || settings.whatsapp) ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+                    <p>Contact the Ticketsassa support team using the details below.{settings.hours ? ` Support hours: ${settings.hours}.` : ''}</p>
+                    <div className="actions">
+                        {settings.email && <a href={`mailto:${settings.email}`}>Email: {settings.email}</a>}
+                        {settings.phone && <a href={`tel:${settings.phone}`}>Call: {settings.phone}</a>}
+                        {settings.whatsapp && settings.whatsappUrl && (
+                            <a className="primary" href={settings.whatsappUrl} target="_blank" rel="noreferrer">WhatsApp: {settings.whatsapp}</a>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <p style={{ opacity: 0.75, marginTop: 8 }}>No support contact saved yet. Add your email, phone, or WhatsApp above and click Save.</p>
+            )}
+        </section>
+    </div>;
 }
 
 let sharedAudioCtx: AudioContext | null = null;
@@ -506,7 +656,7 @@ function App() {
                 </div>
             </header>
             <div className="actions" style={{ flexWrap: 'wrap', marginBottom: '0.75rem', gap: '0.4rem' }}>
-                {(['Dashboard Overview', 'Transactions', 'Pending Deposits', 'Travel Fulfillment & Pricing', 'All Events', 'Payment settings'] as Section[]).map(quick => (
+                {(['Dashboard Overview', 'Transactions', 'Pending Deposits', 'Travel Fulfillment & Pricing', 'All Events', 'Payment settings', 'Support Contact'] as Section[]).map(quick => (
                     <button key={quick} className={section === quick ? 'primary' : ''} onClick={() => goToSection(quick)}>
                         {quick}
                     </button>
@@ -562,6 +712,7 @@ function App() {
             {section === 'Travel Fulfillment & Pricing' && <TravelOpsPanel />}
             {section === 'Pending Deposits' && <PendingDepositsPanel onAcknowledge={acknowledgeOne} refreshKey={refreshKey} />}
             {section === 'Payment settings' && <PaymentSettingsPanel />}
+            {section === 'Support Contact' && <SupportContactPanel />}
             {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} refreshKey={refreshKey} />}
             {section === 'Data Sources' && <DataSourcesPanel />}
             {section === 'Automation Settings' && <AutomationSettingsPanel />}

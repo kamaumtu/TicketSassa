@@ -29,6 +29,9 @@ const EDGE_CACHEABLE_PREFIXES = [
     '/api/automation/public/catalog'
 ];
 
+const FALLBACK_POSTER = '/assets/real/DzLV4G9UWo-1790859483.jpg';
+const FALLBACK_HOLIDAY = '/assets/holidays/beach-holidays.jpg';
+
 function isPublicCacheableApi(method, pathname) {
     if (method !== 'GET') return false;
     return EDGE_CACHEABLE_PREFIXES.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'));
@@ -39,6 +42,83 @@ function guessMimeType(pathname) {
     const dot = clean.lastIndexOf('.');
     if (dot === -1) return 'text/html; charset=utf-8';
     return MIME_TYPES[clean.slice(dot).toLowerCase()] || null;
+}
+
+function isSafeExternalImageUrl(raw) {
+    try {
+        const parsed = new URL(raw);
+        if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+        const host = parsed.hostname.toLowerCase();
+        if (
+            host === 'localhost' ||
+            host === '::1' ||
+            host.endsWith('.local') ||
+            /^127\./.test(host) ||
+            /^10\./.test(host) ||
+            /^192\.168\./.test(host) ||
+            /^169\.254\./.test(host) ||
+            /^172\.(1[6-9]|2\d|3[01])\./.test(host)
+        ) {
+            return null;
+        }
+        return parsed.href;
+    } catch {
+        return null;
+    }
+}
+
+async function handleImageProxy(request, url, ctx) {
+    const rawTarget = url.searchParams.get('url') || '';
+    const fallbackType = url.searchParams.get('fallback') === 'holiday' ? FALLBACK_HOLIDAY : FALLBACK_POSTER;
+    const targetUrl = isSafeExternalImageUrl(rawTarget);
+    if (!targetUrl) {
+        return Response.redirect(url.origin + fallbackType, 302);
+    }
+
+    const cacheKey = new Request(url.origin + '/img?url=' + encodeURIComponent(targetUrl), { method: 'GET' });
+    if (typeof caches !== 'undefined' && caches.default) {
+        const hit = await caches.default.match(cacheKey);
+        if (hit) {
+            const hitHeaders = new Headers(hit.headers);
+            hitHeaders.set('X-Image-Edge-Cache', 'HIT');
+            return new Response(hit.body, { status: hit.status, headers: hitHeaders });
+        }
+    }
+
+    try {
+        const upstream = await fetch(targetUrl, {
+            method: 'GET',
+            headers: {
+                Accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
+                'User-Agent': 'TicketsassaEdgeImageProxy/1.0'
+            },
+            redirect: 'follow',
+            signal: AbortSignal.timeout(4500),
+            cf: {
+                cacheTtl: 604800,
+                cacheEverything: true
+            }
+        });
+
+        const ct = (upstream.headers.get('content-type') || '').toLowerCase();
+        if (!upstream.ok || !ct.startsWith('image/')) {
+            return Response.redirect(url.origin + fallbackType, 302);
+        }
+
+        const outHeaders = new Headers();
+        outHeaders.set('Content-Type', ct.split(';')[0]);
+        outHeaders.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000');
+        outHeaders.set('X-Content-Type-Options', 'nosniff');
+        outHeaders.set('X-Image-Edge-Cache', 'MISS');
+
+        const response = new Response(upstream.body, { status: 200, headers: outHeaders });
+        if (typeof caches !== 'undefined' && caches.default && ctx?.waitUntil) {
+            ctx.waitUntil(caches.default.put(cacheKey, response.clone()));
+        }
+        return response;
+    } catch {
+        return Response.redirect(url.origin + fallbackType, 302);
+    }
 }
 
 async function fetchUpstreamApi(request, url, backendOrigin) {
@@ -75,6 +155,10 @@ export default {
 
         if (url.pathname === '/admin' || url.pathname.startsWith('/admin/')) {
             return Response.redirect(backendOrigin + url.pathname + url.search, 302);
+        }
+
+        if (url.pathname === '/img' && request.method === 'GET') {
+            return handleImageProxy(request, url, ctx);
         }
 
         if (url.pathname.startsWith('/api/')) {
@@ -114,6 +198,26 @@ export default {
             return fetchUpstreamApi(request, url, backendOrigin);
         }
 
+        // Automatic Edge WebP delivery for local PNG/JPG assets when browser supports WebP
+        const accept = request.headers.get('accept') || '';
+        if (
+            request.method === 'GET' &&
+            accept.includes('image/webp') &&
+            url.pathname.startsWith('/assets/') &&
+            /\.(png|jpe?g)$/i.test(url.pathname)
+        ) {
+            const webpReq = new Request(url.origin + url.pathname + '.webp', { method: 'GET' });
+            const webpRes = await env.ASSETS.fetch(webpReq);
+            if (webpRes.ok) {
+                const webpHeaders = new Headers(webpRes.headers);
+                webpHeaders.set('content-type', 'image/webp');
+                webpHeaders.set('cache-control', 'public, max-age=31536000, immutable');
+                webpHeaders.set('vary', 'Accept');
+                webpHeaders.set('x-image-opt', 'webp');
+                return new Response(webpRes.body, { status: 200, headers: webpHeaders });
+            }
+        }
+
         const assetRes = await env.ASSETS.fetch(request);
         const headers = new Headers(assetRes.headers);
         if (!headers.get('content-type') || headers.get('content-type') === 'application/octet-stream') {
@@ -122,6 +226,9 @@ export default {
         }
         if (url.pathname.startsWith('/assets/')) {
             headers.set('cache-control', 'public, max-age=31536000, immutable');
+            if (/\.(png|jpe?g)$/i.test(url.pathname)) {
+                headers.set('vary', 'Accept');
+            }
         }
         return new Response(assetRes.body, {
             status: assetRes.status,

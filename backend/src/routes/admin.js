@@ -3,6 +3,7 @@ const { collection, transaction } = require('../services/commerceDb');
 const router = express.Router();
 const { route } = require('../services/http');
 const { getPaymentSettings, setPaymentProvider } = require('../services/paymentSettings');
+const { getSupportSettings, setSupportSettings } = require('../services/supportSettings');
 const { revenueSummary, realCompletedOrder, isLiveTicket } = require('../services/ticketRevenue');
 const { publishEvent } = require('./publishedEvents');
 const { isConnected } = require('../config/db');
@@ -32,6 +33,19 @@ router.put('/payments/settings', route(async (req, res) => {
     } catch (error) {
         if (error.status !== 400) throw error;
         res.status(400).json({ success: false, message: error.message });
+    }
+}));
+
+router.get('/support/contact', route(async (req, res) => {
+    res.set('Cache-Control', 'no-store').json(await getSupportSettings(true));
+}));
+
+router.put('/support/contact', route(async (req, res) => {
+    try {
+        res.json(await setSupportSettings(req.body ?? {}, req.organizerId));
+    } catch (error) {
+        if (![400, 503].includes(error.status)) throw error;
+        res.status(error.status).json({ success: false, message: error.message });
     }
 }));
 

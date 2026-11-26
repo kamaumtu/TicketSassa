@@ -601,3 +601,9 @@ body {
 .travel-lookup-form input { border: 1px solid #cbd5e1; padding: 10px; border-radius: 8px; width: 100%; }
 .travel-lookup-form button { padding: 12px 18px; border-radius: 10px; color: #fff; background: #0f172a; }
 .travel-lookup-form p { flex-basis: 100%; }
+.img-shimmer {
+    background: linear-gradient(110deg, #f1f5f9 8%, #e2e8f0 18%, #f1f5f9 33%);
+    background-size: 200% 100%;
+    animation: tsImgShimmer 1.4s linear infinite;
+}
+@keyframes tsImgShimmer { to { background-position-x: -200%; } }

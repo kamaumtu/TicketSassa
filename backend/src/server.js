@@ -137,13 +137,20 @@ app.get('/api/health', (req, res) => {
 });
 
 // Mount Routes
-app.get('/api/support/contact', (req, res) => {
-    const email = String(process.env.SUPPORT_EMAIL || '').trim();
-    const phone = String(process.env.SUPPORT_PHONE || '').trim();
-    res.set('Cache-Control', 'no-store').json({
-        email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && email.length <= 254 ? email : null,
-        phone: /^\+?[\d ()-]{7,25}$/.test(phone) ? phone : null
-    });
+app.get('/api/support/contact', async (req, res) => {
+    try {
+        const { getSupportSettings } = require('./services/supportSettings');
+        const settings = await getSupportSettings();
+        res.set('Cache-Control', 'no-store').json({
+            email: settings.email,
+            phone: settings.phone,
+            whatsapp: settings.whatsapp,
+            whatsappUrl: settings.whatsappUrl,
+            hours: settings.hours
+        });
+    } catch {
+        res.set('Cache-Control', 'no-store').json({ email: null, phone: null, whatsapp: null, whatsappUrl: null, hours: null });
+    }
 });
 app.use('/api/auth', authRoutes);
 app.use('/api/me', require('./routes/customerTrips'));

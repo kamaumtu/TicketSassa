@@ -69,14 +69,28 @@
     }
     async function contact() {
         try { contacts = await read('/support/contact'); } catch { contacts = null; }
-        append('assistant', contacts?.email || contacts?.phone
-            ? 'Contact the Ticketsassa support team using the details below. This opens your email or phone app; no message is sent automatically.'
-            : 'A support contact has not been configured for this website yet. Keep your order reference and payment receipt. The site owner needs to add a support email or phone number.');
-        if (!contacts) return;
+        const hasAny = Boolean(contacts?.email || contacts?.phone || (contacts?.whatsapp && contacts?.whatsappUrl));
+        const hoursNote = contacts?.hours ? ' Hours: ' + contacts.hours + '.' : '';
+        append('assistant', hasAny
+            ? 'Contact our support team using the details below.' + hoursNote + ' Include your order reference and M-Pesa receipt for faster help.'
+            : 'Keep your order reference and M-Pesa receipt handy, and use Tickets above to check your order status anytime. Direct support contact details will appear here once added.');
+        if (!hasAny) return;
         const entry = log.lastElementChild;
-        for (const [text, href] of [[contacts.email, contacts.email ? 'mailto:' + contacts.email : ''], [contacts.phone, contacts.phone ? 'tel:' + contacts.phone : '']]) {
-            if (!text) continue;
-            const link = document.createElement('a'); link.textContent = text; link.href = href; link.className = 'support-contact-link'; entry.append(link);
+        const links = [
+            contacts.email ? { text: 'Email: ' + contacts.email, href: 'mailto:' + contacts.email, external: false } : null,
+            contacts.phone ? { text: 'Call: ' + contacts.phone, href: 'tel:' + contacts.phone, external: false } : null,
+            contacts.whatsapp && contacts.whatsappUrl ? { text: 'WhatsApp: ' + contacts.whatsapp, href: contacts.whatsappUrl, external: true } : null
+        ].filter(Boolean);
+        for (const item of links) {
+            const link = document.createElement('a');
+            link.textContent = item.text;
+            link.href = item.href;
+            link.className = 'support-contact-link';
+            if (item.external) {
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+            }
+            entry.append(link);
         }
         log.scrollTop = log.scrollHeight;
     }

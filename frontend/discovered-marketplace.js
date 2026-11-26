@@ -18,6 +18,26 @@
         }[ch] || ch));
     }
 
+    function fastImg(rawUrl, fallbackType = 'event') {
+        const fallback = fallbackType === 'holiday' ? '/assets/holidays/beach-holidays.jpg' : '/assets/real/DzLV4G9UWo-1790859483.jpg';
+        if (!rawUrl) return fallback;
+        const str = String(rawUrl).trim();
+        if (!str) return fallback;
+        if (str.startsWith('/') || str.startsWith('assets/') || str.startsWith('data:')) return str;
+        try {
+            const parsed = new URL(str, location.href);
+            if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+            const host = location.hostname;
+            const useEdgeProxy = host && !['localhost', '127.0.0.1'].includes(host) && !host.endsWith('.onrender.com');
+            if (useEdgeProxy && (parsed.protocol === 'https:' || parsed.protocol === 'http:')) {
+                return '/img?url=' + encodeURIComponent(parsed.href) + (fallbackType === 'holiday' ? '&fallback=holiday' : '');
+            }
+            return parsed.href;
+        } catch {
+            return fallback;
+        }
+    }
+
     let metaCache = { counties: [], eventCategories: [], airports: [], holidayCategories: [], holidayDestinations: [] };
 
     const evState = { kind: 'all', category: '', county: '', q: '', sort: 'date', page: 1 };
@@ -141,12 +161,12 @@
             const ev = events[idx];
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
             const displayPrice = ev.confirmedPriceKes ?? ev.estimatedPriceKes ?? 1000;
-            const imgUrl = ev.image?.url || '/assets/real/DzLV4G9UWo-1790859483.jpg';
+            const imgUrl = fastImg(ev.image?.url, 'event');
             const evId = ev.externalId || ev._id;
             const extUrl = ev.ticketPurchaseUrl || ev.originalUrl;
             const loadAttr = idx < 4 ? 'loading="eager" fetchpriority="high" decoding="async"' : 'loading="lazy" decoding="async"';
             card.innerHTML = `
-                <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
+                <div class="relative aspect-[16/10] img-shimmer overflow-hidden">
                     <img src="${escapeHtml(imgUrl)}" alt="${escapeHtml(ev.name)}" ${loadAttr} class="w-full h-full object-cover" onerror="this.src='/assets/real/DzLV4G9UWo-1790859483.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.county)}</span>
                     <span class="absolute top-2 right-2 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(ev.ticketTypeLabel || 'Tickets Available')}</span>
@@ -320,13 +340,15 @@
             grid.innerHTML = `<p class="col-span-full text-sm text-slate-500 py-4">No holiday packages match this filter yet.</p>`;
             return;
         }
-        for (const hl of holidays) {
-            const img = hl.images?.[0]?.url || '/assets/holidays/beach-holidays.jpg';
+        for (let hIdx = 0; hIdx < holidays.length; hIdx++) {
+            const hl = holidays[hIdx];
+            const img = fastImg(hl.images?.[0]?.url, 'holiday');
             const isSoldOut = hl.availability === 'sold_out';
+            const hlLoad = hIdx < 4 ? 'loading="eager" decoding="async"' : 'loading="lazy" decoding="async"';
             const card = el('article', 'bg-white border border-slate-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition');
             card.innerHTML = `
-                <div class="relative aspect-[16/10] bg-slate-100 overflow-hidden">
-                    <img src="${escapeHtml(img)}" alt="${escapeHtml(hl.title)}" loading="lazy" class="w-full h-full object-cover" onerror="this.src='/assets/holidays/beach-holidays.jpg'">
+                <div class="relative aspect-[16/10] img-shimmer overflow-hidden">
+                    <img src="${escapeHtml(img)}" alt="${escapeHtml(hl.title)}" ${hlLoad} class="w-full h-full object-cover" onerror="this.src='/assets/holidays/beach-holidays.jpg'">
                     <span class="absolute top-2 left-2 bg-slate-900/80 text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.destination)}</span>
                     <span class="absolute top-2 right-2 ${isSoldOut ? 'bg-slate-600' : 'bg-emerald-600'} text-white text-[10px] font-bold px-2 py-0.5 rounded">${escapeHtml(hl.bookingLabel || (isSoldOut ? 'Sold Out' : 'Bookable Online'))}</span>
                 </div>

@@ -7,6 +7,25 @@ const dayFormatter = new Intl.DateTimeFormat('en-KE', {
     dateStyle: 'medium', timeZone: 'Africa/Nairobi'
 });
 
+function accelerateImageUrl(rawUrl) {
+    if (!rawUrl) return '/assets/real/DzLV4G9UWo-1790859483.jpg';
+    const str = String(rawUrl).trim();
+    if (!str) return '/assets/real/DzLV4G9UWo-1790859483.jpg';
+    if (str.startsWith('/') || str.startsWith('assets/') || str.startsWith('data:')) return str;
+    try {
+        const parsed = new URL(str, location.href);
+        if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+        const host = location.hostname;
+        const useEdgeProxy = host && !['localhost', '127.0.0.1'].includes(host) && !host.endsWith('.onrender.com');
+        if (useEdgeProxy && (parsed.protocol === 'https:' || parsed.protocol === 'http:')) {
+            return '/img?url=' + encodeURIComponent(parsed.href);
+        }
+        return parsed.href;
+    } catch {
+        return str;
+    }
+}
+
 function element(tag, text, attributes = {}) {
     const node = document.createElement(tag);
     if (text) node.textContent = text;
@@ -32,8 +51,11 @@ class KenyaEventCatalog extends HTMLElement {
             .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15.5rem), 1fr)); gap: 1.5rem; }
             article { background: white; border: 1px solid #e2e8f0; border-radius: .85rem; overflow: hidden; display: flex; flex-direction: column; transition: transform .2s ease, box-shadow .2s ease; cursor: pointer; box-shadow: 0 1px 3px rgba(15,23,42,0.05); }
             article:hover { transform: translateY(-3px); box-shadow: 0 12px 24px -6px rgba(15,23,42,0.12); border-color: #cbd5e1; }
-            .img-wrap { width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: #f1f5f9; position: relative; }
-            img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .35s ease; }
+            .img-wrap { width: 100%; aspect-ratio: 1 / 1; overflow: hidden; background: linear-gradient(110deg, #f1f5f9 8%, #e2e8f0 18%, #f1f5f9 33%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; position: relative; }
+            .img-wrap.loaded { animation: none; background: #f1f5f9; }
+            @keyframes shimmer { to { background-position-x: -200%; } }
+            img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .25s ease, transform .35s ease; }
+            img.is-ready { opacity: 1; }
             article:hover img { transform: scale(1.04); }
             .cat-badge { position: absolute; top: .6rem; left: .6rem; background: rgba(15,23,42,0.78); color: #fff; font-size: .68rem; font-weight: 700; padding: .2rem .55rem; border-radius: .35rem; backdrop-filter: blur(4px); }
             .details { padding: 1rem; display: flex; flex-direction: column; gap: .35rem; flex: 1; }
@@ -203,20 +225,29 @@ class KenyaEventCatalog extends HTMLElement {
 
         if (event.imageUrl) {
             const wrap = element('div', '', { class: 'img-wrap' });
+            const primarySrc = accelerateImageUrl(event.imageUrl);
             const image = element('img', '', {
-                src: event.imageUrl,
+                src: primarySrc,
                 alt: event.title || '',
                 loading: index < 4 ? 'eager' : 'lazy',
                 decoding: 'async',
                 ...(index < 2 ? { fetchpriority: 'high' } : {})
             });
+            const markReady = () => {
+                image.classList.add('is-ready');
+                wrap.classList.add('loaded');
+            };
+            image.addEventListener('load', markReady, { once: true });
             image.addEventListener('error', () => {
-                if (event.remoteImageUrl && image.src !== event.remoteImageUrl) {
-                    image.src = event.remoteImageUrl;
+                const remoteFallback = event.remoteImageUrl ? accelerateImageUrl(event.remoteImageUrl) : null;
+                if (remoteFallback && image.getAttribute('src') !== remoteFallback) {
+                    image.src = remoteFallback;
                 } else {
                     image.src = '/assets/real/DzLV4G9UWo-1790859483.jpg';
+                    markReady();
                 }
             }, { once: true });
+            if (image.complete && image.naturalWidth > 0) markReady();
             wrap.append(image);
             if (event.category) {
                 wrap.append(element('span', event.category, { class: 'cat-badge' }));
