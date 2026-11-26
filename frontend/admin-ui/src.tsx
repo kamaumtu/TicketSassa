@@ -497,7 +497,15 @@ function App() {
         return upper;
     }
 
-    function handleDepositTransition(dep: DepositAlert, { fromRealtime = false, isTest = false } = {}) {
+    function statusRank(status: string): number {
+        const norm = normalizeAlertStatus(status);
+        if (norm === 'COMPLETED') return 3;
+        if (norm === 'FAILED') return 2;
+        if (norm === 'PENDING') return 1;
+        return 0;
+    }
+
+    function handleDepositTransition(dep: DepositAlert & { updatedAt?: string; failedAt?: string; paidAt?: string }, { fromRealtime = false, isTest = false, silent = false } = {}) {
         const key = dep?.orderReference || dep?.reference;
         if (!key) return;
         const nextStatus = normalizeAlertStatus(dep.status);
@@ -510,12 +518,19 @@ function App() {
         } else {
             prevStatus = seenDepositStatusRef.current.get(key);
             if (prevStatus === nextStatus) return;
+            // Never downgrade a terminal status (COMPLETED / FAILED) back to PENDING from stale records
+            if (prevStatus && statusRank(nextStatus) < statusRank(prevStatus)) return;
             seenDepositStatusRef.current.set(key, nextStatus);
         }
 
-        // On initial poll load, silently seed existing records so old transactions don't chime on page refresh.
-        // Live Socket.IO / SSE / test events ALWAYS notify immediately!
-        if (!fromRealtime && !isTest && !initialLoadDoneRef.current) return;
+        // On initial poll load or silent seeding, record status without playing chimes or banners.
+        if (silent || (!fromRealtime && !isTest && !initialLoadDoneRef.current)) return;
+
+        // For poll-discovered transitions (not live Socket.IO/SSE/test), ignore historical records older than 15 minutes
+        if (!fromRealtime && !isTest) {
+            const stamp = Date.parse(dep.failedAt || dep.paidAt || dep.updatedAt || dep.initiatedAt || '');
+            if (Number.isFinite(stamp) && Date.now() - stamp > 15 * 60 * 1000) return;
+        }
 
         const amountLabel = `KES ${Number(dep.amountKes || 0).toLocaleString('en-KE')}`;
         const testTag = isTest ? ' (Test)' : '';
@@ -570,7 +585,7 @@ function App() {
             request<Data>(fresh ? '/overview?fresh=1' : '/overview').catch(() => undefined),
             request<{ data: Audit[] }>('/audit').catch(() => ({ data: [] })),
             autoRequest<{ unreadCount: number }>('/notifications').catch(() => ({ unreadCount: 0 })),
-            autoRequest<{ data: DepositAlert[] }>('/deposits').catch(() => ({ data: [] }))
+            autoRequest<{ data: DepositAlert[] }>('/deposits').catch(() => undefined)
         ]);
         if (overview) {
             setData(overview);
@@ -578,15 +593,32 @@ function App() {
         }
         setAudit(logs.data || []);
         setUnreadCount(notifs.unreadCount || 0);
-        const allDeps = recentDeps.data || [];
-        for (const dep of allDeps) {
-            handleDepositTransition(dep, { fromRealtime: false });
-        }
-        // Also inspect live commerce orders so any payment missing a DepositRequest record still chimes and alerts
+
+        const allDeps = recentDeps?.data || [];
+        const orderStatusByRef = new Map<string, string>();
+        const mergedByKey = new Map<string, DepositAlert & { failedAt?: string; paidAt?: string }>();
+
+        const mergeRecord = (rec: DepositAlert & { failedAt?: string; paidAt?: string }) => {
+            const key = rec.orderReference || rec.reference;
+            if (!key) return;
+            const existing = mergedByKey.get(key);
+            if (!existing || statusRank(rec.status) > statusRank(existing.status)) {
+                mergedByKey.set(key, {
+                    ...existing,
+                    ...rec,
+                    mpesaReceipt: rec.mpesaReceipt || existing?.mpesaReceipt,
+                    failureReason: rec.failureReason || existing?.failureReason,
+                    failureCode: rec.failureCode || existing?.failureCode
+                });
+            }
+        };
+
+        for (const dep of allDeps) mergeRecord(dep);
         if (overview?.orders?.length) {
-            for (const ord of overview.orders.slice(0, 40)) {
+            for (const ord of overview.orders.slice(0, 60)) {
+                orderStatusByRef.set(ord.orderReference, normalizeAlertStatus(ord.paymentStatus));
                 if (!['PROCESSING', 'COMPLETED', 'FAILED'].includes(ord.paymentStatus)) continue;
-                handleDepositTransition({
+                mergeRecord({
                     reference: ord.orderReference,
                     orderReference: ord.orderReference,
                     customerName: ord.customer?.name || 'Customer',
@@ -597,12 +629,26 @@ function App() {
                     mpesaReceipt: ord.receipt,
                     failureReason: ord.failureReason,
                     failureCode: ord.failureCode,
-                    initiatedAt: ord.createdAt || ord.paidAt || new Date().toISOString()
-                }, { fromRealtime: false });
+                    failedAt: ord.failedAt,
+                    paidAt: ord.paidAt,
+                    initiatedAt: ord.failedAt || ord.paidAt || ord.createdAt || ''
+                });
             }
         }
-        initialLoadDoneRef.current = true;
-        setUnacknowledgedDeposits(allDeps.filter((d: any) => ['PENDING', 'PROCESSING'].includes(d.status) && !d.acknowledged));
+
+        const isFirstFullSeed = !initialLoadDoneRef.current;
+        for (const rec of mergedByKey.values()) {
+            handleDepositTransition(rec, { fromRealtime: false, silent: isFirstFullSeed });
+        }
+        if (overview && recentDeps) {
+            initialLoadDoneRef.current = true;
+        }
+
+        setUnacknowledgedDeposits(allDeps.filter((d: any) => {
+            if (!['PENDING', 'PROCESSING'].includes(d.status) || d.acknowledged) return false;
+            const liveOrderStatus = d.orderReference ? orderStatusByRef.get(d.orderReference) : undefined;
+            return !liveOrderStatus || liveOrderStatus === 'PENDING';
+        }));
     }
 
     async function run(action: () => Promise<void>) {

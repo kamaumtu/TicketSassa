@@ -730,6 +730,48 @@ adminRouter.get('/deposits', route(async (req, res) => {
     const status = req.query.status;
     const filter = status && status !== 'all' ? { status } : {};
     const deposits = await DepositRequest.find(filter).sort({ initiatedAt: -1 }).limit(150).lean();
+
+    // Self-heal any stale PENDING/PROCESSING DepositRequest records whose commerce_orders already settled
+    const staleRefs = deposits
+        .filter(d => ['PENDING', 'PROCESSING'].includes(d.status) && d.orderReference)
+        .map(d => d.orderReference);
+    if (staleRefs.length) {
+        const orders = await collection('commerce_orders')
+            .find({ _id: { $in: staleRefs }, paymentStatus: { $in: ['COMPLETED', 'FAILED'] } })
+            .toArray()
+            .catch(() => []);
+        if (orders.length) {
+            const byRef = new Map(orders.map(o => [o.orderReference || o._id, o]));
+            const healOps = [];
+            for (const dep of deposits) {
+                const ord = dep.orderReference ? byRef.get(dep.orderReference) : null;
+                if (!ord) continue;
+                const isDone = ord.paymentStatus === 'COMPLETED';
+                dep.status = ord.paymentStatus;
+                dep.walletCredited = isDone;
+                dep.acknowledged = true;
+                if (ord.receipt) dep.mpesaReceipt = ord.receipt;
+                if (!isDone && ord.failureReason) dep.failureReason = ord.failureReason;
+                if (!isDone && ord.failureCode) dep.failureCode = ord.failureCode;
+                healOps.push(DepositRequest.updateOne(
+                    { _id: dep._id },
+                    {
+                        $set: {
+                            status: dep.status,
+                            walletCredited: dep.walletCredited,
+                            acknowledged: true,
+                            ...(dep.mpesaReceipt ? { mpesaReceipt: dep.mpesaReceipt } : {}),
+                            ...(dep.failureReason ? { failureReason: dep.failureReason } : {}),
+                            ...(dep.failureCode ? { failureCode: dep.failureCode } : {}),
+                            ...(isDone && ord.paidAt ? { verifiedAt: new Date(ord.paidAt) } : {})
+                        }
+                    }
+                ).catch(() => null));
+            }
+            if (healOps.length) void Promise.all(healOps);
+        }
+    }
+
     res.json({ data: deposits });
 }));
 
