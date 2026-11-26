@@ -394,6 +394,8 @@ function App() {
     const [status, setStatus] = useState('all');
     const [page, setPage] = useState(0);
     const [selected, setSelected] = useState<Order>();
+    const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+    const [rescheduleAt, setRescheduleAt] = useState('');
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState('');
     const [dark, setDark] = useState(false);
@@ -934,13 +936,53 @@ function App() {
                     <option value="all">All statuses</option><option>published</option><option>unpublished</option><option>archived</option>
                 </select></div>
                 <div className="scroll"><table><thead><tr><th>Event</th><th>Venue</th><th>Starts</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody>{filteredEvents.slice(eventPage * 10, eventPage * 10 + 10).map(event => <tr key={event.id}>
-                        <td>{event.image && <img src={event.image} alt="" loading="lazy" decoding="async" />}{event.title}</td><td>{event.venue}</td><td>{date(event.startsAt)}</td><td>{eventStatus(event)}</td>
-                        <td className="actions">{['published', 'unpublished', 'archived'].filter(next => next !== eventStatus(event)).map(next =>
-                            <button key={next} disabled={busy} onClick={() => void run(async () => {
-                                await request('/events/' + encodeURIComponent(event.id), 'PATCH', { status: next }); await load(true); setNotice('Event status updated.');
-                            })}>{({ published: 'Publish', unpublished: 'Unpublish', archived: 'Archive' })[next]}</button>)}</td>
-                    </tr>)}</tbody></table></div>
+                    <tbody>{filteredEvents.slice(eventPage * 10, eventPage * 10 + 10).map(event => {
+                        const isPast = Date.parse(event.startsAt) <= Date.now();
+                        const st = eventStatus(event);
+                        const storefrontBase = (data?.storefrontUrl || 'https://ticketsassa.ticketsassa.workers.dev').replace(/\/+$/, '');
+                        return <tr key={event.id}>
+                            <td>{event.image && <img src={event.image} alt="" loading="lazy" decoding="async" />}{event.title}</td>
+                            <td>{event.venue}</td>
+                            <td>
+                                {date(event.startsAt)}
+                                {isPast && <small style={{ display: 'block', color: '#b91c1c', fontWeight: 700 }}>Past date — hidden on storefront until rescheduled</small>}
+                                {rescheduleId === event.id && (
+                                    <div className="actions" style={{ marginTop: 6 }}>
+                                        <input type="datetime-local" value={rescheduleAt} onChange={e => setRescheduleAt(e.target.value)} />
+                                        <button className="primary" disabled={busy || !rescheduleAt} onClick={() => void run(async () => {
+                                            await request('/events/' + encodeURIComponent(event.id), 'PATCH', { startsAt: rescheduleAt + '+03:00', status: 'published' });
+                                            setRescheduleId(null);
+                                            setRescheduleAt('');
+                                            await load(true);
+                                            setNotice(`"${event.title}" rescheduled to a future date and published — now visible in storefront search.`);
+                                        })}>Save &amp; Publish</button>
+                                        <button type="button" onClick={() => setRescheduleId(null)}>Cancel</button>
+                                    </div>
+                                )}
+                            </td>
+                            <td>{st}</td>
+                            <td className="actions">
+                                {['published', 'unpublished', 'archived'].filter(next => next !== st).map(next =>
+                                    <button key={next} disabled={busy} onClick={() => void run(async () => {
+                                        const res = await request<{ isPast?: boolean }>('/events/' + encodeURIComponent(event.id), 'PATCH', { status: next });
+                                        await load(true);
+                                        if (next === 'published' && res?.isPast) {
+                                            setNotice(`"${event.title}" is marked published, but its start date (${date(event.startsAt)}) is in the past so it is hidden from Upcoming Events. Click "Reschedule" to set a future date.`);
+                                        } else {
+                                            setNotice('Event status updated.');
+                                        }
+                                    })}>{({ published: 'Publish', unpublished: 'Unpublish', archived: 'Archive' })[next]}</button>)}
+                                <button type="button" disabled={busy} onClick={() => {
+                                    const nextWeek = new Date(Date.now() + 7 * 86400000 + 3 * 3600000).toISOString().slice(0, 16);
+                                    setRescheduleId(event.id);
+                                    setRescheduleAt(nextWeek);
+                                }}>Reschedule</button>
+                                {st === 'published' && !isPast && (
+                                    <a className="primary" href={`${storefrontBase}/?view=events&event=${encodeURIComponent(event.id)}&fresh=1`} target="_blank" rel="noreferrer">View Live</a>
+                                )}
+                            </td>
+                        </tr>;
+                    })}</tbody></table></div>
                 {!filteredEvents.length && <p>No matching organizer events.</p>}
                 <div className="actions"><button disabled={eventPage === 0} onClick={() => setPage(eventPage - 1)}>Previous</button><span>Page {eventPage + 1}</span>
                 <button disabled={(eventPage + 1) * 10 >= filteredEvents.length} onClick={() => setPage(eventPage + 1)}>Next</button></div>

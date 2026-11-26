@@ -129,15 +129,41 @@ class KenyaEventCatalog extends HTMLElement {
         this.render();
     }
 
+    mergeEvents(extraEvents) {
+        if (!Array.isArray(extraEvents) || !extraEvents.length) return;
+        const byId = new Map(this.events.map(ev => [ev.id, ev]));
+        let changed = false;
+        for (const ev of extraEvents) {
+            if (!ev?.id) continue;
+            const prev = byId.get(ev.id);
+            const normalized = {
+                ...prev,
+                ...ev,
+                imageUrl: ev.imageUrl || ev.image || prev?.imageUrl || '/assets/real/DzLV4G9UWo-1790859483.jpg',
+                locationFull: ev.locationFull || ev.venue || prev?.locationFull || ''
+            };
+            byId.set(ev.id, normalized);
+            changed = true;
+        }
+        if (changed) {
+            this.events = [...byId.values()].sort((a, b) => String(a.startsAt || '').localeCompare(String(b.startsAt || '')));
+            if (!this.feedStatus || this.feedStatus === 'stale') this.feedStatus = 'live';
+            this.render();
+        }
+    }
+
     async refresh() {
         if (this.request) return;
         const request = new AbortController();
         this.request = request;
         const { hostname, protocol } = window.location;
         const local = ['localhost', '127.0.0.1'].includes(hostname) || protocol === 'file:';
-        const endpoint = this.getAttribute('api-url') ||
+        const pageParams = new URLSearchParams(window.location.search);
+        const wantFresh = pageParams.get('fresh') === '1' || Boolean(pageParams.get('event'));
+        const baseEndpoint = this.getAttribute('api-url') ||
             (local && (protocol === 'file:' || location.port === '4200')
                 ? 'http://localhost:8000/api/events/kenya' : '/api/events/kenya');
+        const endpoint = wantFresh ? `${baseEndpoint}${baseEndpoint.includes('?') ? '&' : '?'}fresh=1` : baseEndpoint;
 
         try {
             const response = await fetch(endpoint, {
@@ -169,10 +195,14 @@ class KenyaEventCatalog extends HTMLElement {
 
     render() {
         const query = this.search.value.trim().toLowerCase();
-        const events = this.events.filter(event =>
-            Date.parse(event.startsAt) > Date.now() &&
-            [event.title, event.venue, event.city, event.category, event.locationFull].some(value => value?.toLowerCase().includes(query))
-        );
+        const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+        const events = this.events.filter(event => {
+            if (!(Date.parse(event.startsAt) > Date.now())) return false;
+            if (!tokens.length) return true;
+            const haystack = [event.title, event.venue, event.city, event.category, event.locationFull, event.description, event.host]
+                .filter(Boolean).join(' ').toLowerCase();
+            return tokens.every(tok => haystack.includes(tok));
+        });
         const status = this.feedStatus === 'local' && events.length ? 'Saved listings. Prices and availability may have changed.'
             : this.feedStatus === 'unavailable' ? 'The event feed is temporarily unavailable.'
             : this.feedStatus === 'stale' ? (this.events.length ? 'Showing the last available listings. Prices may have changed.' : 'The event feed is temporarily unavailable.')

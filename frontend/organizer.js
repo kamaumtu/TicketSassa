@@ -166,7 +166,9 @@ form.addEventListener('submit', async event => {
         if (!response.ok) throw new Error(result?.message ||
             (response.status === 413 ? 'The event photo is too large.' : 'The event could not be published. Try again.'));
         const link = document.createElement('a');
-        link.href = '/?view=events&event=' + encodeURIComponent(result.data.id);
+        link.href = '/?view=events&event=' + encodeURIComponent(result.data.id) + '&fresh=1';
+        link.target = '_blank';
+        link.rel = 'noreferrer';
         link.textContent = 'View published event';
         status.dataset.state = 'success';
         status.replaceChildren('Event published. ', link);

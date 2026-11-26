@@ -455,21 +455,24 @@ function executeEventSearch() {
     const cityQuery = document.getElementById('event-city-input')?.value.trim() || '';
     const query = [nameQuery, cityQuery].filter(Boolean).join(' ').trim();
     const catalog = document.getElementById('upcoming-events');
-    const term = query.toLowerCase();
+    const tokens = query ? query.toLowerCase().split(/\s+/).filter(Boolean) : [];
     let matches = 0;
     for (const card of document.querySelectorAll('[data-published-search]')) {
-        card.hidden = !card.dataset.publishedSearch.includes(term);
+        const hay = card.dataset.publishedSearch || '';
+        card.hidden = tokens.length > 0 && !tokens.every(tok => hay.includes(tok));
         if (!card.hidden) matches++;
     }
     const publishedStatus = document.getElementById('published-status');
     if (publishedStatus && document.querySelector('[data-published-search]')) {
         publishedStatus.textContent = matches ? '' : 'No ticketed events match your search.';
     }
-    catalog.setQuery?.(query);
+    catalog?.setQuery?.(query);
     const results = catalog || (matches ? document.getElementById('published-events') : catalog);
-    results.setAttribute('tabindex', '-1');
-    results.focus({ preventScroll: true });
-    results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (results) {
+        results.setAttribute('tabindex', '-1');
+        results.focus({ preventScroll: true });
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // =========================================================================
@@ -3231,7 +3234,9 @@ window.onTicketsasaCatalogLoaded = function (eventsList) {
 async function loadPublishedEvents() {
     const section = document.getElementById('published-events');
     try {
-        const { data } = await commerceRequest('/published-events');
+        const params = new URLSearchParams(location.search);
+        const wantFresh = params.get('fresh') === '1' || Boolean(params.get('event'));
+        const { data } = await commerceRequest(wantFresh ? '/published-events?fresh=1' : '/published-events');
         for (const ev of data) {
             if (ev?.id) {
                 const existing = ticketsasaCatalogMap.get(ev.id);
@@ -3242,6 +3247,7 @@ async function loadPublishedEvents() {
                 });
             }
         }
+        document.getElementById('upcoming-events')?.mergeEvents?.(data);
         openLinkedEvent();
         section.querySelectorAll('[data-published-search]').forEach(card => card.remove());
         publishedOptions.clear();

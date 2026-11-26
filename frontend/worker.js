@@ -162,18 +162,23 @@ export default {
         }
 
         if (url.pathname.startsWith('/api/')) {
-            if (isPublicCacheableApi(request.method, url.pathname) && typeof caches !== 'undefined' && caches.default) {
+            const bypassCache = url.searchParams.get('fresh') === '1';
+            const isFastCatalogRoute = url.pathname === '/api/events/kenya' || url.pathname === '/api/published-events' || url.pathname === '/api/events';
+            const edgeFreshMs = isFastCatalogRoute ? 10000 : 45000;
+            const edgeCacheControl = isFastCatalogRoute ? 'public, max-age=10, s-maxage=30' : 'public, max-age=45, s-maxage=600';
+
+            if (!bypassCache && isPublicCacheableApi(request.method, url.pathname) && typeof caches !== 'undefined' && caches.default) {
                 const cacheKey = new Request(url.toString(), { method: 'GET' });
                 const cached = await caches.default.match(cacheKey);
                 if (cached) {
                     const cachedAt = Number(cached.headers.get('x-edge-cached-at') || 0);
-                    if (Date.now() - cachedAt > 45000 && ctx?.waitUntil) {
+                    if (Date.now() - cachedAt > edgeFreshMs && ctx?.waitUntil) {
                         ctx.waitUntil((async () => {
                             try {
                                 const fresh = await fetchUpstreamApi(request, url, backendOrigin);
                                 if (fresh.ok) {
                                     const toStoreHeaders = new Headers(fresh.headers);
-                                    toStoreHeaders.set('Cache-Control', 'public, max-age=45, s-maxage=600');
+                                    toStoreHeaders.set('Cache-Control', edgeCacheControl);
                                     toStoreHeaders.set('x-edge-cached-at', String(Date.now()));
                                     await caches.default.put(cacheKey, new Response(fresh.clone().body, { status: 200, headers: toStoreHeaders }));
                                 }
@@ -188,7 +193,7 @@ export default {
                 const fresh = await fetchUpstreamApi(request, url, backendOrigin);
                 if (fresh.ok && ctx?.waitUntil) {
                     const toStoreHeaders = new Headers(fresh.headers);
-                    toStoreHeaders.set('Cache-Control', 'public, max-age=45, s-maxage=600');
+                    toStoreHeaders.set('Cache-Control', edgeCacheControl);
                     toStoreHeaders.set('x-edge-cached-at', String(Date.now()));
                     ctx.waitUntil(caches.default.put(cacheKey, new Response(fresh.clone().body, { status: 200, headers: toStoreHeaders })));
                 }

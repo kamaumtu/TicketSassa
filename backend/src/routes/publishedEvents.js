@@ -83,8 +83,11 @@ function withinSalesWindow(event, now) {
 }
 
 router.get('/', route(async (req, res) => {
+    if (req.query.fresh === '1') {
+        try { require('./eventRoutes').catalog?.invalidateCache?.(); } catch {}
+    }
     const now = Date.now();
-    res.json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > now)
+    res.set('Cache-Control', 'no-cache').json({ data: (await events()).filter(event => visible(event) && Date.parse(event.startsAt) > now)
         .map(event => ({ ...event, onSale: onSale(event) })) });
 }));
 
@@ -157,6 +160,8 @@ async function publishEvent(req, res) {
         if (!existing) throw error;
         return res.json({ data: existing });
     }
+    try { req.app?.locals?.eventCatalog?.invalidateCache?.(); } catch {}
+    try { require('./eventRoutes').catalog?.invalidateCache?.(); } catch {}
     res.status(201).json({ data: event });
 }
 

@@ -168,17 +168,21 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                 .sort({ startedAt: -1 }).limit(20).toArray().catch(() => []) : [];
             return { activeRun, nextRunAt, history };
         },
+        invalidateCache() {
+            cachedResult = null;
+            cachedAt = 0;
+        },
         async get() {
-            if (cachedResult && Date.now() - cachedAt < 60000) {
+            if (cachedResult && Date.now() - cachedAt < 15000) {
                 return cachedResult;
             }
             const enabledProviders = providers.filter(provider => provider.isEnabled(process.env));
             const catalogKeys = [SOURCE, ...enabledProviders.map(p => p.endpointKey)];
             const now = new Date().toISOString();
-            const [catalogDocs, allocated, discoveredDocs] = await Promise.all([
+            const [catalogDocs, commerceEvents, discoveredDocs] = await Promise.all([
                 collection('event_catalogs').find({ _id: { $in: catalogKeys } }).toArray().catch(() => []),
                 collection('commerce_events').find({
-                    allocationExpiresAt: { $exists: true }, startsAt: { $gt: now }
+                    startsAt: { $gt: now }
                 }).toArray().catch(() => []),
                 isConnected()
                     ? require('../models/automation').DiscoveredEvent.find({
@@ -188,6 +192,43 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
                     }).lean().catch(() => [])
                     : Promise.resolve([])
             ]);
+            const allocated = commerceEvents.filter(ev => ev.allocationExpiresAt !== undefined);
+            const organizerEvents = commerceEvents
+                .filter(ev => ev.allocationExpiresAt === undefined && (!ev.status || ev.status === 'published'))
+                .map(ev => {
+                    const tiers = Array.isArray(ev.tiers) && ev.tiers.length ? ev.tiers : buildAutoEventTiers(ev);
+                    const startingPrice = tiers.length
+                        ? Math.min(...tiers.map(t => Number(t.priceKes) || 0))
+                        : (ev.startingPrice ?? 1000);
+                    const eventOnSale = onSale({ ...ev, tiers });
+                    const img = ev.image || ev.imageUrl || '/assets/real/DzLV4G9UWo-1790859483.jpg';
+                    return {
+                        id: ev.id,
+                        title: ev.title,
+                        description: ev.description || `${ev.title} at ${ev.venue || 'Kenya'}`,
+                        startsAt: ev.startsAt,
+                        eventDate: ev.startsAt,
+                        venue: ev.venue || 'Kenya',
+                        city: ev.city || ev.venue || 'Kenya',
+                        locationFull: ev.locationFull || ev.venue || 'Kenya',
+                        category: ev.category || 'Featured Event',
+                        host: ev.host || 'Ticketsasa Official Organizer',
+                        imageUrl: img,
+                        image: ev.image || null,
+                        remoteImageUrl: img,
+                        source: 'Organizer Published',
+                        isOrganizerEvent: true,
+                        status: ev.status || 'published',
+                        salesOpen: ev.salesOpen,
+                        salesClose: ev.salesClose,
+                        startingPrice,
+                        price: { amount: startingPrice, currency: 'KES', sourceUrl: null },
+                        checkout: eventOnSale,
+                        onSale: eventOnSale,
+                        ticketStatus: eventOnSale ? 'on-sale' : 'scheduled',
+                        tiers
+                    };
+                });
             const docsById = new Map(catalogDocs.map(doc => [doc._id, doc]));
             const snapshot = docsById.get(SOURCE) ?? null;
             const providerSnapshots = providers.map(provider => {
@@ -261,6 +302,7 @@ function createEventCatalog({ fetchPage = fetch, providers = defaultProviders } 
 
             const mergedEvents = mergeDeduplicatedEvents(
                 [
+                    organizerEvents,
                     ticketsasaEvents
                         .filter(event => Date.parse(event.startsAt) > Date.now())
                         .map(event => {

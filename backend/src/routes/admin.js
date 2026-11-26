@@ -101,21 +101,39 @@ router.get('/overview', async (req, res, next) => {
 
 router.patch('/events/:id', route(async (req, res) => {
     if (!isConnected()) return res.status(503).json({ message: 'Event changes require the database connection.' });
-    const { status } = req.body;
-    if (!['published', 'unpublished', 'archived'].includes(status)) {
+    const { status, startsAt } = req.body || {};
+    if (status !== undefined && !['published', 'unpublished', 'archived'].includes(status)) {
         return res.status(400).json({ message: 'Invalid event status.' });
+    }
+    const patch = {};
+    if (status !== undefined) patch.status = status;
+    if (startsAt !== undefined) {
+        const parsedStart = Date.parse(startsAt);
+        if (!Number.isFinite(parsedStart) || parsedStart <= Date.now()) {
+            return res.status(400).json({ message: 'Choose a future date and time for the event start.' });
+        }
+        patch.startsAt = new Date(parsedStart).toISOString();
+        patch.salesClose = patch.startsAt;
+        patch.salesOpen = new Date(Math.min(Date.now(), parsedStart - 60000)).toISOString();
+    }
+    if (!Object.keys(patch).length) {
+        return res.status(400).json({ message: 'Provide a status or new start date to update.' });
     }
     const updated = await transaction(async session => {
         const id = req.params.id;
-        const result = await collection('commerce_events').updateOne({ _id: id }, { $set: { status } }, { session });
-        if (!result.matchedCount) return false;
+        const result = await collection('commerce_events').updateOne({ _id: id }, { $set: patch }, { session });
+        if (!result.matchedCount) return null;
         await collection('commerce_audit').insertOne({
-            action: status, target: id, timestamp: new Date().toISOString(), actor: req.organizerId
+            action: startsAt !== undefined ? 'reschedule' : status, target: id, timestamp: new Date().toISOString(), actor: req.organizerId
         }, { session });
-        return true;
+        return collection('commerce_events').findOne({ _id: id }, { projection: { _id: 0, image: 0 }, session });
     });
     if (!updated) return res.status(404).json({ message: 'Event not found.' });
-    res.json({ success: true });
+    overviewCache.at = 0;
+    try { req.app?.locals?.eventCatalog?.invalidateCache?.(); } catch {}
+    try { require('./eventRoutes').catalog?.invalidateCache?.(); } catch {}
+    const isPast = Date.parse(updated.startsAt) <= Date.now();
+    res.json({ success: true, event: updated, isPast });
 }));
 
 router.get('/audit', route(async (req, res) => {
