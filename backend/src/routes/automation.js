@@ -43,7 +43,8 @@ const {
     renderTicketPdfBuffer,
     emailGeneratedTicket
 } = require('../services/automation/pdfTicketService');
-const { acknowledgeDeposit } = require('../services/automation/socketHub');
+const { acknowledgeDeposit, emitToAdmins, sendTestNotification } = require('../services/automation/socketHub');
+const { depositBus } = require('../services/depositAlerts');
 
 const adminRouter = express.Router();
 const publicRouter = express.Router();
@@ -244,6 +245,9 @@ publicRouter.post('/tickets/redeem/:qrToken', route(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 let autoOverviewCache = { payload: null, at: 0 };
+depositBus.on('deposit_event', () => {
+    autoOverviewCache.at = 0;
+});
 
 adminRouter.get('/overview', route(async (req, res) => {
     const connected = isConnected();
@@ -751,10 +755,23 @@ adminRouter.post('/notifications/:id/read', route(async (req, res) => {
 adminRouter.post('/notifications/acknowledge-all', route(async (req, res) => {
     const now = new Date();
     await Promise.all([
-        AdminNotification.updateMany({ acknowledged: false }, { $set: { read: true, acknowledged: true, acknowledgedAt: now } }),
-        DepositRequest.updateMany({ acknowledged: false }, { $set: { acknowledged: true, acknowledgedBy: req.organizerId || 'admin', acknowledgedAt: now } })
+        AdminNotification.updateMany(
+            { $or: [{ read: false }, { acknowledged: false }] },
+            { $set: { read: true, acknowledged: true, acknowledgedAt: now } }
+        ),
+        DepositRequest.updateMany(
+            { acknowledged: false },
+            { $set: { acknowledged: true, acknowledgedBy: req.organizerId || 'admin', acknowledgedAt: now } }
+        )
     ]);
+    emitToAdmins('notifications:cleared', { acknowledgedAt: now.toISOString(), actor: req.organizerId || 'admin' });
     res.json({ success: true });
+}));
+
+adminRouter.post('/notifications/test', route(async (req, res) => {
+    const kind = String(req.body?.kind || 'initiated').toLowerCase();
+    const result = sendTestNotification(kind, req.organizerId || 'admin');
+    res.json({ success: true, ...result });
 }));
 
 // Data Sources Management

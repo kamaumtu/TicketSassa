@@ -158,18 +158,22 @@ async function completeOrder(session, order, receipt) {
     const travelReservation = await confirmTravelReservation(orderReference, receipt, order.mode).catch(() => null);
     void sendOrderTicketsEmail(order, passes, travelReservation).catch(() => null);
     void require('../services/messagingService').sendBookingAlerts(order, passes, travelReservation).catch(() => null);
-    void markDepositVerified({
-        orderReference,
-        checkoutRequestId: order.checkoutRequestId,
-        receipt,
-        status: 'COMPLETED',
-        customerName: order.customer?.name,
-        customerPhone: order.customer?.phone,
-        customerEmail: order.customer?.email,
-        amountKes: order.totalKes,
-        method: order.paymentMethod || 'M-PESA',
-        provider: order.provider || 'mpesa'
-    }).catch(() => null);
+    try {
+        await markDepositVerified({
+            orderReference,
+            checkoutRequestId: order.checkoutRequestId,
+            receipt,
+            status: 'COMPLETED',
+            customerName: order.customer?.name,
+            customerPhone: order.customer?.phone,
+            customerEmail: order.customer?.email,
+            amountKes: order.totalKes,
+            method: order.paymentMethod || 'M-PESA',
+            provider: order.provider || 'mpesa'
+        });
+    } catch (err) {
+        console.error('markDepositVerified (COMPLETED) failed:', err?.message || err);
+    }
     return { order, passes, travelReservation };
 }
 
@@ -584,19 +588,23 @@ function settle(reference, result) {
             current.failedAt = new Date();
             await collection('commerce_holds').deleteMany({ orderReference: reference }, { session });
             await saveOrder(current, session);
-            void markDepositVerified({
-                orderReference: reference,
-                checkoutRequestId: current.checkoutRequestId,
-                status: 'FAILED',
-                failureReason,
-                failureCode: current.failureCode || '',
-                customerName: current.customer?.name,
-                customerPhone: current.customer?.phone,
-                customerEmail: current.customer?.email,
-                amountKes: current.totalKes,
-                method: current.paymentMethod || 'M-PESA',
-                provider: current.provider || 'mpesa'
-            }).catch(() => null);
+            try {
+                await markDepositVerified({
+                    orderReference: reference,
+                    checkoutRequestId: current.checkoutRequestId,
+                    status: 'FAILED',
+                    failureReason,
+                    failureCode: current.failureCode || '',
+                    customerName: current.customer?.name,
+                    customerPhone: current.customer?.phone,
+                    customerEmail: current.customer?.email,
+                    amountKes: current.totalKes,
+                    method: current.paymentMethod || 'M-PESA',
+                    provider: current.provider || 'mpesa'
+                });
+            } catch (err) {
+                console.error('markDepositVerified (FAILED) failed:', err?.message || err);
+            }
         }
         return current;
     });

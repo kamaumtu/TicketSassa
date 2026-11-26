@@ -37,16 +37,16 @@ export function AutomationOverview({ onNavigate, refreshKey = 0 }: { onNavigate:
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
 
-    async function load() {
+    async function load(forceFresh = false) {
         try {
-            setData(await autoRequest('/overview'));
+            setData(await autoRequest(forceFresh ? '/overview?fresh=1' : '/overview'));
             setError('');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load overview.');
         }
     }
 
-    useEffect(() => { void load(); }, [refreshKey]);
+    useEffect(() => { void load(refreshKey > 0); }, [refreshKey]);
 
     async function triggerRun(kind: string) {
         setBusy(true);
@@ -518,7 +518,7 @@ export function PendingDepositsPanel({ refreshKey = 0 }: { onAcknowledge?: (id: 
     </section>;
 }
 
-export function NotificationsPanel({ onAcknowledgeAll, refreshKey = 0 }: { onAcknowledgeAll: () => Promise<void>; refreshKey?: number }) {
+export function NotificationsPanel({ onAcknowledgeAll, onReadOne, onSendTest, refreshKey = 0 }: { onAcknowledgeAll: () => Promise<void>; onReadOne?: () => void; onSendTest?: (kind: 'initiated' | 'completed' | 'failed') => Promise<void>; refreshKey?: number }) {
     const [items, setItems] = useState<any[]>([]);
     async function load() {
         const res = await autoRequest<{ data: any[] }>('/notifications');
@@ -528,7 +528,10 @@ export function NotificationsPanel({ onAcknowledgeAll, refreshKey = 0 }: { onAck
     return <section className="panel">
         <div className="lobby-toolbar">
             <h2>Persistent Admin Notifications ({items.length})</h2>
-            <button className="primary" onClick={async () => { await onAcknowledgeAll(); await load(); }}>Mark All Read</button>
+            <div className="actions">
+                {onSendTest && <button onClick={() => void onSendTest('completed')}>Send Live Test Alert</button>}
+                <button className="primary" onClick={async () => { await onAcknowledgeAll(); await load(); }}>Mark All Read</button>
+            </div>
         </div>
         <div className="scroll"><table>
             <thead><tr><th>Time</th><th>Title</th><th>Message</th><th>Status</th><th></th></tr></thead>
@@ -537,7 +540,7 @@ export function NotificationsPanel({ onAcknowledgeAll, refreshKey = 0 }: { onAck
                 <td><strong>{n.title}</strong></td>
                 <td>{n.message}</td>
                 <td>{n.read ? 'Read' : 'Unread'}</td>
-                <td>{!n.read && <button onClick={async () => { await autoRequest(`/notifications/${n._id}/read`, 'POST', {}); await load(); }}>Mark read</button>}</td>
+                <td>{!n.read && <button onClick={async () => { await autoRequest(`/notifications/${n._id}/read`, 'POST', {}); onReadOne?.(); await load(); }}>Mark read</button>}</td>
             </tr>)}</tbody>
         </table></div>
     </section>;

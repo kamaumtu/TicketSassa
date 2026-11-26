@@ -25,8 +25,12 @@ function recordDepositInitiated({ orderReference, customerName, customerPhone, t
     return entry;
 }
 
+function emitDepositEvent(eventName, payload) {
+    depositBus.emit('deposit_event', { event: eventName, payload, timestamp: new Date().toISOString() });
+}
+
 function getRecentDeposits(limit = 25) {
     return recent.slice(0, Math.max(1, Math.min(limit, MAX_RECENT)));
 }
 
-module.exports = { depositBus, recordDepositInitiated, getRecentDeposits };
+module.exports = { depositBus, recordDepositInitiated, emitDepositEvent, getRecentDeposits };

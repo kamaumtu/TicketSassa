@@ -9,6 +9,7 @@ const { publishEvent } = require('./publishedEvents');
 const { isConnected } = require('../config/db');
 const { buildKenyaDiscovery } = require('../services/kenyaDiscovery');
 const { depositBus, getRecentDeposits } = require('../services/depositAlerts');
+const { createSocketToken } = require('../services/automation/socketHub');
 router.get('/travel/lobby', route(async (req, res) => res.set('Cache-Control', 'no-store').json(await require('../services/travelCatalog').lobby())));
 router.post('/travel/sync', route(async (req, res) => res.json(await require('../services/travelCatalog').sync('admin'))));
 
@@ -50,6 +51,9 @@ router.put('/support/contact', route(async (req, res) => {
 }));
 
 let overviewCache = { events: [], liveOrders: [], audit: [], at: 0 };
+depositBus.on('deposit_event', () => {
+    overviewCache.at = 0;
+});
 
 router.get('/overview', async (req, res, next) => {
     try {
@@ -154,6 +158,13 @@ router.post('/discovery/scan', route(async (req, res) => {
     res.set('Cache-Control', 'no-store').json(payload);
 }));
 
+router.get('/socket-token', (req, res) => {
+    res.set('Cache-Control', 'no-store').json({
+        token: createSocketToken(req.organizerId || 'admin'),
+        expiresInSeconds: 43200
+    });
+});
+
 router.get('/deposits/recent', route(async (req, res) => {
     res.set('Cache-Control', 'no-store').json({ data: getRecentDeposits(25) });
 }));
@@ -171,13 +182,18 @@ router.get('/deposits/stream', (req, res) => {
     const onDeposit = (entry) => {
         res.write(`event: deposit_initiated\ndata: ${JSON.stringify(entry)}\n\n`);
     };
+    const onDepositEvent = (envelope) => {
+        res.write(`event: deposit_event\ndata: ${JSON.stringify(envelope)}\n\n`);
+    };
     depositBus.on('deposit', onDeposit);
+    depositBus.on('deposit_event', onDepositEvent);
     const keepalive = setInterval(() => {
         res.write(': keepalive\n\n');
-    }, 25000);
+    }, 20000);
     req.on('close', () => {
         clearInterval(keepalive);
         depositBus.off('deposit', onDeposit);
+        depositBus.off('deposit_event', onDepositEvent);
     });
 });
 

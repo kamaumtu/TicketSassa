@@ -162,8 +162,8 @@ const AutomationBookingSchema = new mongoose.Schema({
 const DepositRequestSchema = new mongoose.Schema({
     reference: { type: String, required: true, unique: true, index: true },
     orderReference: { type: String, index: true },
-    customerName: { type: String, required: true },
-    customerPhone: { type: String, required: true },
+    customerName: { type: String, default: 'Customer' },
+    customerPhone: { type: String, default: '' },
     customerEmail: { type: String, default: '' },
     amountKes: { type: Number, required: true },
     method: { type: String, default: 'M-PESA' },

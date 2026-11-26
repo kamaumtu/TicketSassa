@@ -1,10 +1,50 @@
 const { Server } = require('socket.io');
-const { randomInt } = require('node:crypto');
+const { randomInt, randomBytes, createHmac, timingSafeEqual } = require('node:crypto');
 const { organizerIdentity } = require('../organizerAccess');
 const { isConnected } = require('../../config/db');
 const { DepositRequest, AdminNotification } = require('../../models/automation');
+const { emitDepositEvent } = require('../depositAlerts');
 
 let io = null;
+const RUNTIME_TOKEN_FALLBACK = randomBytes(32).toString('hex');
+const SOCKET_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+
+function socketTokenSecret() {
+    const seed = process.env.ORGANIZER_KEY || process.env.ORGANIZER_ACCOUNTS || process.env.JWT_SECRET || RUNTIME_TOKEN_FALLBACK;
+    return createHmac('sha256', 'ticketsasa-admin-socket-v1').update(String(seed)).digest('hex');
+}
+
+function createSocketToken(actor = 'admin') {
+    const payload = Buffer.from(JSON.stringify({
+        actor: String(actor || 'admin').slice(0, 80),
+        exp: Date.now() + SOCKET_TOKEN_TTL_MS
+    }), 'utf8').toString('base64url');
+    const sig = createHmac('sha256', socketTokenSecret()).update(payload).digest('base64url');
+    return `${payload}.${sig}`;
+}
+
+function verifySocketToken(token) {
+    if (typeof token !== 'string') return null;
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [payload, sig] = parts;
+    if (!payload || !sig) return null;
+    const expected = createHmac('sha256', socketTokenSecret()).update(payload).digest('base64url');
+    const a = Buffer.from(sig, 'utf8');
+    const b = Buffer.from(expected, 'utf8');
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    try {
+        const parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+        if (!parsed || typeof parsed.exp !== 'number' || parsed.exp < Date.now()) return null;
+        return String(parsed.actor || 'admin');
+    } catch {
+        return null;
+    }
+}
+
+function normalizeHostname(rawHost) {
+    return String(rawHost || '').split(',')[0].trim().replace(/:\d+$/, '').toLowerCase();
+}
 
 function generateDepositReference() {
     const year = new Date().getFullYear();
@@ -16,29 +56,36 @@ function initSocketHub(httpServer) {
     if (io) return io;
     io = new Server(httpServer, {
         path: '/socket.io',
-        cors: { origin: true, credentials: true }
+        cors: { origin: true, credentials: true },
+        pingInterval: 20000,
+        pingTimeout: 20000
     });
 
     io.use((socket, next) => {
+        const tokenActor = verifySocketToken(socket.handshake.auth?.token || socket.handshake.query?.token);
+        if (tokenActor) {
+            socket.data.adminActor = tokenActor;
+            return next();
+        }
         const authHeader = socket.handshake.headers?.authorization || socket.handshake.auth?.authorization || '';
         const origin = socket.handshake.headers?.origin || '';
         const referer = socket.handshake.headers?.referer || '';
-        const host = (socket.handshake.headers?.['x-forwarded-host'] || socket.handshake.headers?.host || '').split(',')[0].trim();
+        const hostName = normalizeHostname(socket.handshake.headers?.['x-forwarded-host'] || socket.handshake.headers?.host || '');
         // Allow authenticated admin Basic header OR same-origin admin session from /admin
         if (organizerIdentity(authHeader)) {
             socket.data.adminActor = organizerIdentity(authHeader);
             return next();
         }
         try {
-            if (origin && host && new URL(origin).host === host) {
+            if (origin && hostName && new URL(origin).hostname.toLowerCase() === hostName) {
                 socket.data.adminActor = 'admin-dashboard';
                 return next();
             }
         } catch {}
         try {
-            if (referer && host) {
+            if (referer && hostName) {
                 const refUrl = new URL(referer);
-                if (refUrl.host === host && refUrl.pathname.startsWith('/admin')) {
+                if (refUrl.hostname.toLowerCase() === hostName && refUrl.pathname.startsWith('/admin')) {
                     socket.data.adminActor = 'admin-dashboard';
                     return next();
                 }
@@ -49,6 +96,7 @@ function initSocketHub(httpServer) {
 
     io.on('connection', (socket) => {
         socket.join('admins');
+        socket.emit('hub:ready', { connectedAt: new Date().toISOString(), actor: socket.data.adminActor || 'admin' });
         socket.on('deposit:acknowledge', async ({ id, reference } = {}) => {
             try {
                 await acknowledgeDeposit(id || reference, socket.data.adminActor || 'admin');
@@ -61,6 +109,7 @@ function initSocketHub(httpServer) {
 
 function emitToAdmins(event, payload) {
     if (io) io.to('admins').emit(event, payload);
+    emitDepositEvent(event, payload);
 }
 
 async function notifyDepositInitiated({ orderReference, customerName, customerPhone, customerEmail = '', amountKes, method = 'M-PESA', provider = 'mpesa', checkoutRequestId = '' }) {
@@ -274,19 +323,54 @@ async function acknowledgeDeposit(idOrRef, actor = 'admin') {
         { new: true }
     );
     if (updated) {
+        const refMatch = [{ 'payload.reference': updated.reference }];
+        if (updated.orderReference) refMatch.push({ 'payload.orderReference': updated.orderReference });
         await AdminNotification.updateMany(
-            { 'payload.reference': updated.reference },
+            { $or: refMatch },
             { $set: { acknowledged: true, read: true, acknowledgedAt: now } }
         );
-        emitToAdmins('deposit:acknowledged', { reference: updated.reference, id: String(updated._id), acknowledgedBy: actor });
+        emitToAdmins('deposit:acknowledged', {
+            reference: updated.reference,
+            orderReference: updated.orderReference,
+            id: String(updated._id),
+            acknowledgedBy: actor
+        });
     }
     return updated;
 }
 
+function sendTestNotification(kind = 'initiated', actor = 'admin') {
+    const normalized = ['initiated', 'completed', 'failed'].includes(kind) ? kind : 'initiated';
+    const ref = `TEST-${Date.now().toString(36).toUpperCase()}`;
+    const status = normalized === 'completed' ? 'COMPLETED' : normalized === 'failed' ? 'FAILED' : 'PENDING';
+    const deposit = {
+        _id: ref,
+        reference: ref,
+        orderReference: ref,
+        customerName: 'Test Customer',
+        customerPhone: '254700000000',
+        amountKes: 1500,
+        method: 'M-PESA',
+        provider: 'test',
+        status,
+        mpesaReceipt: normalized === 'completed' ? 'TEST987654' : undefined,
+        failureReason: normalized === 'failed' ? 'Cancelled by user (test alert)' : undefined,
+        failureCode: normalized === 'failed' ? '1032' : undefined,
+        initiatedAt: new Date().toISOString(),
+        isTest: true,
+        triggeredBy: actor
+    };
+    emitToAdmins('deposit:test', { kind: normalized, deposit });
+    return { kind: normalized, deposit };
+}
+
 module.exports = {
     initSocketHub,
+    createSocketToken,
+    verifySocketToken,
     emitToAdmins,
     notifyDepositInitiated,
     markDepositVerified,
-    acknowledgeDeposit
+    acknowledgeDeposit,
+    sendTestNotification
 };

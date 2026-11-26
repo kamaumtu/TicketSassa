@@ -18,6 +18,16 @@ import {
 } from './automationPanels';
 import { DiscoveryCenterPanel } from './discoveryCenterPanel';
 import { TravelOpsPanel } from './travelOpsPanel';
+import {
+    AlertSoundKind,
+    NotificationPermState,
+    getNotificationPermission,
+    isAudioReady,
+    playPaymentSound,
+    requestNotificationPermission,
+    showBrowserNotification,
+    unlockAudioEngine
+} from './soundEngine';
 
 type Tier = { tierKey: string; title: string; priceKes: number; remainingAllocation: number; sold: number };
 type Event = { id: string; title: string; venue: string; startsAt: string; image?: string; status?: string; tiers: Tier[] };
@@ -325,62 +335,24 @@ function SupportContactPanel() {
     </div>;
 }
 
-let sharedAudioCtx: AudioContext | null = null;
-async function ensureAudioContext() {
-    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    if (!AudioCtx) return null;
-    if (!sharedAudioCtx) sharedAudioCtx = new AudioCtx();
-    if (sharedAudioCtx.state === 'suspended') {
-        await sharedAudioCtx.resume();
-    }
-    return sharedAudioCtx;
-}
+const SOUND_ENABLED_KEY = 'ticketsasa_admin_sound_enabled';
+const SOUND_VOLUME_KEY = 'ticketsasa_admin_sound_volume';
 
-async function playToneSequence(notes: number[], { volume = 0.85, step = 0.13, duration = 0.36, wave = 'triangle' as OscillatorType } = {}) {
+function readStoredBool(key: string, fallback: boolean): boolean {
     try {
-        const ctx = await ensureAudioContext();
-        if (!ctx) return false;
-        const now = ctx.currentTime + 0.02;
-        const gainPeak = Math.max(0.08, Math.min(1, volume)) * 0.65;
-        notes.forEach((freq, idx) => {
-            const start = now + idx * step;
-            const osc = ctx.createOscillator();
-            const overtone = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = wave;
-            overtone.type = 'sine';
-            osc.frequency.setValueAtTime(freq, start);
-            overtone.frequency.setValueAtTime(freq * 2, start);
-            gain.gain.setValueAtTime(0.001, start);
-            gain.gain.linearRampToValueAtTime(gainPeak, start + 0.015);
-            gain.gain.exponentialRampToValueAtTime(0.001, start + duration);
-            osc.connect(gain);
-            overtone.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(start);
-            overtone.start(start);
-            osc.stop(start + duration + 0.03);
-            overtone.stop(start + duration + 0.03);
-        });
-        return true;
-    } catch {
-        return false;
-    }
+        const raw = localStorage.getItem(key);
+        if (raw === 'true') return true;
+        if (raw === 'false') return false;
+    } catch {}
+    return fallback;
 }
 
-// Sound 1: Played once when a user initiates a deposit (stops automatically)
-function playDepositInitiatedSound(volume = 0.85) {
-    void playToneSequence([740, 987.77], { volume, step: 0.14, duration: 0.36, wave: 'triangle' });
-}
-
-// Sound 2: Played once when a payment succeeds (stops automatically)
-function playDepositSuccessSound(volume = 0.85) {
-    void playToneSequence([523.25, 659.25, 783.99, 1046.5], { volume, step: 0.11, duration: 0.45, wave: 'triangle' });
-}
-
-// Sound 3: Played once when a payment fails or is cancelled (stops automatically)
-function playDepositFailedSound(volume = 0.85) {
-    void playToneSequence([440, 329.63], { volume, step: 0.16, duration: 0.38, wave: 'sine' });
+function readStoredVolume(key: string, fallback: number): number {
+    try {
+        const num = Number(localStorage.getItem(key));
+        if (Number.isFinite(num) && num >= 0 && num <= 1) return num;
+    } catch {}
+    return fallback;
 }
 
 function exportOrders(orders: Order[]) {
@@ -428,81 +400,166 @@ function App() {
     const [collapsed, setCollapsed] = useState(false);
 
     // Sound & Real-Time Deposit Notification State
-    const [soundEnabled, setSoundEnabled] = useState(true);
-    const [audioUnlocked, setAudioUnlocked] = useState(false);
-    const [volume, setVolume] = useState(0.8);
+    const [soundEnabled, setSoundEnabled] = useState(() => readStoredBool(SOUND_ENABLED_KEY, true));
+    const [audioUnlocked, setAudioUnlocked] = useState(() => isAudioReady());
+    const [audioBlocked, setAudioBlocked] = useState(false);
+    const [notifPerm, setNotifPerm] = useState<NotificationPermState>(() => getNotificationPermission());
+    const [volume, setVolume] = useState(() => readStoredVolume(SOUND_VOLUME_KEY, 0.85));
     const [unreadCount, setUnreadCount] = useState(0);
     const [unacknowledgedDeposits, setUnacknowledgedDeposits] = useState<DepositAlert[]>([]);
     const [liveBanners, setLiveBanners] = useState<LiveBanner[]>([]);
     const [refreshKey, setRefreshKey] = useState(0);
     const [socketConnected, setSocketConnected] = useState(false);
+    const [sseConnected, setSseConnected] = useState(false);
+    const [titleAlert, setTitleAlert] = useState('');
 
     const soundEnabledRef = useRef(soundEnabled);
     soundEnabledRef.current = soundEnabled;
     const volumeRef = useRef(volume);
     volumeRef.current = volume;
     const seenDepositStatusRef = useRef<Map<string, string>>(new Map());
+    const seenTestRef = useRef<Set<string>>(new Set());
     const initialLoadDoneRef = useRef(false);
+    const titleTimerRef = useRef<number | null>(null);
 
-    function pushLiveBanner(banner: LiveBanner) {
-        setLiveBanners(prev => [banner, ...prev.filter(b => b.id !== banner.id)].slice(0, 3));
-        window.setTimeout(() => {
-            setLiveBanners(prev => prev.filter(b => b.id !== banner.id));
-        }, 25000);
+    useEffect(() => {
+        try { localStorage.setItem(SOUND_ENABLED_KEY, String(soundEnabled)); } catch {}
+    }, [soundEnabled]);
+
+    useEffect(() => {
+        try { localStorage.setItem(SOUND_VOLUME_KEY, String(volume)); } catch {}
+    }, [volume]);
+
+    // Unlock browser audio on first real user gesture without hiding notification permission prompt
+    useEffect(() => {
+        const handleGesture = () => {
+            if (isAudioReady()) {
+                setAudioUnlocked(true);
+                setAudioBlocked(false);
+                return;
+            }
+            void unlockAudioEngine().then(ok => {
+                if (ok) {
+                    setAudioUnlocked(true);
+                    setAudioBlocked(false);
+                }
+            });
+        };
+        window.addEventListener('pointerdown', handleGesture, { passive: true });
+        window.addEventListener('keydown', handleGesture, { passive: true });
+        return () => {
+            window.removeEventListener('pointerdown', handleGesture);
+            window.removeEventListener('keydown', handleGesture);
+        };
+    }, []);
+
+    // Keep browser tab title updated with unread count and active payment alert flashes
+    useEffect(() => {
+        const badgeCount = Math.max(unreadCount, unacknowledgedDeposits.length);
+        if (titleAlert) {
+            document.title = `${titleAlert} · Ticketsasa Admin`;
+        } else if (badgeCount > 0) {
+            document.title = `(${badgeCount}) Ticketsasa Admin`;
+        } else {
+            document.title = 'Ticketsasa Admin';
+        }
+    }, [unreadCount, unacknowledgedDeposits.length, titleAlert]);
+
+    function flashDocumentTitle(label: string) {
+        setTitleAlert(label);
+        if (titleTimerRef.current) window.clearTimeout(titleTimerRef.current);
+        titleTimerRef.current = window.setTimeout(() => setTitleAlert(''), 10000);
     }
 
-    function handleDepositTransition(dep: DepositAlert, allowSound = true) {
+    function pushLiveBanner(banner: LiveBanner) {
+        setLiveBanners(prev => [banner, ...prev.filter(b => b.id !== banner.id)].slice(0, 4));
+        window.setTimeout(() => {
+            setLiveBanners(prev => prev.filter(b => b.id !== banner.id));
+        }, 30000);
+    }
+
+    async function triggerSound(kind: AlertSoundKind, forcePlay = false) {
+        if (!forcePlay && !soundEnabledRef.current) return;
+        const result = await playPaymentSound(kind, volumeRef.current);
+        if (result.played) {
+            setAudioUnlocked(true);
+            setAudioBlocked(false);
+        } else if (result.blocked) {
+            setAudioBlocked(true);
+        }
+    }
+
+    function normalizeAlertStatus(rawStatus: string): 'PENDING' | 'COMPLETED' | 'FAILED' | string {
+        const upper = String(rawStatus || '').toUpperCase();
+        if (upper === 'PROCESSING' || upper === 'PENDING') return 'PENDING';
+        return upper;
+    }
+
+    function handleDepositTransition(dep: DepositAlert, { fromRealtime = false, isTest = false } = {}) {
         const key = dep?.orderReference || dep?.reference;
         if (!key) return;
-        const prevStatus = seenDepositStatusRef.current.get(key);
-        if (prevStatus === dep.status) return;
-        seenDepositStatusRef.current.set(key, dep.status);
-        if (!allowSound || !initialLoadDoneRef.current) return;
+        const nextStatus = normalizeAlertStatus(dep.status);
+        let prevStatus: string | undefined;
+        if (isTest) {
+            const testKey = `${key}:${nextStatus}`;
+            if (seenTestRef.current.has(testKey)) return;
+            seenTestRef.current.add(testKey);
+            if (seenTestRef.current.size > 40) seenTestRef.current.clear();
+        } else {
+            prevStatus = seenDepositStatusRef.current.get(key);
+            if (prevStatus === nextStatus) return;
+            seenDepositStatusRef.current.set(key, nextStatus);
+        }
+
+        // On initial poll load, silently seed existing records so old transactions don't chime on page refresh.
+        // Live Socket.IO / SSE / test events ALWAYS notify immediately!
+        if (!fromRealtime && !isTest && !initialLoadDoneRef.current) return;
 
         const amountLabel = `KES ${Number(dep.amountKes || 0).toLocaleString('en-KE')}`;
-        if (!prevStatus && (dep.status === 'PENDING' || dep.status === 'PROCESSING')) {
-            if (soundEnabledRef.current) playDepositInitiatedSound(volumeRef.current);
+        const testTag = isTest ? ' (Test)' : '';
+        if (nextStatus === 'PENDING' && (isTest || !prevStatus)) {
+            void triggerSound('initiated', isTest);
+            flashDocumentTitle(`[PAYMENT PROMPT${testTag}]`);
             pushLiveBanner({
-                id: key + ':PENDING',
+                id: `${key}:PENDING${isTest ? ':' + Date.now() : ''}`,
                 tone: 'pending',
-                title: 'PAYMENT PROMPT SENT',
-                detail: `${dep.customerName} (${dep.customerPhone || 'M-Pesa'}) · ${amountLabel} · Awaiting PIN`,
+                title: `PAYMENT PROMPT SENT${testTag.toUpperCase()}`,
+                detail: `${dep.customerName} (${dep.customerPhone || dep.method || 'M-Pesa'}) · ${amountLabel} · Awaiting PIN`,
                 target: 'Pending Deposits'
             });
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('Payment Prompt Sent', {
-                    body: `${dep.customerName} · ${amountLabel} · ${dep.method}`
-                });
-            }
-        } else if (dep.status === 'COMPLETED' && prevStatus !== 'COMPLETED') {
-            if (soundEnabledRef.current) playDepositSuccessSound(volumeRef.current);
+            showBrowserNotification(`Payment Prompt Sent${testTag}`, `${dep.customerName} · ${amountLabel} · ${dep.method || 'M-Pesa'}`, {
+                tag: `${key}:PENDING`,
+                onClick: () => goToSection('Pending Deposits')
+            });
+        } else if (nextStatus === 'COMPLETED' && (isTest || prevStatus !== 'COMPLETED')) {
+            void triggerSound('success', isTest);
+            flashDocumentTitle(`[PAYMENT CONFIRMED${testTag}]`);
             pushLiveBanner({
-                id: key + ':COMPLETED',
+                id: `${key}:COMPLETED${isTest ? ':' + Date.now() : ''}`,
                 tone: 'success',
-                title: 'PAYMENT CONFIRMED',
+                title: `PAYMENT CONFIRMED${testTag.toUpperCase()}`,
                 detail: `${dep.customerName} · ${amountLabel}${dep.mpesaReceipt ? ` · M-Pesa: ${dep.mpesaReceipt}` : ''} · ${dep.orderReference || dep.reference}`,
                 target: 'Transactions'
             });
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('Payment Confirmed', {
-                    body: `${dep.customerName} · ${amountLabel}${dep.mpesaReceipt ? ` · ${dep.mpesaReceipt}` : ''}`
-                });
-            }
-        } else if (dep.status === 'FAILED' && prevStatus !== 'FAILED') {
-            if (soundEnabledRef.current) playDepositFailedSound(volumeRef.current);
+            showBrowserNotification(`Payment Confirmed${testTag}`, `${dep.customerName} · ${amountLabel}${dep.mpesaReceipt ? ` · ${dep.mpesaReceipt}` : ''}`, {
+                tag: `${key}:COMPLETED`,
+                onClick: () => goToSection('Transactions')
+            });
+        } else if (nextStatus === 'FAILED' && (isTest || prevStatus !== 'FAILED')) {
+            void triggerSound('failed', isTest);
+            flashDocumentTitle(`[PAYMENT FAILED${testTag}]`);
             const reason = dep.failureReason || 'Payment failed or cancelled';
             pushLiveBanner({
-                id: key + ':FAILED',
+                id: `${key}:FAILED${isTest ? ':' + Date.now() : ''}`,
                 tone: 'failed',
-                title: 'PAYMENT FAILED',
+                title: `PAYMENT FAILED${testTag.toUpperCase()}`,
                 detail: `${dep.customerName} · ${amountLabel} · ${reason}`,
                 target: 'Transactions'
             });
-            if ('Notification' in window && Notification.permission === 'granted') {
-                new Notification('Payment Failed', {
-                    body: `${dep.customerName} · ${amountLabel} · ${reason}`
-                });
-            }
+            showBrowserNotification(`Payment Failed${testTag}`, `${dep.customerName} · ${amountLabel} · ${reason}`, {
+                tag: `${key}:FAILED`,
+                onClick: () => goToSection('Transactions')
+            });
         }
     }
 
@@ -521,10 +578,29 @@ function App() {
         setUnreadCount(notifs.unreadCount || 0);
         const allDeps = recentDeps.data || [];
         for (const dep of allDeps) {
-            handleDepositTransition(dep, true);
+            handleDepositTransition(dep, { fromRealtime: false });
+        }
+        // Also inspect live commerce orders so any payment missing a DepositRequest record still chimes and alerts
+        if (overview?.orders?.length) {
+            for (const ord of overview.orders.slice(0, 40)) {
+                if (!['PROCESSING', 'COMPLETED', 'FAILED'].includes(ord.paymentStatus)) continue;
+                handleDepositTransition({
+                    reference: ord.orderReference,
+                    orderReference: ord.orderReference,
+                    customerName: ord.customer?.name || 'Customer',
+                    customerPhone: ord.customer?.phone || '',
+                    amountKes: ord.totalKes,
+                    method: ord.provider?.toUpperCase() || 'M-PESA',
+                    status: ord.paymentStatus,
+                    mpesaReceipt: ord.receipt,
+                    failureReason: ord.failureReason,
+                    failureCode: ord.failureCode,
+                    initiatedAt: ord.createdAt || ord.paidAt || new Date().toISOString()
+                }, { fromRealtime: false });
+            }
         }
         initialLoadDoneRef.current = true;
-        setUnacknowledgedDeposits(allDeps.filter((d: any) => d.status === 'PENDING' && !d.acknowledged));
+        setUnacknowledgedDeposits(allDeps.filter((d: any) => ['PENDING', 'PROCESSING'].includes(d.status) && !d.acknowledged));
     }
 
     async function run(action: () => Promise<void>) {
@@ -538,52 +614,112 @@ function App() {
         void run(() => load(false));
     }, []);
 
+    // Keep syncing even in background tabs so alerts still fire if real-time transport drops
+    const realtimeConnected = socketConnected || sseConnected;
     useEffect(() => {
-        const intervalMs = socketConnected ? 15000 : 5000;
+        const intervalMs = realtimeConnected ? 30000 : 8000;
         const interval = window.setInterval(() => {
-            if (!document.hidden) void load(false).catch(() => {});
+            void load(false).catch(() => {});
         }, intervalMs);
-        return () => window.clearInterval(interval);
-    }, [socketConnected]);
+        const onVisible = () => {
+            if (!document.hidden) void load(true).catch(() => {});
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            window.clearInterval(interval);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
+    }, [realtimeConnected]);
 
-    // Socket.IO Real-Time Deposit Notifications
+    // Real-Time Deposit Notifications (Signed Socket.IO + SSE Backup)
     useEffect(() => {
-        const socket = io({
-            path: '/socket.io',
-            withCredentials: true,
-            transports: ['websocket', 'polling'],
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000
-        });
-        socket.on('connect', () => setSocketConnected(true));
-        socket.on('disconnect', () => setSocketConnected(false));
-        socket.on('deposit:initiated', ({ deposit }: { deposit: DepositAlert }) => {
-            if (!deposit) return;
-            setUnacknowledgedDeposits(prev => [deposit, ...prev.filter(d => d.reference !== deposit.reference)]);
-            setUnreadCount(c => c + 1);
-            setRefreshKey(k => k + 1);
-            handleDepositTransition(deposit, true);
-            void load(true).catch(() => {});
-        });
-        socket.on('deposit:acknowledged', ({ reference, id }: { reference?: string; id?: string }) => {
-            setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== reference && d._id !== id));
-            setRefreshKey(k => k + 1);
-        });
-        socket.on('deposit:verified', ({ deposit }: { deposit: DepositAlert }) => {
-            if (deposit) {
-                setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference && d.orderReference !== deposit.orderReference));
+        let cancelled = false;
+        let socket: ReturnType<typeof io> | null = null;
+        let sse: EventSource | null = null;
+
+        const handleRealtimeEvent = (eventName: string, payload: any) => {
+            if (eventName === 'deposit:initiated') {
+                const deposit = payload?.deposit as DepositAlert | undefined;
+                if (!deposit) return;
+                setUnacknowledgedDeposits(prev => [deposit, ...prev.filter(d => d.reference !== deposit.reference && d.orderReference !== deposit.orderReference)]);
                 setUnreadCount(c => c + 1);
-                handleDepositTransition(deposit, true);
+                setRefreshKey(k => k + 1);
+                handleDepositTransition(deposit, { fromRealtime: true });
+                void load(true).catch(() => {});
+            } else if (eventName === 'deposit:verified') {
+                const deposit = payload?.deposit as DepositAlert | undefined;
+                if (deposit) {
+                    setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== deposit.reference && d.orderReference !== deposit.orderReference));
+                    setUnreadCount(c => c + 1);
+                    handleDepositTransition(deposit, { fromRealtime: true });
+                }
+                setRefreshKey(k => k + 1);
+                void load(true).catch(() => {});
+            } else if (eventName === 'deposit:acknowledged') {
+                const { reference, orderReference, id } = payload || {};
+                setUnacknowledgedDeposits(prev => prev.filter(d => d.reference !== reference && d.orderReference !== orderReference && d._id !== id));
+                setRefreshKey(k => k + 1);
+            } else if (eventName === 'notifications:cleared') {
+                setUnacknowledgedDeposits([]);
+                setUnreadCount(0);
+                setRefreshKey(k => k + 1);
+            } else if (eventName === 'deposit:test') {
+                const deposit = payload?.deposit as DepositAlert | undefined;
+                if (deposit) {
+                    handleDepositTransition(deposit, { fromRealtime: true, isTest: true });
+                }
             }
-            setRefreshKey(k => k + 1);
-            void load(true).catch(() => {});
-        });
-        return () => { socket.disconnect(); };
+        };
+
+        // 1. SSE backup stream (uses browser Basic Auth credentials natively)
+        try {
+            sse = new EventSource('/api/admin/deposits/stream', { withCredentials: true });
+            sse.addEventListener('connected', () => { if (!cancelled) setSseConnected(true); });
+            sse.addEventListener('deposit_event', (evt) => {
+                try {
+                    const parsed = JSON.parse((evt as MessageEvent).data);
+                    if (parsed?.event) handleRealtimeEvent(parsed.event, parsed.payload);
+                } catch {}
+            });
+            sse.onerror = () => { if (!cancelled) setSseConnected(false); };
+        } catch {}
+
+        // 2. Signed Socket.IO primary channel
+        (async () => {
+            let token = '';
+            try {
+                const res = await request<{ token: string }>('/socket-token');
+                token = res?.token || '';
+            } catch {}
+            if (cancelled) return;
+
+            socket = io({
+                path: '/socket.io',
+                withCredentials: true,
+                auth: token ? { token } : undefined,
+                transports: ['polling', 'websocket'],
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000
+            });
+            socket.on('connect', () => { if (!cancelled) setSocketConnected(true); });
+            socket.on('disconnect', () => { if (!cancelled) setSocketConnected(false); });
+            socket.on('deposit:initiated', payload => handleRealtimeEvent('deposit:initiated', payload));
+            socket.on('deposit:verified', payload => handleRealtimeEvent('deposit:verified', payload));
+            socket.on('deposit:acknowledged', payload => handleRealtimeEvent('deposit:acknowledged', payload));
+            socket.on('notifications:cleared', payload => handleRealtimeEvent('notifications:cleared', payload));
+            socket.on('deposit:test', payload => handleRealtimeEvent('deposit:test', payload));
+        })();
+
+        return () => {
+            cancelled = true;
+            if (socket) socket.disconnect();
+            if (sse) sse.close();
+        };
     }, []);
 
     async function acknowledgeOne(idOrRef: string) {
         await autoRequest(`/deposits/${encodeURIComponent(idOrRef)}/acknowledge`, 'POST', {});
-        setUnacknowledgedDeposits(prev => prev.filter(d => d._id !== idOrRef && d.reference !== idOrRef));
+        setUnacknowledgedDeposits(prev => prev.filter(d => d._id !== idOrRef && d.reference !== idOrRef && d.orderReference !== idOrRef));
         setUnreadCount(c => Math.max(0, c - 1));
     }
 
@@ -593,12 +729,62 @@ function App() {
         setUnreadCount(0);
     }
 
-    function unlockAudio() {
-        setAudioUnlocked(true);
-        playDepositInitiatedSound(volume);
-        if ('Notification' in window && Notification.permission === 'default') {
-            void Notification.requestPermission().catch(() => {});
+    async function activateAlerts() {
+        const unlocked = await unlockAudioEngine();
+        setAudioUnlocked(unlocked);
+        setAudioBlocked(!unlocked);
+        await triggerSound('initiated', true);
+        const perm = await requestNotificationPermission();
+        setNotifPerm(perm);
+        if (perm === 'granted') {
+            showBrowserNotification('Ticketsasa Alerts Active', 'You will hear a chime and get desktop popups for new payments.', { tag: 'ticketsasa-alerts-ready' });
+            setNotice('Sound and desktop payment alerts are active.');
+        } else if (perm === 'denied') {
+            setNotice('Sound alerts are active. Desktop notifications are blocked in your browser — click the lock icon beside the URL to allow notifications.');
+        } else {
+            setNotice('Sound alerts are active.');
         }
+    }
+
+    async function enableDesktopAlerts() {
+        const perm = await requestNotificationPermission();
+        setNotifPerm(perm);
+        if (perm === 'granted') {
+            await triggerSound('success', true);
+            showBrowserNotification('Desktop Payment Alerts Enabled', 'Live M-Pesa and card payment notifications will appear here.', { tag: 'ticketsasa-desktop-ready' });
+            setNotice('Desktop notifications enabled.');
+        } else if (perm === 'denied') {
+            setNotice('Desktop notifications are blocked by your browser. Click the site lock/tune icon in the address bar and allow Notifications.');
+        }
+    }
+
+    async function runLiveTestAlert(kind: 'initiated' | 'completed' | 'failed') {
+        // Unlock right inside user gesture so browser autoplay never blocks
+        await unlockAudioEngine();
+        if (notifPerm === 'default') {
+            const perm = await requestNotificationPermission();
+            setNotifPerm(perm);
+        }
+        // Trigger server-side broadcast to verify end-to-end Socket.IO/SSE delivery; fallback to local preview if offline
+        if (socketConnected || sseConnected) {
+            try {
+                await autoRequest('/notifications/test', 'POST', { kind });
+                return;
+            } catch {}
+        }
+        const localRef = `LOCAL-TEST-${Date.now().toString(36).toUpperCase()}`;
+        handleDepositTransition({
+            reference: localRef,
+            orderReference: localRef,
+            customerName: 'Test Customer',
+            customerPhone: '254700000000',
+            amountKes: 1500,
+            method: 'M-PESA',
+            status: kind === 'completed' ? 'COMPLETED' : kind === 'failed' ? 'FAILED' : 'PENDING',
+            mpesaReceipt: kind === 'completed' ? 'TEST987654' : undefined,
+            failureReason: kind === 'failed' ? 'Cancelled by user (test alert)' : undefined,
+            initiatedAt: new Date().toISOString()
+        }, { fromRealtime: true, isTest: true });
     }
 
     const events = data?.events ?? [];
@@ -613,11 +799,17 @@ function App() {
         setSection(item); setQuery(''); setStatus('all'); setPage(0); setSelected(undefined);
     };
 
-    return <div className={dark ? 'shell dark' : 'shell'} onClick={() => { if (!audioUnlocked) { setAudioUnlocked(true); void ensureAudioContext(); } }}>
+    const liveStatusLabel = socketConnected
+        ? '● Live Socket Connected'
+        : sseConnected
+            ? '● Live Stream Connected'
+            : '○ Polling Live (8s)…';
+
+    return <div className={dark ? 'shell dark' : 'shell'}>
         <aside className={collapsed ? 'sidebar collapsed' : 'sidebar'}>
             <div className="brand">
                 <strong>Ticketsasa Admin</strong>
-                <span>{socketConnected ? '● Live Socket Connected' : '○ Polling Live (5s)…'}</span>
+                <span>{liveStatusLabel}</span>
             </div>
             <button className="menu" onClick={() => setCollapsed(!collapsed)} aria-expanded={!collapsed}>{collapsed ? 'Show Menu' : 'Hide Menu'}</button>
             <nav aria-label="Admin navigation">
@@ -642,15 +834,29 @@ function App() {
             <header>
                 <div><p className="eyebrow">Automated Discovery &amp; Payment Center</p><h1>{section}</h1></div>
                 <div className="actions sound-controls">
-                    <button onClick={() => { const next = !soundEnabled; setSoundEnabled(next); if (next) { setAudioUnlocked(true); playDepositInitiatedSound(volume); } }}>
+                    <button onClick={() => {
+                        const next = !soundEnabled;
+                        setSoundEnabled(next);
+                        if (next) void triggerSound('initiated', true);
+                    }}>
                         {soundEnabled ? 'Sound: On' : 'Sound: Off'}
                     </button>
                     <label className="volume-control" title="Alert Volume">
                         <span>Vol</span>
                         <input type="range" min="0" max="1" step="0.05" value={volume} onChange={e => setVolume(Number(e.target.value))} />
                     </label>
-                    <button onClick={() => { setAudioUnlocked(true); playDepositInitiatedSound(volume); }}>Test Initiated</button>
-                    <button onClick={() => { setAudioUnlocked(true); playDepositSuccessSound(volume); }}>Test Success</button>
+                    {notifPerm === 'default' && (
+                        <button className="primary" onClick={() => void enableDesktopAlerts()}>Enable Desktop Alerts</button>
+                    )}
+                    {notifPerm === 'granted' && (
+                        <button onClick={() => void runLiveTestAlert('completed')} title="Desktop notifications active — click to send live test">Desktop Alerts: On</button>
+                    )}
+                    {notifPerm === 'denied' && (
+                        <button onClick={() => setNotice('Browser notifications are blocked for this site. Click the site icon in your address bar and allow Notifications.')} title="Click for instructions to unblock notifications">Alerts Blocked</button>
+                    )}
+                    <button onClick={() => void runLiveTestAlert('initiated')}>Test Prompt</button>
+                    <button onClick={() => void runLiveTestAlert('completed')}>Test Paid</button>
+                    <button onClick={() => void runLiveTestAlert('failed')}>Test Failed</button>
                     <button onClick={() => setDark(!dark)}>{dark ? 'Light' : 'Dark'}</button>
                     <a className="primary" href="/organizer">Publish Event</a>
                 </div>
@@ -663,9 +869,11 @@ function App() {
                 ))}
             </div>
 
-            {!audioUnlocked && <div className="notice" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>Click anywhere once to activate automatic payment notification sounds &amp; browser alerts.</span>
-                <button className="primary" onClick={unlockAudio}>Activate Sound Alerts</button>
+            {(!audioUnlocked || audioBlocked) && <div className="notice" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                <span>{audioBlocked
+                    ? 'Browser blocked automatic alert sound. Click Activate Sound & Alerts to enable audio chimes and desktop popups.'
+                    : 'Click Activate Sound & Alerts once so new payment chimes and desktop notifications work automatically (even in background tabs).'}</span>
+                <button className="primary" onClick={() => void activateAlerts()}>Activate Sound &amp; Alerts</button>
             </div>}
 
             {liveBanners.map(b => (
@@ -692,11 +900,12 @@ function App() {
                     <div>
                         <strong>AWAITING M-PESA PIN</strong>
                         <span>
-                            Customer: {dep.customerName} ({dep.customerPhone}) · Amount: {money(dep.amountKes)} · Method: {dep.method} · Ref: {dep.reference}
+                            Customer: {dep.customerName} ({dep.customerPhone || dep.method}) · Amount: {money(dep.amountKes)} · Method: {dep.method} · Ref: {dep.reference}
                         </span>
                     </div>
                     <div className="actions">
                         <button className="primary" onClick={() => { setSection('Pending Deposits'); }}>Inspect</button>
+                        <button onClick={() => void acknowledgeOne(dep._id || dep.reference)}>Dismiss</button>
                     </div>
                 </div>
             ))}
@@ -713,7 +922,7 @@ function App() {
             {section === 'Pending Deposits' && <PendingDepositsPanel onAcknowledge={acknowledgeOne} refreshKey={refreshKey} />}
             {section === 'Payment settings' && <PaymentSettingsPanel />}
             {section === 'Support Contact' && <SupportContactPanel />}
-            {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} refreshKey={refreshKey} />}
+            {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} onReadOne={() => setUnreadCount(c => Math.max(0, c - 1))} onSendTest={runLiveTestAlert} refreshKey={refreshKey} />}
             {section === 'Data Sources' && <DataSourcesPanel />}
             {section === 'Automation Settings' && <AutomationSettingsPanel />}
             {section === 'Reports' && <ReportsPanel />}
