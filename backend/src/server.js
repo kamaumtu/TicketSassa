@@ -162,23 +162,35 @@ app.use('/api/passes', passRoutes);
 app.use('/api/travel', travelRoutes);
 app.use('/api/automation', automationPublicRoutes);
 
-// Serve the standalone client and its public assets from the API origin.
+// Storefront is hosted on Cloudflare Workers in production; Render serves API, Socket.IO, and protected Admin/Staff tools.
 const publicRoot = resolve(__dirname, '../../frontend');
-app.get('/', (req, res) => res.sendFile('index.html', { root: publicRoot }));
-app.get(['/manifest.webmanifest', '/offline.html', '/install-app.js', '/service-worker.js'], (req, res) => {
-    if (req.path === '/manifest.webmanifest') res.type('application/manifest+json');
-    if (req.path === '/service-worker.js') res.set('Cache-Control', 'no-cache');
-    res.sendFile(req.path.slice(1), { root: publicRoot });
-});
-app.get('/downloads/ticketsasa.apk', (req, res, next) => {
-    res.download(resolve(publicRoot, 'dist/ticketsasa.apk'), 'ticketsasa.apk', {
-        headers: { 'Content-Type': 'application/vnd.android.package-archive' }
-    }, error => {
-        if (!error) return;
-        if (error.status === 404 && !res.headersSent) return res.sendStatus(404);
-        next(error);
+const storefrontOrigin = (() => {
+    const fallback = 'https://ticketsassa.ticketsassa.workers.dev';
+    const candidate = String(process.env.PUBLIC_APP_URL || process.env.CLIENT_URL || '').trim().replace(/\/+$/, '');
+    if (!candidate) return fallback;
+    try {
+        const parsed = new URL(candidate);
+        if (parsed.hostname.toLowerCase().endsWith('.onrender.com')) return fallback;
+        return parsed.origin;
+    } catch {
+        return fallback;
+    }
+})();
+const serveLocalStorefront = process.env.SERVE_STOREFRONT === 'true' || process.env.NODE_ENV !== 'production';
+
+if (serveLocalStorefront) {
+    app.get('/', (req, res) => res.sendFile('index.html', { root: publicRoot }));
+    app.get(['/manifest.webmanifest', '/offline.html', '/install-app.js', '/service-worker.js'], (req, res) => {
+        if (req.path === '/manifest.webmanifest') res.type('application/manifest+json');
+        if (req.path === '/service-worker.js') res.set('Cache-Control', 'no-cache');
+        res.sendFile(req.path.slice(1), { root: publicRoot });
     });
-});
+} else {
+    app.get('/', (req, res) => {
+        const suffix = req.originalUrl && req.originalUrl !== '/' ? req.originalUrl : '/';
+        res.redirect(302, storefrontOrigin + suffix);
+    });
+}
 function privateTool(keyName, realm) {
     return (req, res, next) => {
         res.set('Cache-Control', 'private, no-store');
@@ -227,15 +239,25 @@ app.get('/organizer', adminOnly, (req, res) => {
 app.get('/staff/check-in', privateTool('PASS_SCANNER_KEY', 'Ticket check-in'), (req, res) => {
     res.sendFile('staff-check-in.html', { root: publicRoot });
 });
-app.get(['/organizer.js', '/staff-check-in.js', '/app.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+app.get(['/organizer.js', '/staff-check-in.js'], (req, res) => {
     res.set('Cache-Control', 'public, max-age=300');
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
-app.use('/assets', express.static(resolve(publicRoot, 'assets'), {
-    index: false,
-    maxAge: '7d',
-    etag: true
-}));
+if (serveLocalStorefront) {
+    app.get(['/app.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+        res.set('Cache-Control', 'public, max-age=300');
+        res.sendFile(req.path.slice(1), { root: publicRoot });
+    });
+    app.use('/assets', express.static(resolve(publicRoot, 'assets'), {
+        index: false,
+        maxAge: '7d',
+        etag: true
+    }));
+} else {
+    app.use('/assets', (req, res) => {
+        res.redirect(301, storefrontOrigin + req.originalUrl);
+    });
+}
 
 // 404 Handler
 app.use((req, res) => {

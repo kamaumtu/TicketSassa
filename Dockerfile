@@ -2,10 +2,7 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install frontend tooling, admin-ui, and backend dependencies
-COPY frontend/package.json frontend/package-lock.json ./frontend/
-RUN npm --prefix frontend ci --include=dev
-
+# Install admin-ui and backend dependencies (public storefront is hosted on Cloudflare Workers)
 COPY frontend/admin-ui/package.json frontend/admin-ui/package-lock.json ./frontend/admin-ui/
 RUN npm --prefix frontend/admin-ui ci --include=dev
 
@@ -15,8 +12,8 @@ RUN npm --prefix backend ci --omit=dev
 # Copy application source
 COPY . .
 
-# Build storefront CSS and Admin UI bundle
-RUN npm --prefix frontend run build:storefront && npm --prefix frontend run build:admin
+# Build Admin UI bundle only
+RUN npm --prefix frontend run build:admin
 
 ENV NODE_ENV=production
 ENV PORT=8000

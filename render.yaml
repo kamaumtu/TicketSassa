@@ -3,7 +3,7 @@ services:
     name: ticketsasa-live
     runtime: node
     plan: free
-    buildCommand: npm --prefix frontend ci --include=dev && npm --prefix frontend/admin-ui ci --include=dev && npm --prefix backend ci --omit=dev && npm run build:storefront && npm run build:admin
+    buildCommand: npm --prefix frontend/admin-ui ci --include=dev && npm --prefix backend ci --omit=dev && npm run build:admin
     startCommand: npm --prefix backend start
     healthCheckPath: /api/health
     envVars:

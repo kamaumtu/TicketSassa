@@ -26,14 +26,14 @@ output[data-state=error] { color: #9f1239; background: #fff1f2; }
 output[data-state=success] { color: #075d46; background: #ecfdf5; }
 output a { color: inherit; font-weight: 700; }
 :focus-visible { outline: 3px solid #bb1746; outline-offset: 2px; }
-</style><script defer src="/organizer.js?v=quick-publish-1"></script></head>
+</style><script defer src="/organizer.js?v=fast-upload-2"></script></head>
 <body><main><header><a href="/admin">Back to admin</a><h1>Publish an event</h1><p>Enter the event details and publish tickets in one step.</p></header>
 <form id="publish">
 <label>Event name <input name="title" maxlength="120" required></label>
 <label>Venue <input name="venue" maxlength="160" required></label>
 <label>Description <textarea name="description" maxlength="4000" required></textarea></label>
 <label>Event starts (East Africa Time) <input name="startsAt" type="datetime-local" required></label>
-<label>Event photo (up to 1 MB) <input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
+<label>Event photo (auto-optimized to WebP for fast upload) <input name="image" type="file" accept="image/jpeg,image/png,image/webp"></label>
 <label>Ticket setup <select name="ticketSetup"><option value="quick">Automatic ticket setup</option><option value="custom">Custom tiers and sales dates</option></select></label>
 <fieldset id="quick-ticket"><legend>General Admission</legend>
 <div>Tickets go on sale when you publish. Sales close when the event starts.</div>
