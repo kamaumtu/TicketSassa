@@ -198,7 +198,7 @@ export default {
             return fetchUpstreamApi(request, url, backendOrigin);
         }
 
-        // Automatic Edge WebP delivery for local PNG/JPG assets when browser supports WebP
+        // Automatic Edge WebP (and 480px card thumbnail) delivery for local PNG/JPG assets
         const accept = request.headers.get('accept') || '';
         if (
             request.method === 'GET' &&
@@ -206,15 +206,24 @@ export default {
             url.pathname.startsWith('/assets/') &&
             /\.(png|jpe?g)$/i.test(url.pathname)
         ) {
-            const webpReq = new Request(url.origin + url.pathname + '.webp', { method: 'GET' });
-            const webpRes = await env.ASSETS.fetch(webpReq);
-            if (webpRes.ok) {
-                const webpHeaders = new Headers(webpRes.headers);
-                webpHeaders.set('content-type', 'image/webp');
-                webpHeaders.set('cache-control', 'public, max-age=31536000, immutable');
-                webpHeaders.set('vary', 'Accept');
-                webpHeaders.set('x-image-opt', 'webp');
-                return new Response(webpRes.body, { status: 200, headers: webpHeaders });
+            const wantThumb = url.searchParams.get('thumb') === '1';
+            const candidates = wantThumb
+                ? [
+                    { path: url.pathname + '.thumb.webp', tag: 'thumb-webp' },
+                    { path: url.pathname + '.webp', tag: 'webp' }
+                ]
+                : [{ path: url.pathname + '.webp', tag: 'webp' }];
+            for (const candidate of candidates) {
+                const webpReq = new Request(url.origin + candidate.path, { method: 'GET' });
+                const webpRes = await env.ASSETS.fetch(webpReq);
+                if (webpRes.ok) {
+                    const webpHeaders = new Headers(webpRes.headers);
+                    webpHeaders.set('content-type', 'image/webp');
+                    webpHeaders.set('cache-control', 'public, max-age=31536000, immutable');
+                    webpHeaders.set('vary', 'Accept');
+                    webpHeaders.set('x-image-opt', candidate.tag);
+                    return new Response(webpRes.body, { status: 200, headers: webpHeaders });
+                }
             }
         }
 

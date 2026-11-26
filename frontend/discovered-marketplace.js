@@ -18,15 +18,24 @@
         }[ch] || ch));
     }
 
-    function fastImg(rawUrl, fallbackType = 'event') {
+    function fastImg(rawUrl, fallbackType = 'event', thumb = true) {
         const fallback = fallbackType === 'holiday' ? '/assets/holidays/beach-holidays.jpg' : '/assets/real/DzLV4G9UWo-1790859483.jpg';
-        if (!rawUrl) return fallback;
-        const str = String(rawUrl).trim();
-        if (!str) return fallback;
-        if (str.startsWith('/') || str.startsWith('assets/') || str.startsWith('data:')) return str;
+        const addThumb = (path) => {
+            if (!thumb || path.includes('?') || !/\.(png|jpe?g)$/i.test(path)) return path;
+            return path + '?thumb=1';
+        };
+        if (!rawUrl) return addThumb(fallback);
+        let str = String(rawUrl).trim();
+        if (fallbackType === 'holiday' && str.includes('lheAq1Zpc0-1794303741')) {
+            str = fallback;
+        }
+        if (!str) return addThumb(fallback);
+        if (str.startsWith('data:')) return str;
+        if (str.startsWith('/assets/') || str.startsWith('assets/')) return addThumb(str.startsWith('/') ? str : '/' + str);
+        if (str.startsWith('/')) return str;
         try {
             const parsed = new URL(str, location.href);
-            if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+            if (parsed.origin === location.origin) return addThumb(parsed.pathname) + parsed.search;
             const host = location.hostname;
             const useEdgeProxy = host && !['localhost', '127.0.0.1'].includes(host) && !host.endsWith('.onrender.com');
             if (useEdgeProxy && (parsed.protocol === 'https:' || parsed.protocol === 'http:')) {
@@ -34,7 +43,7 @@
             }
             return parsed.href;
         } catch {
-            return fallback;
+            return addThumb(fallback);
         }
     }
 

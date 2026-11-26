@@ -7,14 +7,20 @@ const dayFormatter = new Intl.DateTimeFormat('en-KE', {
     dateStyle: 'medium', timeZone: 'Africa/Nairobi'
 });
 
-function accelerateImageUrl(rawUrl) {
-    if (!rawUrl) return '/assets/real/DzLV4G9UWo-1790859483.jpg';
+function accelerateImageUrl(rawUrl, thumb = true) {
+    if (!rawUrl) return '/assets/real/DzLV4G9UWo-1790859483.jpg' + (thumb ? '?thumb=1' : '');
     const str = String(rawUrl).trim();
-    if (!str) return '/assets/real/DzLV4G9UWo-1790859483.jpg';
-    if (str.startsWith('/') || str.startsWith('assets/') || str.startsWith('data:')) return str;
+    if (!str) return '/assets/real/DzLV4G9UWo-1790859483.jpg' + (thumb ? '?thumb=1' : '');
+    const addThumb = (path) => {
+        if (!thumb || path.includes('?') || !/\.(png|jpe?g)$/i.test(path)) return path;
+        return path + '?thumb=1';
+    };
+    if (str.startsWith('data:')) return str;
+    if (str.startsWith('/assets/') || str.startsWith('assets/')) return addThumb(str.startsWith('/') ? str : '/' + str);
+    if (str.startsWith('/')) return str;
     try {
         const parsed = new URL(str, location.href);
-        if (parsed.origin === location.origin) return parsed.pathname + parsed.search;
+        if (parsed.origin === location.origin) return addThumb(parsed.pathname) + parsed.search;
         const host = location.hostname;
         const useEdgeProxy = host && !['localhost', '127.0.0.1'].includes(host) && !host.endsWith('.onrender.com');
         if (useEdgeProxy && (parsed.protocol === 'https:' || parsed.protocol === 'http:')) {
