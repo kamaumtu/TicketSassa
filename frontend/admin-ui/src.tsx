@@ -5,19 +5,17 @@ import './style.css';
 import {
     autoRequest,
     AutomationOverview,
-    EventDiscoveryPanel,
     TicketManagementPanel,
     FlightManagementPanel,
     HolidayPackagesPanel,
     PendingDepositsPanel,
     NotificationsPanel,
-    DataSourcesPanel,
-    AutomationSettingsPanel,
     ReportsPanel,
     SystemLogsPanel
 } from './automationPanels';
 import { DiscoveryCenterPanel } from './discoveryCenterPanel';
 import { TravelOpsPanel } from './travelOpsPanel';
+import { BlogManagerPanel } from './blogPanel';
 import {
     AlertSoundKind,
     NotificationPermState,
@@ -63,9 +61,9 @@ type LiveBanner = {
 const sections = [
     'Dashboard Overview',
     'Automated Discovery Center',
-    'Event Discovery',
     'All Events',
     'Ticket Management',
+    'Blog Manager',
     'Flight Management',
     'Holiday Packages',
     'Travel Fulfillment & Pricing',
@@ -74,8 +72,6 @@ const sections = [
     'Payment settings',
     'Support Contact',
     'Notifications',
-    'Data Sources',
-    'Automation Settings',
     'Reports',
     'System Logs'
 ] as const;
@@ -93,11 +89,11 @@ const navGroups: { label: string; items: Section[] }[] = [
         ]
     },
     {
-        label: 'Events & Tickets',
+        label: 'Events & Content',
         items: [
             'All Events',
-            'Event Discovery',
-            'Ticket Management'
+            'Ticket Management',
+            'Blog Manager'
         ]
     },
     {
@@ -109,13 +105,11 @@ const navGroups: { label: string; items: Section[] }[] = [
         ]
     },
     {
-        label: 'Settings & Automation',
+        label: 'Settings & Discovery',
         items: [
             'Automated Discovery Center',
             'Payment settings',
             'Support Contact',
-            'Data Sources',
-            'Automation Settings',
             'System Logs'
         ]
     }
@@ -384,8 +378,7 @@ function App() {
     const [section, setSection] = useState<Section>(
         new URLSearchParams(location.search).get('section') === 'payments' ? 'Payment settings'
             : location.pathname === '/admin/travel' ? 'Travel Fulfillment & Pricing'
-            : location.pathname === '/admin/discovery' ? 'Automated Discovery Center'
-            : location.pathname === '/admin/publishing' ? 'Event Discovery'
+            : location.pathname === '/admin/discovery' || location.pathname === '/admin/publishing' ? 'Automated Discovery Center'
             : 'Dashboard Overview'
     );
     const [data, setData] = useState<Data>();
@@ -909,13 +902,6 @@ function App() {
                     <a className="primary" href="/organizer">Publish Event</a>
                 </div>
             </header>
-            <div className="actions" style={{ flexWrap: 'wrap', marginBottom: '0.75rem', gap: '0.4rem' }}>
-                {(['Dashboard Overview', 'Transactions', 'Pending Deposits', 'Travel Fulfillment & Pricing', 'All Events', 'Payment settings', 'Support Contact'] as Section[]).map(quick => (
-                    <button key={quick} className={section === quick ? 'primary' : ''} onClick={() => goToSection(quick)}>
-                        {quick}
-                    </button>
-                ))}
-            </div>
 
             {(!audioUnlocked || audioBlocked) && <div className="notice" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                 <span>{audioBlocked
@@ -962,8 +948,8 @@ function App() {
 
             {section === 'Dashboard Overview' && <AutomationOverview onNavigate={target => setSection(target as Section)} refreshKey={refreshKey} />}
             {section === 'Automated Discovery Center' && <DiscoveryCenterPanel />}
-            {section === 'Event Discovery' && <EventDiscoveryPanel />}
             {section === 'Ticket Management' && <TicketManagementPanel />}
+            {section === 'Blog Manager' && <BlogManagerPanel storefrontUrl={data?.storefrontUrl} />}
             {section === 'Flight Management' && <FlightManagementPanel mode="manage" />}
             {section === 'Holiday Packages' && <HolidayPackagesPanel />}
             {section === 'Travel Fulfillment & Pricing' && <TravelOpsPanel />}
@@ -971,8 +957,6 @@ function App() {
             {section === 'Payment settings' && <PaymentSettingsPanel />}
             {section === 'Support Contact' && <SupportContactPanel />}
             {section === 'Notifications' && <NotificationsPanel onAcknowledgeAll={acknowledgeAll} onReadOne={() => setUnreadCount(c => Math.max(0, c - 1))} onSendTest={runLiveTestAlert} refreshKey={refreshKey} />}
-            {section === 'Data Sources' && <DataSourcesPanel />}
-            {section === 'Automation Settings' && <AutomationSettingsPanel />}
             {section === 'Reports' && <ReportsPanel />}
             {section === 'System Logs' && <SystemLogsPanel audit={audit} />}
 

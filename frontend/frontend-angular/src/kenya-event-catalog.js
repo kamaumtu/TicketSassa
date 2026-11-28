@@ -94,6 +94,7 @@ class KenyaEventCatalog extends HTMLElement {
         section.append(header, this.status, this.grid, this.pagination, this.more);
         root.append(style, section);
         this.events = [];
+        this.filterMode = 'all';
         this.page = 1;
         this.limit = 12;
     }
@@ -124,8 +125,17 @@ class KenyaEventCatalog extends HTMLElement {
 
     setQuery(query) {
         this.search.value = query;
+        this.filterMode = 'all';
         this.page = 1;
         this.limit = 26;
+        this.render();
+    }
+
+    setMode(mode = 'all') {
+        this.filterMode = mode || 'all';
+        if (this.filterMode === 'all') this.search.value = '';
+        this.page = 1;
+        this.limit = 24;
         this.render();
     }
 
@@ -196,8 +206,27 @@ class KenyaEventCatalog extends HTMLElement {
     render() {
         const query = this.search.value.trim().toLowerCase();
         const tokens = query ? query.split(/\s+/).filter(Boolean) : [];
+        const nowMs = Date.now();
+        const mode = this.filterMode || 'all';
         const events = this.events.filter(event => {
-            if (!(Date.parse(event.startsAt) > Date.now())) return false;
+            const startMs = Date.parse(event.startsAt);
+            if (!(startMs > nowMs)) return false;
+            if (mode === 'weekend') {
+                const day = new Date(startMs).getDay();
+                if (![5, 6, 0].includes(day)) return false;
+            } else if (mode === 'free') {
+                const price = event.startingPrice !== undefined ? Number(event.startingPrice) : Number(event.price?.amount);
+                if (!(event.isFree === true || price === 0)) return false;
+            } else if (mode === 'nairobi') {
+                const loc = [event.venue, event.city, event.locationFull].filter(Boolean).join(' ').toLowerCase();
+                if (!loc.includes('nairobi') && !loc.includes('westlands') && !loc.includes('karen') && !loc.includes('sarit')) return false;
+            } else if (mode === 'mombasa') {
+                const loc = [event.venue, event.city, event.locationFull].filter(Boolean).join(' ').toLowerCase();
+                if (!loc.includes('mombasa') && !loc.includes('diani') && !loc.includes('kilifi') && !loc.includes('mtwapa') && !loc.includes('malindi')) return false;
+            } else if (mode === 'concerts') {
+                const cat = [event.category, event.title, event.description].filter(Boolean).join(' ').toLowerCase();
+                if (!/(concert|music|fest|party|dj|live|rock|afro|karaoke)/.test(cat)) return false;
+            }
             if (!tokens.length) return true;
             const haystack = [event.title, event.venue, event.city, event.category, event.locationFull, event.description, event.host]
                 .filter(Boolean).join(' ').toLowerCase();

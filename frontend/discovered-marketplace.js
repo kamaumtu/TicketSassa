@@ -406,23 +406,11 @@
     }
 
     async function init() {
-        const metaPromise = loadMeta();
-        await loadEventsSection();
-        void metaPromise.then(() => {
-            const countySel = document.getElementById('auto-ev-county');
-            if (countySel && countySel.options.length <= 1 && (metaCache.counties || []).length) {
-                countySel.innerHTML = `<option value="">All 47 Counties</option>` +
-                    metaCache.counties.map(c => `<option value="${escapeHtml(c)}" ${evState.county === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
-            }
-            const catSel = document.getElementById('auto-ev-cat');
-            if (catSel && catSel.options.length <= 1 && (metaCache.eventCategories || []).length) {
-                catSel.innerHTML = `<option value="">All Categories</option>` +
-                    metaCache.eventCategories.map(c => `<option value="${escapeHtml(c)}" ${evState.category === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
-            }
-        });
+        await loadMeta();
+        // Events are unified inside <kenya-event-catalog>; discovered-marketplace renders synced Flights & Holidays tabs.
         setTimeout(() => {
             void Promise.all([loadFlightsSection(), loadHolidaysSection()]);
-        }, 350);
+        }, 250);
     }
 
     if (document.readyState === 'loading') {

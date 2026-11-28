@@ -24,6 +24,7 @@ const EDGE_CACHEABLE_PREFIXES = [
     '/api/events/featured',
     '/api/events',
     '/api/published-events',
+    '/api/blog',
     '/api/tickets',
     '/api/automation/meta',
     '/api/automation/public/catalog'
@@ -163,7 +164,7 @@ export default {
 
         if (url.pathname.startsWith('/api/')) {
             const bypassCache = url.searchParams.get('fresh') === '1';
-            const isFastCatalogRoute = url.pathname === '/api/events/kenya' || url.pathname === '/api/published-events' || url.pathname === '/api/events';
+            const isFastCatalogRoute = url.pathname === '/api/events/kenya' || url.pathname === '/api/published-events' || url.pathname === '/api/events' || url.pathname === '/api/blog' || url.pathname.startsWith('/api/blog/');
             const edgeFreshMs = isFastCatalogRoute ? 10000 : 45000;
             const edgeCacheControl = isFastCatalogRoute ? 'public, max-age=10, s-maxage=30' : 'public, max-age=45, s-maxage=600';
 

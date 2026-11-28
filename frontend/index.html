@@ -38,7 +38,6 @@
             </a>
             <div class="site-actions">
                 <button type="button" id="install-app" hidden>Install app</button>
-                <a id="download-apk" href="/downloads/ticketsasa.apk" download hidden>Android APK</a>
                 <button type="button" id="btn-my-tickets">
                     Tickets<span id="ticket-badge-count" class="hidden"></span>
                 </button>
@@ -55,13 +54,13 @@
                 <a href="?view=blog" data-view="blog">Blog</a>
             </nav>
         </div>
-        <nav id="sub-nav-bar" class="section-nav flex flex-wrap items-center gap-2" aria-label="Event sections">
-            <button type="button" onclick="filterEventsChip('all')" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-[#D81A21] border border-rose-200 hover:bg-[#D81A21] hover:text-white transition">All Events</button>
-            <button type="button" onclick="filterEventsChip('featured')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Featured Events</button>
-            <button type="button" onclick="filterEventsChip('weekend')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Weekend's Events</button>
-            <button type="button" onclick="filterEventsChip('trending')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Trending Events</button>
-            <button type="button" onclick="filterEventsChip('free')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Free Events</button>
-            <button type="button" onclick="filterEventsChip('drops')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Price Drops</button>
+        <nav id="sub-nav-bar" class="section-nav flex flex-wrap items-center gap-2" aria-label="Event filters">
+            <button type="button" data-chip-mode="all" onclick="filterEventsChip('all')" class="text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-[#D81A21] border border-rose-200 hover:bg-[#D81A21] hover:text-white transition">All Events</button>
+            <button type="button" data-chip-mode="weekend" onclick="filterEventsChip('weekend')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">This Weekend</button>
+            <button type="button" data-chip-mode="concerts" onclick="filterEventsChip('concerts')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Concerts &amp; Parties</button>
+            <button type="button" data-chip-mode="nairobi" onclick="filterEventsChip('nairobi')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Nairobi</button>
+            <button type="button" data-chip-mode="mombasa" onclick="filterEventsChip('mombasa')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Coast / Mombasa</button>
+            <button type="button" data-chip-mode="free" onclick="filterEventsChip('free')" class="text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition">Free Events</button>
         </nav>
     </header>
 
@@ -210,82 +209,32 @@
         <!-- Main Events Container -->
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-16">
             
-            <p class="text-sm text-slate-600">Select “View tickets” on an event to book on this site.</p>
             <kenya-event-catalog id="upcoming-events" tabindex="-1"></kenya-event-catalog>
 
-            <section id="trending-events" aria-label="Tickets on this site">
-                <div id="published-events" class="space-y-4">
-                    <h2 class="text-xl font-bold">Tickets on this site</h2>
-                    <p id="published-status" role="status">Loading ticketed events…</p>
-                </div>
-            </section>
-
-            <!-- ========================================================================= -->
-
-            <!-- ========================================================================= -->
-
-
-<!-- ESCAPE TO AMAZING DESTINATIONS (Exact Match to Screenshot 2) -->
+            <!-- ESCAPE TO AMAZING DESTINATIONS -->
             <section class="space-y-4 pt-4 border-t border-slate-200">
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="font-extrabold text-2xl text-slate-900">Escape to amazing destinations. Book a holiday</h2>
-                        <p class="text-xs text-slate-500">Travel to popular destinations with affordable deals and special offers</p>
+                        <p class="text-xs text-slate-500">Beach resorts, Maasai Mara safaris &amp; curated coastal deals payable via M-Pesa</p>
                     </div>
-                    <button onclick="switchTab('holidays')" class="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center">
+                    <button type="button" onclick="switchTab('holidays')" class="text-xs font-bold text-rose-600 hover:text-rose-800 flex items-center">
                         View All &gt;
                     </button>
                 </div>
 
-                <!-- Holiday Ad Banner Card (as seen in Screenshot 2) -->
                 <div class="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm hover:shadow-md transition">
-                    <div class="flex items-center gap-6">
-                        <div class="w-48 h-32 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex-shrink-0 flex items-center justify-center p-4"><img loading="lazy" decoding="async" src="assets/real/ads-logo.png" alt="Ads Logo" class="max-h-20 w-auto object-contain"></div>
+                    <div class="flex items-center gap-5">
+                        <div class="w-40 h-28 rounded-xl overflow-hidden border border-slate-200 bg-slate-100 flex-shrink-0"><img loading="lazy" decoding="async" src="/assets/holidays/dest-diani.jpg?thumb=1" alt="Diani Beach Holidays" class="w-full h-full object-cover"></div>
                         <div class="space-y-1">
-                            <span class="bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">Ad</span>
-                            <div class="font-bold text-slate-900 text-base">Explore Diani, Masai Mara &amp; Watamu Deals</div>
-                            <div class="text-xs text-slate-500 ">Browse sample itineraries</div>
+                            <span class="bg-emerald-700 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase">Holidays</span>
+                            <div class="font-bold text-slate-900 text-base">Explore Diani, Maasai Mara &amp; Watamu Deals</div>
+                            <div class="text-xs text-slate-500">Verified packages with hotel stays, transfers &amp; optional return flights</div>
                         </div>
                     </div>
-                    <button onclick="switchTab('holidays')" class="px-6 py-2.5 rounded-xl bg-[#15803D] hover:bg-[#166534] text-white font-extrabold text-xs uppercase tracking-wider transition">
+                    <button type="button" onclick="switchTab('holidays')" class="px-6 py-2.5 rounded-xl bg-[#15803D] hover:bg-[#166534] text-white font-extrabold text-xs uppercase tracking-wider transition">
                         Browse Holidays
                     </button>
-                </div>
-            </section>
-
-            <!-- MORE VACATION IDEAS: TOP EVENTS AND THINGS TO DO (Exact Match to Screenshot 2) -->
-            <section class="space-y-3 pt-4 border-t border-slate-200">
-                <div>
-                    <h3 class="font-extrabold text-lg text-slate-900">More vacation ideas</h3>
-                    <div class="text-xs font-semibold text-slate-700">Top Events and things to do</div>
-                </div>
-                <div class="text-xs text-slate-600 leading-relaxed font-normal flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-mr-miss-usiu-africa')" class="font-semibold hover:text-[#D81A21] hover:underline">Mr &amp; Miss USIU - Africa</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ballpoint-afro-latin-dance-party-november-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">Ballpoint Afro-Latin Dance Party November Edition</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-rx-fest-round-3')" class="font-semibold hover:text-[#D81A21] hover:underline">RX FEST ROUND 3</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-nairobi-drift-box')" class="font-semibold hover:text-[#D81A21] hover:underline">Nairobi Drift Box</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sawela-international-art-festival-naivasha')" class="font-semibold hover:text-[#D81A21] hover:underline">Sawela International Art Festival - Naivasha</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-fally-ipupa-vvip-live-experience-at-speke-resort-munyonyo-kampala')" class="font-semibold hover:text-[#D81A21] hover:underline">Fally Ipupa VVIP Live Experience at Speke Resort, Munyonyo, Kampala</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-padel-tennis-experience-in-collaboration-with-alloy-padel')" class="font-semibold hover:text-[#D81A21] hover:underline">PADEL TENNIS EXPERIENCE IN COLLABORATION WITH ALLOY PADEL</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ballpoint-karaoke-night-november-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">Ballpoint Karaoke Night - November Edition</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-au-ibar-5km-fun-walk')" class="font-semibold hover:text-[#D81A21] hover:underline">AU-IBAR - Walking For Animal Resources, Communities and Livelihoods</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-street-courture-padel-meets-fashion')" class="font-semibold hover:text-[#D81A21] hover:underline">Street Courture: Padel Meets Fashion</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sportpesa-boxing-presents-to-you-wba-ko-drugs')" class="font-semibold hover:text-[#D81A21] hover:underline">Sportpesa Boxing Presents to you: WBA KO Drugs</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-pawsh-sundays')" class="font-semibold hover:text-[#D81A21] hover:underline">PAWsh Sundays</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-the-community-run')" class="font-semibold hover:text-[#D81A21] hover:underline">The Community Run</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-forest-encounter-at-brackenhurst')" class="font-semibold hover:text-[#D81A21] hover:underline">Forest Encounter at Brackenhurst</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-sip-social')" class="font-semibold hover:text-[#D81A21] hover:underline">SIP &amp; SOCIAL</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-farxad-family-experience')" class="font-semibold hover:text-[#D81A21] hover:underline">FARXAD-Family Experience</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-flawless-wellness-club-december-edition')" class="font-semibold hover:text-[#D81A21] hover:underline">FLAWLESS WELLNESS CLUB - DECEMBER EDITION</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-back-to-rock-5')" class="font-semibold hover:text-[#D81A21] hover:underline">Back To Rock 5</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-badshah')" class="font-semibold hover:text-[#D81A21] hover:underline">BADSHAH LIVE IN KENYA – ONE VOICE EDITION</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-mufasa-kids-festival')" class="font-semibold hover:text-[#D81A21] hover:underline">MUFASA KIDS FESTIVAL</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-kenya-mega-choma-battle-2026')" class="font-semibold hover:text-[#D81A21] hover:underline">Kenya Mega Choma Battle 2026</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-wine-tasting-nyama-choma-experience')" class="font-semibold hover:text-[#D81A21] hover:underline">Wine Tasting &amp; Nyama Choma Experience</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-l-boogie-the-2026-annual-diaspora-reunion')" class="font-semibold hover:text-[#D81A21] hover:underline">L-BOOGIE - THE 2026 ANNUAL DIASPORA REUNION</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-back-forth-old-school-party-dec19')" class="font-semibold hover:text-[#D81A21] hover:underline">BACK &amp; FORTH Old School Party</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-ozone-k-pop-in-motion')" class="font-semibold hover:text-[#D81A21] hover:underline">Ozone: K-pop in Motion</a> <span class="text-slate-300">|</span>
-                    <a href="javascript:void(0)" onclick="openTicketsasaEventModal('ticketsasa-corporate-game-night')" class="font-semibold hover:text-[#D81A21] hover:underline">Corporate Game Night</a>
                 </div>
             </section>
 
@@ -1434,54 +1383,20 @@
                 </div>
             </div>
 
-            <!-- On The Travel Blog Section (All 4 Articles from bookings.ticketsasa.com/holidays) -->
+            <!-- On The Travel Blog Section (Live posts from /api/blog) -->
             <div class="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 space-y-6 shadow-sm">
                 <div class="flex items-center justify-between border-b border-slate-100 pb-4">
                     <div>
-                        <span class="text-xs font-bold uppercase text-emerald-700 tracking-wider">Ticketsasa Travel Stories</span>
+                        <span class="text-xs font-bold uppercase text-emerald-700 tracking-wider">Ticketsassa Travel Stories</span>
                         <h3 class="font-extrabold text-xl text-slate-900">On the Travel Blog</h3>
                     </div>
-                    <a href="javascript:void(0)" onclick="switchTab('blog')" class="text-xs font-bold text-emerald-700 hover:underline">
+                    <button type="button" onclick="switchTab('blog')" class="text-xs font-bold text-emerald-700 hover:underline">
                         View all articles &rarr;
-                    </a>
+                    </button>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
-                        <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img loading="lazy" decoding="async" src="assets/holidays/karamu-village.jpg" alt="5 Types of Friends Who Make Every Kenyan Road Trip Memorable" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                        </div>
-                        <span class="text-[11px] text-slate-400">29 June 2026 &bull; Travel</span>
-                        <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">5 Types of Friends Who Make Every Kenyan Road Trip Memorable</h4>
-                        <p class="text-xs text-slate-500 line-clamp-2">When it comes to road trips in Kenya, the destination is only half the fun. Your travel squad makes every stop unforgettable.</p>
-                    </div>
-
-                    <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
-                        <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img loading="lazy" decoding="async" src="assets/holidays/lifestyle-holidays.jpg" alt="Why Flexible Payment Options Are Changing Travel" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                        </div>
-                        <span class="text-[11px] text-slate-400">04 June 2026 &bull; Travel</span>
-                        <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">Why Flexible Payment Options Are Changing Travel</h4>
-                        <p class="text-xs text-slate-500 line-clamp-2">Let's face it, travel is exciting, but paying for it all at once? Not always easy. Flexible JazaJaza installments make dream getaways possible.</p>
-                    </div>
-
-                    <div class="group cursor-pointer space-y-3" onclick="openJazaInfo()">
-                        <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img loading="lazy" decoding="async" src="assets/holidays/jaza-holiday.jpg" alt="How to Use Jaza Jaza Holiday to Book Your Next Trip" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                        </div>
-                        <span class="text-[11px] text-slate-400">13 August 2025 &bull; Booking Guide</span>
-                        <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">How to Use "Jaza Jaza Holiday" to Book Your Next Trip</h4>
-                        <p class="text-xs text-slate-500 line-clamp-2">Who says dream holidays have to come with nightmare price tags? With Jaza Jaza Holiday plans, book your escape today and pay in installments.</p>
-                    </div>
-
-                    <div class="group cursor-pointer space-y-3" onclick="switchTab('blog')">
-                        <div class="h-40 rounded-xl overflow-hidden border border-slate-200">
-                            <img loading="lazy" decoding="async" src="assets/holidays/voyager-beach-resort.jpg" alt="10 Breathtaking Places To Visit in Kenya Right Now" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                        </div>
-                        <span class="text-[11px] text-slate-400">07 August 2025 &bull; Destination Spotlight</span>
-                        <h4 class="font-bold text-slate-900 text-sm group-hover:text-emerald-700 transition leading-snug">10 Breathtaking Places To Visit in Kenya Right Now</h4>
-                        <p class="text-xs text-slate-500 line-clamp-2">From wild game tracking adventures in Amboseli and Tsavo to serene private villas in Watamu, discover Kenya's hidden gems.</p>
-                    </div>
+                <div id="holidays-travel-blog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="col-span-full text-xs text-slate-500 py-4">Loading travel stories…</div>
                 </div>
             </div>
 
@@ -1518,247 +1433,62 @@
 
 
     <!-- ========================================================================= -->
-    <!-- VIEW 6: TICKETSASA BLOG (Exact Match to Screenshot 5)                     -->
+    <!-- VIEW 6: DYNAMIC TICKETSASA BLOG (Powered by /api/blog & Admin Blog CMS)   -->
     <!-- ========================================================================= -->
     <div id="view-blog" tabindex="-1" class="tab-view hidden bg-slate-50 py-10 min-h-screen">
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-            
-            <!-- Blog Title Header (as in Screenshot 5) -->
-            <div class="text-center space-y-1 pb-4">
-                <h1 class="font-extrabold text-3xl sm:text-4xl text-slate-900">Ticketsasa Blog</h1>
-                <p class="text-xs text-slate-600">Stay updated with the latest in travel, entertainment and lifestyle!</p>
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
+                <div class="space-y-1">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-[#D81A21]">Guides &amp; Stories</span>
+                    <h1 class="font-extrabold text-3xl sm:text-4xl text-slate-900">Ticketsassa Blog</h1>
+                    <p class="text-xs sm:text-sm text-slate-600">Kenya event guides, coastal escapes, flight tips, and organizer playbooks.</p>
+                </div>
+                <div class="w-full md:w-80">
+                    <label for="blog-search" class="sr-only">Search articles</label>
+                    <input id="blog-search" type="search" placeholder="Search articles, guides, destinations…" class="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium focus:outline-none focus:border-[#D81A21]">
+                </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                
-                <!-- Main Content Stream (Left 8 Columns) -->
-                <div class="lg:col-span-8 space-y-8">
-                    
-                    <!-- POST 1: September Events Radar -->
-                    <div data-blog-post class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-                        
-                        <!-- Header with Red Date Badge -->
-                        <div class="flex items-start gap-4">
-                            <div class="bg-[#BE123C] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
-                                <span class="font-extrabold text-base leading-none">03</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">SEP</span>
-                            </div>
-                            <div class="space-y-0.5">
-                                <h2 class="font-extrabold text-2xl text-slate-900 leading-snug">September Events Radar</h2>
-                        </div>
-                    </div>
-
-                    <!-- Official Race Wars ICD Road Poster (Exact from Screenshot 5) -->
-                    <div class="rounded-xl overflow-hidden border border-slate-200 shadow-sm max-w-md">
-                        <img loading="lazy" decoding="async" src="assets/images/racewars-poster.svg" alt="Race Wars Ultimate Drag Race ICD Road" class="w-full h-auto object-cover">
-                    </div>
-
-                    <div class="space-y-4">
-                        <div class="text-xs font-bold text-[#BE123C] flex items-center gap-1">
-                            <span class="w-1.5 h-1.5 rounded-full bg-[#BE123C]"></span> Events
-                        </div>
-
-                        <!-- Intro Paragraph -->
-                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                            A new month means new experiences, new connections, and plenty of reasons to step out of your routine. This September, the calendar is bringing together the thrill of horse racing, the roar of powerful engines, opportunities to sharpen your sales skills, and important conversations about the future of energy in Africa. Whatever your idea of a wonderful experience is, there is something waiting for you.
-                        </p>
-                    </div>
-
-                        <!-- Curated Sub-Events List (Exact from Screenshot 5) -->
-                        <div class="space-y-5 pt-2 border-t border-slate-100">
-                            
-                            <div>
-                                <span class="font-semibold">Sell The Way Customers Buy</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Selling is not just about having a great product; it is about understanding the person making the decision. Starting Monday, 7th September Silicon Insights Global Consulting gives sales teams an opportunity to rethink and strengthen their sales approach. Running live on zoom the programme combines practical learning, a dedicated workbook and connection through WhatsApp community support. The focus? Learning how to align your sales process with the way customers decide to buy. If improving your sales game is on your September to-do list, this might be the investment your business needs.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">Race Wars 2<sup>nd</sup> Edition</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Some weekends are made for relaxing, 12th and 13th September are made for speed. Expect the roar of engines, impressive cars and the electrifying atmosphere that only comes when motorsport fans gather in one place. Whether you are passionate about cars or simply looking for an exciting weekend experience, Race Wars is the place to catch the action and soak the energy.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">KMS Affordable Book Sale and Market</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Book lovers are in for a treat at the KMS Affordable Book Sale &amp; Market, hosted at The Courtyard inside the Nairobi National Museum. You can hunt for budget-friendly reads, search for rare collector titles, or meet fresh local authors at this family-friendly event. Plus, with artisanal vendors offering unique local goods, it is the ideal spot to shop, unwind, and enjoy a vibrant day out in Nairobi. Save the date for Saturday, 12th September 2026.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">CrabMen Track Day</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    If burning rubber is more your speed, gear up for Crabmen Track Day taking over the Rift Valley Motorsports Club in Nakuru. Dubbed Kenya's first professional track day in history, the action-packed weekend features modified car exhibitions, high-speed drift practice sessions, tarmac track runs, and a head to head drift competition. Clear your schedule for 19th and 20th September 2026.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">IEEE Power Africa Conference 2026</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    The future of Africa is being written, and Nairobi is set to be part of the conversation. From 21st September 2026, brilliant minds, industry leaders, innovators, and changemakers will come together at Safari Park Hotel. Under the theme "Accelerating Resilient Energy Systems &amp; Industrial Decarbonization through Innovation," the conference will create a space for bold ideas, groundbreaking conversations and innovative solutions focused on building a more resilient and sustainable energy future for Africa.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">The Coastal Fashion Brunch</span>
-                                <div class="text-xs text-slate-500 mt-0.5">&bull; Date: Sunday, 20th September 2026 &bull; Time: 12:00 PM &bull; Venue: Saffron Gardens Malindi</div>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Experience the ultimate blend of style, cuisine, and coastal ambiance. Indulge in an all-you-can-eat Sunday brunch, watch a stunning live fashion show on the runway, shop unique artisan products, and network with a vibrant crowd on the Kenyan coast. See you there!
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">Women Empowerment Summit 2026</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Ready to elevate your leadership and business journey? The Women Empowerment Summit returns to Mombasa for a two-day deep dive into digital transformation, practical business strategies, and high-impact networking with visionary women leaders. Mark your calendars for September 25th at PrideInn Paradise Beach Resort, Shanzu, Mombasa.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">Beyond The Bedside Nursing 3.0</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Healthcare is evolving rapidly, and nursing is no longer confined to traditional settings. Beyond The Bedside 3.0 brings together expert leaders for honest, uncut panel discussions on big data, AI, research, entrepreneurship, and emerging niches. Whether you are a nursing student or a seasoned senior nurse, this event is designed to help you turn your dream career into reality. Save the dates for Saturday 26th September at Workable Nairobi, Sanlam Towers.
-                                </p>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <!-- POST 2: Your Ultimate August Event Guide -->
-                    <div data-blog-post data-blog-cat="Events" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
-                        <div class="flex items-start gap-4">
-                            <div class="bg-[#BE123C] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
-                                <span class="font-extrabold text-base leading-none">06</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">AUG</span>
-                            </div>
-                            <div class="space-y-0.5">
-                                <h2 class="font-extrabold text-2xl text-slate-900 leading-snug">Your Ultimate August Event Guide</h2>
-                                <div class="text-xs font-bold text-[#BE123C] flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-[#BE123C]"></span> Events
-                                </div>
-                            </div>
-                        </div>
-
-                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                            Ready to upgrade your August plans? From family-friendly tech camps and outdoor kids' festivals to high-octane Motorsport races and soul nourishing conferences, this month is stacked with top-tier experiences. Dive into our curated guide below to find out where you need to be this August!
-                        </p>
-
-                        <div class="space-y-4 pt-2 border-t border-slate-100">
-                            <div>
-                                <span class="font-semibold">Rise to Dream - Chess &amp; Coding Camp</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Level up your child's problem-solving skills this month! The Rise to Dream Chess &amp; Coding Camp combines critical thinking with hands-on tech. Tailored for ages pre-school and up with full dedicated support for neurodivergent kids through the autisticnetwork. This 5-day camp takes young minds from chess tactics to basic coding in a supportive, fun environment. Spaces are limited, secure your child's spot for August 10th - 15th.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">Ballpoint Karaoke Night (August Edition)</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Got a shower-singing voice ready for the spotlight? Ballpoint Karaoke night is back to kick off your weekend with immaculate vibes. Clear your schedule for Friday 14th August, step up to the mic, and get the weekend started right.
-                                </p>
-                            </div>
-
-                            <div>
-                                <span class="font-semibold">Good. Bad. Ugly</span>
-                                <p class="text-xs text-slate-600 mt-1 leading-relaxed">
-                                    Prepare for an evening of pure, unfiltered human connection. A stellar lineup of storytellers such as Google Oputu, Paris Maleko, Reuben Kigame, Nyokabi Macharia, and Manya Prudie share personal triumphs, challenges, and heart-stirring reflections on stage.
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- POST 3: 5 Types of Friends Who Make Every Kenyan Road Trip Memorable (Travel Blog) -->
-                    <div data-blog-post data-blog-cat="Travel" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
-                        <div class="flex items-start gap-4">
-                            <div class="bg-[#15803D] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
-                                <span class="font-extrabold text-base leading-none">29</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">JUN</span>
-                            </div>
-                            <div class="space-y-0.5">
-                                <h2 class="font-extrabold text-xl text-slate-900 leading-snug">5 Types of Friends Who Make Every Kenyan Road Trip Memorable</h2>
-                                <div class="text-xs font-bold text-[#15803D] flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-[#15803D]"></span> Travel &amp; Things to do
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                            When it comes to road trips in Kenya, the destination is only half the fun. From the designated DJ curating Arbantone and Rhumba mixes past Viewpoint, to the treasurer splitting nyama choma bills in Naivasha, every great Kenyan road trip relies on the right squad.
-                        </p>
-                    </div>
-
-                    <!-- POST 4: Why Flexible Payment Options Are Changing Travel (Travel Blog) -->
-                    <div data-blog-post data-blog-cat="Travel" class="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
-                        <div class="flex items-start gap-4">
-                            <div class="bg-[#15803D] text-white text-center rounded-lg px-3 py-1.5 flex flex-col justify-center min-w-[50px]">
-                                <span class="font-extrabold text-base leading-none">04</span>
-                                <span class="text-[9px] font-bold uppercase tracking-wider leading-none mt-0.5">JUN</span>
-                            </div>
-                            <div class="space-y-0.5">
-                                <h2 class="font-extrabold text-xl text-slate-900 leading-snug">Why Flexible Payment Options Are Changing Travel</h2>
-                                <div class="text-xs font-bold text-[#15803D] flex items-center gap-1">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-[#15803D]"></span> Travel &amp; Flights
-                                </div>
-                            </div>
-                        </div>
-                        <p class="text-xs sm:text-sm text-slate-700 leading-relaxed">
-                            Let's face it, travel is exciting, but paying for it all at once? Not always easy. With Ticketsasa JazaJaza Holiday plans, travellers across East Africa can lock in discounted Diani, Watamu, and Masai Mara packages and pay in convenient M-Pesa installments before departure.
-                        </p>
-                    </div>
-
-                </div>
-
-                <!-- Right Sidebar (Exact from Screenshot 5) -->
-                <div class="lg:col-span-4 space-y-6">
-                    
-                    <!-- Search Widget -->
-                    <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex gap-2">
-                        <input id="blog-search" type="search" aria-label="Search blog" oninput="filterBlog(this.value)" placeholder="Search blog..." class="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-rose-500">
-                        <button type="button" onclick="filterBlog(document.getElementById('blog-search').value)" aria-label="Search blog" class="bg-[#BE123C] hover:bg-[#9F1239] text-white p-2.5 rounded-lg transition">
-                            <i data-lucide="search" class="w-4 h-4"></i>
-                        </button>
-                    </div>
-
-                    <p id="blog-result-status" role="status" class="text-sm"></p>
-
-                    <!-- Follow Ticketsasa Widget -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
-                        <h3 class="font-extrabold text-sm text-slate-900">Follow Ticketsasa</h3>
-                        <div class="flex items-center gap-3">
-                            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img loading="lazy" decoding="async" src="assets/real/icon-fb.png" alt="Facebook" class="w-5 h-5 object-contain"></a>
-                            <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img loading="lazy" decoding="async" src="assets/real/icon-ig.png" alt="Instagram" class="w-5 h-5 object-contain"></a>
-                            <a href="https://x.com" target="_blank" rel="noopener noreferrer" aria-label="X" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img loading="lazy" decoding="async" src="assets/real/icon-x.png" alt="X" class="w-5 h-5 object-contain"></a>
-                            <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" aria-label="YouTube" class="p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200"><img loading="lazy" decoding="async" src="assets/real/icon-youtube.png" alt="YouTube" class="w-5 h-5 object-contain"></a>
-                        </div>
-                    </div>
-
-                    <!-- Subscribe to Mailing List Widget -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
-                        <h3 class="font-extrabold text-sm text-slate-900">Subscribe to our mailing list</h3>
-                        <p class="text-xs text-slate-500">Get the latest event radar, travel deals, and flash sales directly in your inbox.</p>
-                        <form onsubmit="event.preventDefault(); showToast('Subscribed to Ticketsasa Blog updates!')" class="space-y-2">
-                            <input type="email" required placeholder="Email Address" class="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs">
-                            <button type="submit" class="w-full py-2 rounded-lg bg-[#BE123C] hover:bg-[#9F1239] text-white font-bold text-xs">Subscribe</button>
-                        </form>
-                    </div>
-
-                    <!-- Blog Categories Widget -->
-                    <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm space-y-3">
-                        <h3 class="font-extrabold text-sm text-slate-900">Blog Categories</h3>
-                        <div class="flex flex-col gap-1.5 text-xs">
-                            <button type="button" onclick="filterBlogCategory('all')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">All Categories</button>
-                            <button type="button" onclick="filterBlogCategory('Travel')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Travel</button>
-                            <button type="button" onclick="filterBlogCategory('Events')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Events</button>
-                            <button type="button" onclick="filterBlogCategory('Flights')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Flights</button>
-                            <button type="button" onclick="filterBlogCategory('Things to do')" class="text-left px-3 py-1.5 rounded-lg hover:bg-rose-50 font-semibold text-slate-700 hover:text-[#BE123C] transition">Things to do</button>
-                        </div>
-                    </div>
-                </div>
-
+            <div class="flex flex-wrap items-center justify-between gap-3">
+                <div id="blog-category-pills" class="flex flex-wrap gap-2"></div>
+                <p id="blog-result-status" role="status" class="text-xs font-semibold text-slate-500">Loading articles…</p>
             </div>
 
+            <div id="blog-featured-slot"></div>
+
+            <div id="blog-articles-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </div>
+    </div>
+
+    <!-- BLOG FULL ARTICLE READER MODAL -->
+    <div id="blog-reader-modal" role="dialog" aria-modal="true" aria-labelledby="blog-reader-title" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black/75 backdrop-blur-sm flex items-start justify-center p-3 sm:p-6">
+        <div class="relative bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-4 text-slate-900">
+            <div class="bg-slate-50 border-b border-slate-200 px-5 py-3.5 flex flex-wrap items-center justify-between gap-2">
+                <button type="button" onclick="closeBlogArticle()" class="text-xs font-extrabold text-slate-700 hover:text-[#D81A21] transition">&larr; Back to Blog</button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="blog-reader-copy" class="px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold transition">Copy Link</button>
+                    <a id="blog-reader-whatsapp" href="#" target="_blank" rel="noopener noreferrer" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition">Share on WhatsApp</a>
+                    <button type="button" onclick="closeBlogArticle()" aria-label="Close article" class="w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center">&times;</button>
+                </div>
+            </div>
+            <div class="aspect-[16/9] max-h-[340px] w-full overflow-hidden bg-slate-100">
+                <img id="blog-reader-image" src="/assets/real/back-to-rock-5.jpg" alt="" class="w-full h-full object-cover">
+            </div>
+            <article class="p-6 sm:p-8 space-y-5">
+                <div class="space-y-2">
+                    <span id="blog-reader-category" class="inline-block px-2.5 py-0.5 rounded-full bg-rose-50 text-[#D81A21] border border-rose-200 text-[11px] font-extrabold uppercase">Events</span>
+                    <h2 id="blog-reader-title" class="text-2xl sm:text-3xl font-black text-slate-900 leading-tight"></h2>
+                    <p id="blog-reader-meta" class="text-xs font-semibold text-slate-500"></p>
+                </div>
+                <div id="blog-reader-content" class="space-y-4"></div>
+                <div class="pt-5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
+                    <span class="text-xs text-slate-500">Ready to plan your next outing?</span>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="closeBlogArticle(); switchTab('events')" class="px-4 py-2 rounded-lg bg-[#D81A21] hover:bg-[#b9151b] text-white text-xs font-bold">Browse Events</button>
+                        <button type="button" onclick="closeBlogArticle(); switchTab('holidays')" class="px-4 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold">Explore Holidays</button>
+                    </div>
+                </div>
+            </article>
         </div>
     </div>
 
@@ -1849,7 +1579,7 @@
                         <div>
                             <div class="flex items-center justify-between mb-1">
                                 <label for="login-password" class="block text-xs font-bold text-slate-700">Password :</label>
-                                <button type="button" onclick="openHelpModal()" class="text-[11px] font-bold text-[#D81A21] hover:underline">Forgot Password?</button>
+                                <button type="button" onclick="openHelpModal()" class="text-[11px] font-bold text-[#D81A21] hover:underline">Need login help?</button>
                             </div>
                             <input id="login-password" name="password" type="password" required maxlength="128" autocomplete="current-password" placeholder="Password" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs" aria-describedby="login-password-help">
                             <button type="button" data-password-toggle aria-controls="login-password" aria-pressed="false" onclick="togglePasswordVisibility(this)" class="text-xs font-bold text-rose-700 mt-2">Show password</button>
@@ -1898,37 +1628,30 @@
     </div>
 
     <!-- ========================================================================= -->
-    <!-- VIEW 9: SELL YOUR TICKETS (Exact Match to ticketsasa.com/sell-your-tickets)-->
+    <!-- VIEW 9: SELL YOUR EVENT (Ticketsassa Organizer Onboarding)                -->
     <!-- ========================================================================= -->
     <div id="view-sell" tabindex="-1" class="tab-view hidden bg-slate-50 min-h-[70vh] py-10 px-4">
         <div class="max-w-4xl mx-auto space-y-8">
             <div class="text-xs text-slate-500">
-                <a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-[#D81A21]">Ticketsasa.com</a> &rsaquo; <span class="font-bold text-slate-900">sell your tickets</span>
+                <a href="javascript:void(0)" onclick="switchTab('events')" class="hover:text-[#D81A21]">Ticketsassa</a> &rsaquo; <span class="font-bold text-slate-900">Sell Your Event</span>
             </div>
             <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-10 space-y-6">
                 <div>
-                    <span class="text-xs font-extrabold uppercase tracking-wider text-[#D81A21]">List your event to sell tickets</span>
-                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">How to have your event listed on Ticketsasa</h1>
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-[#D81A21]">For Kenyan Event Organizers</span>
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-900 mt-1">Sell tickets fast with instant M-Pesa checkout &amp; QR gate scanning</h1>
                 </div>
                 <ol class="space-y-4 text-xs sm:text-sm text-slate-700 list-decimal pl-5">
-                    <li><strong>Step 1:</strong> Register as a merchant on Pesapal (<a href="https://www.pesapal.com" target="_blank" rel="noopener noreferrer" class="text-[#D81A21] font-bold underline">www.pesapal.com</a>).</li>
-                    <li><strong>Step 2:</strong> Receive your activation email and consumer key/secret from <a href="mailto:info@pesapal.com" class="text-[#D81A21] font-bold underline">info@pesapal.com</a>.</li>
-                    <li>
-                        <strong>Step 3:</strong> Submit your event specifications via the organizer publishing portal:
-                        <ul class="list-disc pl-5 mt-2 space-y-1 text-xs text-slate-600">
-                            <li><strong>Artwork pixel dimensions:</strong> Event photo (330px by 320px), Sponsors photo (300px by 300px or 80px by 80px), Slideshow image (800px by 305px).</li>
-                            <li><strong>Event information:</strong> Event Name, Description, Pricing per tier, Date &amp; time, Venue.</li>
-                        </ul>
-                    </li>
-                    <li><strong>Step 4:</strong> Your event goes live within <strong>3 hours</strong>. <em>*Only events that have surpassed a certain limit of tickets sold will be featured on the slideshow.</em></li>
+                    <li><strong>Share your event details:</strong> Event title, date &amp; time, venue, ticket tiers (Early Bird, Regular, VIP, Group), and your event poster.</li>
+                    <li><strong>Instant M-Pesa STK Push ticketing:</strong> Attendees pay directly from their phone and receive a scannable PDF QR ticket immediately upon confirmation.</li>
+                    <li><strong>Real-time sales tracking &amp; gate check-in:</strong> Track every verified payment and validate single-use QR tickets at the entrance to block duplicate screenshots.</li>
                 </ol>
                 <div class="bg-rose-50 border border-rose-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div>
-                        <h3 class="font-extrabold text-base text-slate-900">Ready to reach thousands of potential attendees?</h3>
-                        <p class="text-xs text-slate-600 mt-0.5">Create your account today and start selling tickets in no time! No upfront costs. Pay only when tickets sell!</p>
+                        <h3 class="font-extrabold text-base text-slate-900">Ready to list your upcoming event?</h3>
+                        <p class="text-xs text-slate-600 mt-0.5">Reach out to our team to get your event published quickly with zero upfront fees.</p>
                     </div>
-                    <button type="button" onclick="switchTab('login')" class="shrink-0 px-6 py-3 rounded-xl bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs uppercase tracking-wider shadow transition">
-                        Create A Merchant Account Now
+                    <button type="button" id="sell-contact-btn" onclick="openSellSupportContact()" class="shrink-0 px-6 py-3 rounded-xl bg-[#D81A21] hover:bg-[#b9151b] text-white font-extrabold text-xs uppercase tracking-wider shadow transition">
+                        Contact Organizer Team
                     </button>
                 </div>
             </div>
@@ -1973,8 +1696,8 @@
                 <div class="space-y-2">
                     <h4 class="font-bold text-slate-900 text-sm">Legal &amp; Support</h4>
                     <ul class="space-y-1.5">
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
-                        <li><a href="javascript:void(0)" onclick="openTicketsasaAuthModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
+                        <li><a href="javascript:void(0)" onclick="openLegalModal('terms')" class="hover:text-rose-600 transition">Terms &amp; Conditions</a></li>
+                        <li><a href="javascript:void(0)" onclick="openLegalModal('privacy')" class="hover:text-rose-600 transition">Privacy Policy</a></li>
                         <li><button type="button" onclick="openHelpModal()" class="underline font-semibold text-slate-700 hover:text-rose-600 transition">Open support chat</button></li>
                     </ul>
                 </div>
@@ -1989,8 +1712,8 @@
         </div>
     </footer>
 
-    <script src="/app.js?v=publish-search-1"></script>
-    <script type="module" src="frontend-angular/src/kenya-event-catalog.js?v=publish-search-1"></script>
+    <script src="/app.js?v=clean-1"></script>
+    <script type="module" src="frontend-angular/src/kenya-event-catalog.js?v=clean-1"></script>
 
     <!-- Customer support guide -->
     <button id="support-launcher" type="button" onclick="toggleChatSupport()" aria-controls="chat-support-modal" aria-expanded="false">Help</button>
@@ -2033,7 +1756,7 @@
                     </div>
                     <div>
                         <h3 class="font-extrabold text-lg text-slate-900">Checkout &amp; Payment</h3>
-                        <p class="text-xs text-slate-500">Demo checkout</p>
+                        <p id="checkout-mode-subtitle" class="text-xs text-slate-500">Secure M-Pesa Checkout</p>
                     </div>
                 </div>
                 <button onclick="closeCheckoutModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 font-bold">&times;</button>
@@ -2603,8 +2326,8 @@
                     <button type="button" onclick="saveCurrentHolidayDraft()" class="h-12 px-4 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs flex items-center justify-center transition">
                         Save Draft
                     </button>
-                    <button type="button" onclick="openChatWithContext('Holiday package inquiry')" class="h-12 px-5 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold text-xs flex items-center justify-center gap-2 transition">
-                        WhatsApp Concierge
+                    <button type="button" id="hbm-support-btn" onclick="openHolidaySupportContact()" class="h-12 px-5 rounded-xl border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-bold text-xs flex items-center justify-center gap-2 transition">
+                        Ask Support
                     </button>
                     <button type="button" onclick="closeHolidayBookingModal()" class="h-12 px-5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase transition">
                         Close
@@ -2666,12 +2389,8 @@
                 </button>
                 <div class="flex flex-wrap items-center gap-2 text-xs">
                     <span class="text-slate-500 font-semibold mr-1">Share:</span>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Facebook</button>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Instagram</button>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">LinkedIn</button>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Twitter</button>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">WhatsApp</button>
-                    <button type="button" onclick="shareEvent()" class="px-2.5 py-1 rounded bg-slate-200/80 hover:bg-[#D81A21] hover:text-white font-bold text-[11px] transition">Email</button>
+                    <button type="button" onclick="shareEvent('copy')" class="px-3 py-1.5 rounded bg-slate-200/80 hover:bg-slate-300 text-slate-800 font-bold text-[11px] transition">Copy Link</button>
+                    <button type="button" onclick="shareEvent('whatsapp')" class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition">WhatsApp</button>
                     <button type="button" onclick="closeTicketsasaEventModal()" aria-label="Close event details" class="ml-2 w-8 h-8 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold flex items-center justify-center">&times;</button>
                 </div>
             </div>
@@ -2894,8 +2613,23 @@
             <button type="button" class="px-4 py-2" onclick="document.getElementById('holiday-plan').close()">Close</button>
         </form>
     </dialog>
+    <!-- LEGAL (TERMS & PRIVACY) MODAL -->
+    <div id="legal-modal" role="dialog" aria-modal="true" aria-labelledby="legal-modal-title" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-slate-800 max-h-[85vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h2 id="legal-modal-title" class="text-lg font-extrabold text-slate-900">Terms &amp; Conditions</h2>
+                <button type="button" onclick="closeLegalModal()" aria-label="Close" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 font-bold text-slate-600">&times;</button>
+            </div>
+            <div id="legal-modal-body" class="space-y-3 text-xs sm:text-sm leading-relaxed text-slate-600"></div>
+            <div class="pt-2 flex justify-end">
+                <button type="button" onclick="closeLegalModal()" class="px-4 py-2 rounded-lg bg-[#D81A21] text-white text-xs font-bold">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/travel-offers.js?v=bookable-2" defer></script>
-    <script src="/discovered-marketplace.js?v=fast-img-2" defer></script>
+    <script src="/discovered-marketplace.js?v=clean-1" defer></script>
+    <script src="/blog.js?v=clean-1" defer></script>
     <script src="/support-answers.js?v=2" defer></script>
     <script src="/support-chat.js?v=2" defer></script>
 </body>

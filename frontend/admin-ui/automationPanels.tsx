@@ -61,9 +61,9 @@ export function AutomationOverview({ onNavigate, refreshKey = 0 }: { onNavigate:
     if (!data) return <p className="panel">{error || 'Loading dashboard overview…'}</p>;
     const s = data.stats || {};
     const kpis: [string, string | number, string][] = [
-        ['Total Discovered Events', s.totalDiscoveredEvents ?? 0, 'Event Discovery'],
-        ['Upcoming Events', s.upcomingEvents ?? 0, 'Event Discovery'],
-        ['Pending Event Approvals', s.pendingEventApprovals ?? 0, 'Event Discovery'],
+        ['Total Discovered Events', s.totalDiscoveredEvents ?? 0, 'Automated Discovery Center'],
+        ['Upcoming Events', s.upcomingEvents ?? 0, 'Automated Discovery Center'],
+        ['Pending Event Approvals', s.pendingEventApprovals ?? 0, 'Automated Discovery Center'],
         ['Approved Events', s.approvedEvents ?? 0, 'All Events'],
         ['Tickets Generated', s.ticketsGenerated ?? 0, 'Ticket Management'],
         ['Tickets Sold (Live)', s.ticketsSold ?? 0, 'Transactions'],

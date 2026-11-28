@@ -1,15 +1,20 @@
 const { randomBytes } = require('node:crypto');
 
+function isDemoCardAllowed() {
+    return process.env.NODE_ENV !== 'production' && process.env.PAYMENT_MODE !== 'live';
+}
+
 function cardGatewayConfig() {
     const paystackKey = process.env.PAYSTACK_SECRET_KEY?.trim() || '';
     const flutterwaveKey = process.env.FLUTTERWAVE_SECRET_KEY?.trim() || '';
     if (paystackKey) {
-        return { configured: true, provider: 'paystack', secretKey: paystackKey };
+        return { configured: true, enabled: true, provider: 'paystack', secretKey: paystackKey };
     }
     if (flutterwaveKey) {
-        return { configured: true, provider: 'flutterwave', secretKey: flutterwaveKey };
+        return { configured: true, enabled: true, provider: 'flutterwave', secretKey: flutterwaveKey };
     }
-    return { configured: false, provider: 'demo_card', secretKey: '' };
+    const demoOk = isDemoCardAllowed();
+    return { configured: false, enabled: demoOk, provider: demoOk ? 'demo_card' : null, secretKey: '' };
 }
 
 async function initiateCardCheckout({ order, callbackUrl }) {
@@ -18,6 +23,9 @@ async function initiateCardCheckout({ order, callbackUrl }) {
     const amountKes = Math.max(1, Math.round(Number(order.totalKes) || 0));
 
     if (!cfg.configured) {
+        if (!isDemoCardAllowed()) {
+            throw Object.assign(new Error('Card payments are not configured yet. Please pay via M-Pesa STK Push.'), { status: 503 });
+        }
         return {
             provider: 'demo_card',
             mode: 'demo',
@@ -105,6 +113,14 @@ async function initiateCardCheckout({ order, callbackUrl }) {
 async function verifyCardCheckout({ provider, reference, transactionId, expectedAmountKes }) {
     const cfg = cardGatewayConfig();
     if (provider === 'demo_card' || !cfg.configured) {
+        if (!isDemoCardAllowed()) {
+            return {
+                verified: false,
+                provider: cfg.provider || 'unconfigured',
+                receipt: null,
+                reason: 'Card payments are not enabled in live mode. Please pay via M-Pesa.'
+            };
+        }
         return {
             verified: true,
             provider: 'demo_card',

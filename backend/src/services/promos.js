@@ -9,13 +9,13 @@ const promos = {
     BUNDLE15: { discountPercent: 15, appliesTo: 'bundle', label: '15% Off Flight + Holiday Bundles' }
 };
 
-function getPromo(code, kind = 'all') {
+function getPromo(code, kind = 'all', { customOnly = false } = {}) {
     const normalized = typeof code === 'string' ? code.trim().toUpperCase() : '';
     if (!normalized) return null;
 
     const customList = getCachedPricing()?.customPromos || [];
     const customMatch = customList.find(p => p.active !== false && p.code === normalized);
-    const found = customMatch || (Object.hasOwn(promos, normalized) ? { code: normalized, ...promos[normalized] } : null);
+    const found = customMatch || (!customOnly && Object.hasOwn(promos, normalized) ? { code: normalized, ...promos[normalized] } : null);
     if (!found) return null;
 
     if (kind && kind !== 'all' && found.appliesTo && found.appliesTo !== 'all') {

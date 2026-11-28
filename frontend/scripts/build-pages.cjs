@@ -10,6 +10,7 @@ const filesToCopy = [
     'organizer.html',
     'staff-check-in.html',
     'app.js',
+    'blog.js',
     'discovered-marketplace.js',
     'install-app.js',
     'organizer.js',

@@ -31,7 +31,65 @@ document.addEventListener('DOMContentLoaded', () => {
     setupNavigation();
     initFlightEngine();
     updateCartDisplay();
+    void syncPaymentMethodsUi();
+    void syncSupportContactLinks();
 });
+
+let cachedSupportContact = null;
+async function syncSupportContactLinks() {
+    try {
+        const res = await fetch('/api/support/contact');
+        if (!res.ok) return;
+        cachedSupportContact = await res.json();
+        const waBtn = document.getElementById('hbm-support-btn');
+        if (waBtn) {
+            waBtn.textContent = cachedSupportContact?.whatsappUrl ? 'WhatsApp Support' : 'Ask Support';
+        }
+        const sellWa = document.getElementById('sell-contact-btn');
+        if (sellWa && cachedSupportContact?.whatsappUrl) {
+            sellWa.textContent = 'Message Us on WhatsApp';
+        }
+    } catch {}
+}
+
+function openHolidaySupportContact() {
+    if (cachedSupportContact?.whatsappUrl) {
+        window.open(cachedSupportContact.whatsappUrl, '_blank', 'noopener,noreferrer');
+        return;
+    }
+    openChatWithContext('Holiday package inquiry');
+}
+
+function openSellSupportContact() {
+    if (cachedSupportContact?.whatsappUrl) {
+        window.open(cachedSupportContact.whatsappUrl, '_blank', 'noopener,noreferrer');
+        return;
+    }
+    openHelpModal();
+}
+
+async function syncPaymentMethodsUi() {
+    try {
+        const res = await fetch('/api/payments/methods');
+        if (!res.ok) return;
+        const methods = await res.json();
+        const cardEnabled = Boolean(methods?.card?.enabled);
+        for (const selectId of ['fbm-pay-method', 'hbm-pay-method']) {
+            const sel = document.getElementById(selectId);
+            if (!sel) continue;
+            const cardOpt = sel.querySelector('option[value="CARD"]');
+            if (cardOpt) {
+                cardOpt.hidden = !cardEnabled;
+                cardOpt.disabled = !cardEnabled;
+                if (!cardEnabled && sel.value === 'CARD') sel.value = 'MPESA';
+            }
+        }
+        const sub = document.getElementById('checkout-mode-subtitle');
+        if (sub) {
+            sub.textContent = methods?.mode === 'live' ? 'Secure M-Pesa Checkout' : 'Demo checkout';
+        }
+    } catch {}
+}
 
 // Currency Switcher
 function setupCurrencyToggle() {
@@ -335,22 +393,19 @@ function calculateModalTotals() {
 function filterEventsChip(mode) {
     const catalog = document.getElementById('upcoming-events');
     if (!catalog) return;
+    document.querySelectorAll('#sub-nav-bar [data-chip-mode]').forEach(btn => {
+        const active = btn.getAttribute('data-chip-mode') === mode;
+        btn.className = active
+            ? 'text-xs font-bold px-3 py-1 rounded-full bg-rose-50 text-[#D81A21] border border-rose-200 hover:bg-[#D81A21] hover:text-white transition'
+            : 'text-xs font-semibold px-3 py-1 rounded-full hover:bg-slate-100 text-slate-700 transition';
+    });
     if (mode === 'all') {
-        filterEvents('all');
-        return;
+        const nameInput = document.getElementById('event-search-input');
+        const cityInput = document.getElementById('event-city-input');
+        if (nameInput) nameInput.value = '';
+        if (cityInput) cityInput.value = '';
     }
-    if (mode === 'free') {
-        catalog.setQuery?.('free');
-    } else if (mode === 'featured') {
-        catalog.setQuery?.('');
-    } else if (mode === 'weekend') {
-        catalog.setQuery?.('Sat');
-    } else if (mode === 'trending') {
-        document.getElementById('trending-events')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-    } else if (mode === 'drops') {
-        catalog.setQuery?.('Early');
-    }
+    catalog.setMode?.(mode);
     catalog.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -378,13 +433,53 @@ function closePassModal() {
     openTicketWallet();
 }
 
-async function shareEvent() {
-    try {
-        await navigator.clipboard.writeText(window.location.href);
-        showToast('Page link copied.');
-    } catch {
-        showToast('Could not copy the page link.');
+async function shareEvent(channel = 'copy') {
+    const url = new URL(window.location.href);
+    if (activeTicketsasaDetailEvent?.id) {
+        url.searchParams.set('view', 'events');
+        url.searchParams.set('event', activeTicketsasaDetailEvent.id);
     }
+    const shareHref = url.href;
+    const title = activeTicketsasaDetailEvent?.title || 'Ticketsassa Event';
+    if (channel === 'whatsapp') {
+        window.open(`https://wa.me/?text=${encodeURIComponent(`${title} — Book tickets on Ticketsassa: ${shareHref}`)}`, '_blank', 'noopener,noreferrer');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(shareHref);
+        showToast('Event link copied.');
+    } catch {
+        showToast('Could not copy the event link.');
+    }
+}
+
+function openLegalModal(kind = 'terms') {
+    const modal = document.getElementById('legal-modal');
+    const titleEl = document.getElementById('legal-modal-title');
+    const bodyEl = document.getElementById('legal-modal-body');
+    if (!modal || !titleEl || !bodyEl) return;
+    if (kind === 'privacy') {
+        titleEl.textContent = 'Privacy Policy';
+        bodyEl.innerHTML = `
+            <p><strong>Information we collect:</strong> When you book tickets, flights, or holiday packages on Ticketsassa, we collect your name, email address, and Kenyan mobile number solely to process your M-Pesa payment and deliver your digital QR passes and booking confirmations.</p>
+            <p><strong>Payments &amp; security:</strong> M-Pesa STK Push payments are processed directly on your phone. Ticketsassa never asks for or stores your M-Pesa PIN.</p>
+            <p><strong>Data sharing:</strong> Booking details are shared only with the relevant event organizer, airline, or travel operator strictly to verify your entry or fulfill your reservation.</p>
+            <p><strong>Support &amp; deletion requests:</strong> Use the Help widget at any time to contact our support team regarding your order records or account data.</p>
+        `;
+    } else {
+        titleEl.textContent = 'Terms & Conditions';
+        bodyEl.innerHTML = `
+            <p><strong>Ticket validity:</strong> Every confirmed order generates a unique single-use QR pass. Keep your order reference and QR code private; duplicate scans at venue gates are rejected automatically.</p>
+            <p><strong>Pricing &amp; M-Pesa confirmation:</strong> All prices are displayed in Kenyan Shillings (KES). Orders are confirmed only after independent M-Pesa payment verification.</p>
+            <p><strong>Cancellations &amp; refunds:</strong> Event ticket refunds and reschedules follow the event organizer&rsquo;s policy. Flight and holiday booking changes follow the respective airline or resort terms.</p>
+            <p><strong>Support:</strong> If an M-Pesa deduction occurs without an immediate pass appearing in My Tickets, reach out via the Help widget with your M-Pesa receipt code and order reference.</p>
+        `;
+    }
+    modal.classList.remove('hidden');
+}
+
+function closeLegalModal() {
+    document.getElementById('legal-modal')?.classList.add('hidden');
 }
 
 function showToast(msg) {
@@ -430,6 +525,8 @@ function switchTab(tabName, { updateHistory = true } = {}) {
         initFlightEngine();
     } else if (tabName === 'holidays') {
         searchHolidayCards('');
+    } else if (tabName === 'blog') {
+        if (typeof window.ensureTicketsasaBlogLoaded === 'function') window.ensureTicketsasaBlogLoaded();
     } else if (tabName === 'checkticket') {
         void loadMyTripsDashboard();
     }
@@ -437,6 +534,7 @@ function switchTab(tabName, { updateHistory = true } = {}) {
     if (updateHistory) {
         const url = new URL(location.href);
         url.searchParams.set('view', tabName);
+        if (tabName !== 'blog') url.searchParams.delete('post');
         url.hash = '';
         if (url.href !== location.href) history.pushState(null, '', url);
         window.scrollTo(0, 0);
@@ -2878,33 +2976,6 @@ function submitSupportQuestion(trigger) {
     if (panel && window.ticketSupport) void window.ticketSupport.submit();
 }
 
-function filterBlog(value) {
-    const query = value.trim().toLowerCase();
-    let count = 0;
-    document.querySelectorAll('[data-blog-post]').forEach(post => {
-        const match = post.textContent.toLowerCase().includes(query);
-        post.classList.toggle('hidden', !match);
-        if (match) count++;
-    });
-    document.getElementById('blog-result-status').textContent = query
-        ? count + (count === 1 ? ' article found.' : ' articles found.') : '';
-}
-
-function filterBlogCategory(category) {
-    const cat = String(category || 'all').trim().toLowerCase();
-    let count = 0;
-    document.querySelectorAll('[data-blog-post]').forEach(post => {
-        const postCat = (post.getAttribute('data-blog-cat') || post.textContent || '').toLowerCase();
-        const match = cat === 'all' || postCat.includes(cat);
-        post.classList.toggle('hidden', !match);
-        if (match) count++;
-    });
-    const statusEl = document.getElementById('blog-result-status');
-    if (statusEl) {
-        statusEl.textContent = cat === 'all' ? '' : `${count} article(s) in "${category}".`;
-    }
-}
-
 async function executeCheckTicket() {
     const refInput = document.getElementById('check-ticket-ref');
     const emailInput = document.getElementById('check-ticket-email');
@@ -3232,13 +3303,13 @@ window.onTicketsasaCatalogLoaded = function (eventsList) {
 };
 
 async function loadPublishedEvents() {
-    const section = document.getElementById('published-events');
     try {
         const params = new URLSearchParams(location.search);
         const wantFresh = params.get('fresh') === '1' || Boolean(params.get('event'));
         const { data } = await commerceRequest(wantFresh ? '/published-events?fresh=1' : '/published-events');
         for (const ev of data) {
             if (ev?.id) {
+                publishedEventDates.set(ev.id, ev.startsAt);
                 const existing = ticketsasaCatalogMap.get(ev.id);
                 ticketsasaCatalogMap.set(ev.id, {
                     ...existing,
@@ -3249,72 +3320,8 @@ async function loadPublishedEvents() {
         }
         document.getElementById('upcoming-events')?.mergeEvents?.(data);
         openLinkedEvent();
-        section.querySelectorAll('[data-published-search]').forEach(card => card.remove());
-        publishedOptions.clear();
-        document.getElementById('published-status').textContent = data.length ? '' : 'No events currently have tickets on this site.';
-        const focused = new URLSearchParams(location.search).get('event');
-        for (const event of data) {
-            publishedEventDates.set(event.id, event.startsAt);
-            const card = document.createElement('details');
-            card.className = 'rounded-xl border border-slate-200 bg-white p-4';
-            card.open = event.id === focused;
-            card.dataset.publishedSearch = [event.title, event.venue, event.description].join(' ').toLowerCase();
-            const title = document.createElement('summary');
-            title.className = 'cursor-pointer text-lg font-semibold';
-            title.textContent = event.title;
-            const info = document.createElement('p');
-            info.textContent = event.venue + ' · ' + (event.startAtLabel || eventDateFormatter.format(new Date(event.startsAt)));
-            const description = document.createElement('p');
-            description.className = 'my-3 whitespace-pre-line';
-            description.textContent = event.description;
-            const permalink = document.createElement('a');
-            permalink.href = '?view=events&event=' + encodeURIComponent(event.id);
-            permalink.textContent = 'Open Ticketsasa Event & Booking Page →';
-            permalink.className = 'underline text-rose-700 font-semibold';
-            permalink.addEventListener('click', ev => {
-                ev.preventDefault();
-                openTicketsasaEventModal(event.id);
-            });
-            card.append(title, info, description, permalink);
-            if (event.image) {
-                const image = new Image();
-                image.src = event.image.startsWith('/') ? event.image.slice(1) : event.image;
-                image.alt = event.title;
-                image.loading = 'lazy';
-                image.className = 'my-3 max-h-64 rounded-lg object-contain';
-                card.append(image);
-            }
-            const options = document.createElement('div');
-            options.className = 'grid gap-3 sm:grid-cols-2';
-            if (event.onSale) {
-                publishedOptions.set(event.id, options);
-                const checkout = document.createElement('button');
-                checkout.type = 'button';
-                checkout.className = 'my-3 rounded-lg bg-rose-700 px-4 py-2 font-semibold text-white';
-                checkout.textContent = 'Review ticket order';
-                checkout.addEventListener('click', openCheckoutModal);
-                checkout.hidden = true;
-                card.append(options, checkout);
-            }
-            else options.textContent = 'Tickets are currently off sale.';
-            if (!options.parentNode) card.append(options);
-            section.append(card);
-            if (card.open) card.scrollIntoView({ block: 'start' });
-        }
-        if (document.getElementById('event-search-input').value.trim()) {
-            const term = document.getElementById('event-search-input').value.trim().toLowerCase();
-            for (const card of section.querySelectorAll('[data-published-search]')) {
-                card.hidden = !card.dataset.publishedSearch.includes(term);
-            }
-            if (data.length && !section.querySelector('[data-published-search]:not([hidden])')) {
-                document.getElementById('published-status').textContent = 'No ticketed events match your search.';
-            }
-        }
-        renderDemoTicketOptions(currentTicketTiers.filter(tier => !tier.published));
         renderPublishedTiers(currentTicketTiers);
-    } catch {
-        document.getElementById('published-status').textContent = 'Ticketed events could not be loaded.';
-    }
+    } catch {}
 }
 
 function renderPublishedTiers(tiers) {

@@ -187,7 +187,7 @@ exports.getPaymentMethods = (req, res) => {
         mode,
         mpesa: { enabled: mode !== 'unavailable', label: 'M-Pesa STK Push' },
         card: {
-            enabled: mode !== 'unavailable',
+            enabled: mode !== 'unavailable' && Boolean(cardCfg.enabled),
             configured: cardCfg.configured,
             provider: cardCfg.provider,
             label: 'Visa / Mastercard / Apple Pay'
@@ -301,8 +301,9 @@ exports.createOrder = handler(async (req, res) => {
     if (!['KES', 'USD'].includes(currency) || paymentMethod !== 'MPESA') reject(400, 'Choose a supported currency and payment method.');
     if (!Number.isSafeInteger(tipKes) || tipKes < 0 || tipKes > 100000) reject(400, 'Invalid tip amount.');
     if (mode === 'live' && currency !== 'KES') reject(400, 'M-Pesa accepts Kenyan shillings only.');
-    const promo = mode === 'demo' ? getPromo(promoCode) : null;
-    if (promoCode && !promo) reject(400, 'Invalid promo code.');
+    if (mode === 'live') await require('../services/travelPricing').getTravelPricing().catch(() => null);
+    const promo = promoCode ? getPromo(promoCode, 'event', { customOnly: mode === 'live' }) : null;
+    if (promoCode && !promo) reject(400, 'Invalid or inactive promo code.');
     if (!Array.isArray(items) || !items.length || items.length > 30) reject(400, 'Select at least one item.');
 
     const inventory = await getInventory();

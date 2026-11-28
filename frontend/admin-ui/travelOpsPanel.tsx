@@ -279,7 +279,8 @@ export function TravelOpsPanel() {
                     <input placeholder="Code (e.g. DIANI20)" value={newPromo.code} onChange={e => setNewPromo({ ...newPromo, code: e.target.value.toUpperCase() })} />
                     <input type="number" min={1} max={50} style={{ width: 90 }} value={newPromo.discountPercent} onChange={e => setNewPromo({ ...newPromo, discountPercent: Number(e.target.value) || 10 })} />
                     <select value={newPromo.appliesTo} onChange={e => setNewPromo({ ...newPromo, appliesTo: e.target.value as CustomPromo['appliesTo'] })}>
-                        <option value="all">All Bookings</option>
+                        <option value="all">All Bookings (Events + Travel)</option>
+                        <option value="event">Events Only</option>
                         <option value="flight">Flights Only</option>
                         <option value="holiday">Holidays Only</option>
                         <option value="bundle">Flight + Holiday Bundles</option>
@@ -310,7 +311,7 @@ export function TravelOpsPanel() {
                 <div className="actions" style={{ flexWrap: 'wrap', marginBottom: '0.75rem' }}>
                     <span>WhatsApp Cloud API: <strong>{messagingStatus.whatsappConfigured ? 'Connected' : 'Ready (set WHATSAPP_ACCESS_TOKEN & WHATSAPP_PHONE_NUMBER_ID)'}</strong></span>
                     <span>Africa&apos;s Talking SMS: <strong>{messagingStatus.smsConfigured ? 'Connected' : 'Ready (set AT_API_KEY & AT_USERNAME)'}</strong></span>
-                    <span>Card Gateway: <strong>{cardStatus.configured ? `Live (${cardStatus.provider})` : 'Demo Card Mode (set PAYSTACK_SECRET_KEY or FLUTTERWAVE_SECRET_KEY)'}</strong></span>
+                    <span>Card Gateway: <strong>{cardStatus.configured ? `Live (${cardStatus.provider})` : 'Disabled in Live Mode (set PAYSTACK_SECRET_KEY or FLUTTERWAVE_SECRET_KEY to enable)'}</strong></span>
                 </div>
                 <div className="scroll">
                     <table>

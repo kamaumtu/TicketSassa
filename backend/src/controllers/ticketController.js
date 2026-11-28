@@ -31,8 +31,12 @@ exports.getAllTiers = async (req, res, next) => {
     }
 };
 
-exports.validatePromo = (req, res) => {
-    const promo = demoEnabled() && require('../services/promos').getPromo(req.body?.code);
-    if (!promo) return res.status(400).json({ success: false, message: 'Promo code is unavailable.' });
+exports.validatePromo = async (req, res) => {
+    const isDemo = demoEnabled();
+    if (!isDemo) {
+        await require('../services/travelPricing').getTravelPricing().catch(() => null);
+    }
+    const promo = require('../services/promos').getPromo(req.body?.code, 'event', { customOnly: !isDemo });
+    if (!promo) return res.status(400).json({ success: false, message: 'Invalid or inactive promo code.' });
     res.json({ success: true, ...promo });
 };

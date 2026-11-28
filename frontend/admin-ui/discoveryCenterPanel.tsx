@@ -416,12 +416,32 @@ export function DiscoveryCenterPanel() {
                 <label>Require Price to Auto-Publish<select value={String(Boolean(settings.autoPublish?.requirePrice))} onChange={e => setSettings({ ...settings, autoPublish: { ...(settings.autoPublish || {}), requirePrice: e.target.value === 'true' } })}><option value="false">Allow "Price on Request"</option><option value="true">Require Published Price</option></select></label>
                 <button className="primary" onClick={async () => {
                     setBusy(true);
-                    const r = await autoRequest<any>('/settings', 'PUT', { schedules: settings.schedules, autoPublish: settings.autoPublish });
+                    const r = await autoRequest<any>('/settings', 'PUT', { schedules: settings.schedules, autoPublish: settings.autoPublish, enabledCounties: settings.enabledCounties });
                     setSettings(r.settings);
-                    setMsg('Schedules and auto-publish rules saved.');
+                    setMsg('Schedules, counties, and auto-publish rules saved.');
                     setBusy(false);
                 }}>Save Automation Rules</button>
             </div>
+            {meta?.counties?.length > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
+                    <div className="lobby-toolbar">
+                        <h3>Active Kenyan Counties ({settings.enabledCounties?.length || 0} / 47)</h3>
+                        <div className="actions">
+                            <button type="button" onClick={() => setSettings({ ...settings, enabledCounties: meta.counties })}>Select All 47</button>
+                            <button type="button" onClick={() => setSettings({ ...settings, enabledCounties: ['Nairobi', 'Mombasa', 'Kilifi', 'Kwale', 'Nakuru', 'Kisumu', 'Uasin Gishu'] })}>Major Hubs Only</button>
+                        </div>
+                    </div>
+                    <div className="chip-grid">
+                        {meta.counties.map((c: string) => {
+                            const active = (settings.enabledCounties || []).includes(c);
+                            return <button type="button" key={c} className={active ? 'chip active' : 'chip'} onClick={() => {
+                                const next = active ? settings.enabledCounties.filter((x: string) => x !== c) : [...(settings.enabledCounties || []), c];
+                                setSettings({ ...settings, enabledCounties: next });
+                            }}>{c}</button>;
+                        })}
+                    </div>
+                </div>
+            )}
         </section>}
     </div>;
 }

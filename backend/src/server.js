@@ -110,6 +110,7 @@ app.use(cors({
 }));
 app.use('/api/published-events', require('./routes/publishedEvents').router);
 app.post('/api/admin/events', adminOnly, express.json({ limit: '2mb' }));
+app.use('/api/admin/blog', adminOnly, express.json({ limit: '2mb' }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -160,6 +161,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/passes', passRoutes);
 app.use('/api/travel', travelRoutes);
+const { publicBlogRouter, adminBlogRouter } = require('./routes/blogRoutes');
+app.use('/api/blog', publicBlogRouter);
 app.use('/api/automation', automationPublicRoutes);
 
 // Storefront is hosted on Cloudflare Workers in production; Render serves API, Socket.IO, and protected Admin/Staff tools.
@@ -223,6 +226,7 @@ function adminOnly(req, res, next) {
     res.set('WWW-Authenticate', 'Basic realm="Event publishing", charset="UTF-8"');
     return res.sendStatus(401);
 }
+app.use('/api/admin/blog', adminOnly, adminBlogRouter);
 app.use('/api/admin/automation', adminOnly, automationAdminRoutes);
 app.use('/api/admin', adminOnly, require('./routes/admin'));
 app.use('/admin-ui', adminOnly, express.static(resolve(publicRoot, 'admin-ui/dist'), {
@@ -244,7 +248,7 @@ app.get(['/organizer.js', '/staff-check-in.js'], (req, res) => {
     res.sendFile(req.path.slice(1), { root: publicRoot });
 });
 if (serveLocalStorefront) {
-    app.get(['/app.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
+    app.get(['/app.js', '/blog.js', '/support-answers.js', '/support-chat.js', '/travel-offers.js', '/discovered-marketplace.js', '/styles.css', '/storefront.css', '/frontend-angular/src/kenya-event-catalog.js'], (req, res) => {
         res.set('Cache-Control', 'public, max-age=300');
         res.sendFile(req.path.slice(1), { root: publicRoot });
     });

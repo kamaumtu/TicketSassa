@@ -1,5 +1,4 @@
 const install = document.getElementById('install-app');
-const download = document.getElementById('download-apk');
 let promptEvent;
 
 window.addEventListener('beforeinstallprompt', event => {
